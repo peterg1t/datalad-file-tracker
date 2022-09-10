@@ -23,22 +23,22 @@ st.write("""
 #this is a text
 """)
 
-dataset = "/Users/pemartin/Scripts/datalad-test/Datalad-101"
-dataset_in = "/Users/pemartin/Scripts/datalad-test/Datalad-101/inputs/I1"
-dataset_out = "/Users/pemartin/Scripts/datalad-test/Datalad-101/outputs/O1"
-file_dataset = "/Users/pemartin/Scripts/datalad-test/Datalad-101/inputs/I1/1280px-Philips_PM5544.svg.png"
+# dataset = "/Users/pemartin/Scripts/datalad-test/Datalad-101"
+# dataset_in = "/Users/pemartin/Scripts/datalad-test/Datalad-101/inputs/I1"
+# dataset_out = "/Users/pemartin/Scripts/datalad-test/Datalad-101/outputs/O1"
+# file_dataset = "/Users/pemartin/Scripts/datalad-test/Datalad-101/inputs/I1/1280px-Philips_PM5544.svg.png"
 
 
 
         
 
 class FileNote:
-    def __init__(self, dataset, filename, author, date, commit, message):
+    def __init__(self, dataset, filename, parent, author, date, commit, message):
         self.filename = filename
         self.dataset = dataset #dataset where the data belongs
         self.author = author
         self.date = date
-        self.parent = None
+        self.parent = parent
         self.child = None
         self.commit = commit #commit that created the file
         self.message = message
@@ -60,30 +60,34 @@ class FileTrack:
     def iter_scan(self, cm_list):
         for item in cm_list:
             dict_object = ast.literal_eval(re.search('(?=\{)(.|\n)*?(?<=\}\n)', item.message).group(0))
-            if dict_object['outputs'] and os.path.abspath(os.path.join(self.dataset,dict_object['outputs'][0])) == os.path.abspath(self.file):
-                instanceNote = FileNote(self.dataset, self.file, item.author, item.committed_date, item.hexsha, item.message)
+            basename_input_file = os.path.basename(os.path.abspath(self.file))
+            basename_dataset_files = os.path.basename(os.path.abspath(os.path.join(self.dataset,dict_object['outputs'][0])))
+            print(item)
+
+            if dict_object['outputs'] and basename_dataset_files == basename_input_file:
+                parent = os.path.join(self.dataset,dict_object['inputs'][0])
+                print('parent->', parent)
+                instanceNote = FileNote(self.dataset, self.file, parent, item.author, item.committed_date, item.hexsha, item.message)
                 self.trackline.append(instanceNote)
                 parent_files = dict_object['inputs'] 
                 for pf in parent_files:
                     self.file = os.path.abspath(os.path.join(self.dataset,pf))
                     return (self.iter_scan(cm_list))
+
     
 
     def search(self):
         """! This function will return all the instances of a file search
         """
         repo = git.Repo(self.dataset)
-        # file_log = repo.git.log()      
-
-        # run_cmd_list=[rc.group() for rc in re.finditer('(?=\{)(.|\n)*?(?<=\}\n)', file_log)] #rc = run command
-
         commits = list(repo.iter_commits('master'))
         run_cmd_commits=[]
         for item in commits:
             if 'DATALAD RUNCMD' in item.message:
                 run_cmd_commits.append(item)
-
-
+                
+        
+        
         self.iter_scan(run_cmd_commits)
     
 
@@ -101,8 +105,9 @@ class FileTrack:
         # graph.edges([('struct1:f1', 'struct2:f0'), ('struct1:f2', 'struct3:here')])
 
         for index, item in enumerate(self.trackline):
-            # print(item.message)
-            graph.node(item.commit, f"{item.filename}|{{ {item.commit}|{item.author}|{datetime.fromtimestamp(item.date)} }}")
+            print(item.parent, item.filename)
+            graph.node(item.commit, f"file={item.filename}|{{ commit={item.commit}|author={item.author}|date={datetime.fromtimestamp(item.date)}|parent={item.parent} }}")
+            # graph.edge(item.parent, item.filename)
         
         for index, item in enumerate(self.trackline[:-1]):
             graph.edge(item.commit, self.trackline[index+1].commit)
