@@ -20,17 +20,13 @@ import argparse
 
 
 st.write("""
-#this is a text
+Welcome to file tracker!
 """)
 
 # dataset = "/Users/pemartin/Scripts/datalad-test/Datalad-101"
 # dataset_in = "/Users/pemartin/Scripts/datalad-test/Datalad-101/inputs/I1"
 # dataset_out = "/Users/pemartin/Scripts/datalad-test/Datalad-101/outputs/O1"
 # file_dataset = "/Users/pemartin/Scripts/datalad-test/Datalad-101/inputs/I1/1280px-Philips_PM5544.svg.png"
-
-
-
-        
 
 class FileNote:
     def __init__(self, dataset, filename, parent, author, date, commit, message):
@@ -60,19 +56,18 @@ class FileTrack:
     def iter_scan(self, cm_list):
         for item in cm_list:
             dict_object = ast.literal_eval(re.search('(?=\{)(.|\n)*?(?<=\}\n)', item.message).group(0))
-            basename_input_file = os.path.basename(os.path.abspath(self.file))
-            basename_dataset_files = os.path.basename(os.path.abspath(os.path.join(self.dataset,dict_object['outputs'][0])))
-            print(item)
-
-            if dict_object['outputs'] and basename_dataset_files == basename_input_file:
-                parent = os.path.join(self.dataset,dict_object['inputs'][0])
-                print('parent->', parent)
-                instanceNote = FileNote(self.dataset, self.file, parent, item.author, item.committed_date, item.hexsha, item.message)
-                self.trackline.append(instanceNote)
-                parent_files = dict_object['inputs'] 
-                for pf in parent_files:
-                    self.file = os.path.abspath(os.path.join(self.dataset,pf))
-                    return (self.iter_scan(cm_list))
+        
+            if dict_object['outputs']:
+                basename_input_file = os.path.basename(os.path.abspath(self.file))
+                basename_dataset_files = os.path.basename(os.path.abspath(os.path.join(self.dataset,dict_object['outputs'][0])))
+                if basename_dataset_files == basename_input_file:
+                    parent = os.path.join(self.dataset,dict_object['inputs'][0])
+                    instanceNote = FileNote(self.dataset, self.file, parent, item.author, item.committed_date, item.hexsha, item.message)
+                    self.trackline.append(instanceNote)
+                    parent_files = dict_object['inputs'] 
+                    for pf in parent_files:
+                        self.file = os.path.abspath(os.path.join(self.dataset,pf))
+                        return (self.iter_scan(cm_list))
 
     
 
@@ -93,8 +88,6 @@ class FileTrack:
 
 
     def plot_notes(self):
-        print(self.trackline)
-
         graph = graphviz.Digraph(node_attr={'shape': 'record'})
 
 
@@ -105,7 +98,6 @@ class FileTrack:
         # graph.edges([('struct1:f1', 'struct2:f0'), ('struct1:f2', 'struct3:here')])
 
         for index, item in enumerate(self.trackline):
-            print(item.parent, item.filename)
             graph.node(item.commit, f"file={item.filename}|{{ commit={item.commit}|author={item.author}|date={datetime.fromtimestamp(item.date)}|parent={item.parent} }}")
             # graph.edge(item.parent, item.filename)
         
@@ -125,19 +117,23 @@ class FileTrack:
 def git_log_parse(dirname,filename):
     file_tree = FileTrack(dirname, filename)
     file_tree.search()
+    st.info('Plotting results')
     file_tree.plot_notes()
 
 
 
-
-
-parser = argparse.ArgumentParser() #pylint: disable = invalid-name
-parser.add_argument('dataset', nargs='?', default=curdir, help='Path to the DataLad subdataset')
-parser.add_argument('-f', '--filename', help='Path to the DataLad file to track')
-# parser.add_argument('-f', '--filename', action='append', help='Path to the DataLad file to track')
-args = parser.parse_args() #pylint: disable = invalid-name
-
-if args.dataset and args.filename:
-    dirname = args.dataset  #pylint: disable = invalid-name
-    fl = args.filename
+dirname = st.text_input('Input the dataset')
+fl = st.text_input('Input the file to track')
+if dirname and fl:
     git_log_parse(dirname,fl)
+
+# parser = argparse.ArgumentParser() #pylint: disable = invalid-name
+# parser.add_argument('dataset', nargs='?', default=curdir, help='Path to the DataLad subdataset')
+# parser.add_argument('-f', '--filename', help='Path to the DataLad file to track')
+# # parser.add_argument('-f', '--filename', action='append', help='Path to the DataLad file to track')
+# args = parser.parse_args() #pylint: disable = invalid-name
+
+# if args.dataset and args.filename:
+#     dirname = args.dataset  #pylint: disable = invalid-name
+#     fl = args.filename
+#     git_log_parse(dirname,fl)
