@@ -61,10 +61,9 @@ class FileTrack:
                 basename_input_file = os.path.basename(os.path.abspath(self.file))
                 basename_dataset_files = os.path.basename(os.path.abspath(os.path.join(self.dataset,dict_object['outputs'][0])))
                 if basename_dataset_files == basename_input_file:
-                    parent = os.path.join(self.dataset,dict_object['inputs'][0])
-                    instanceNote = FileNote(self.dataset, self.file, parent, item.author, item.committed_date, item.hexsha, item.message)
-                    self.trackline.append(instanceNote)
                     parent_files = dict_object['inputs'] 
+                    instanceNote = FileNote(self.dataset, self.file, parent_files, item.author, item.committed_date, item.hexsha, item.message)
+                    self.trackline.append(instanceNote)                    
                     for pf in parent_files:
                         self.file = os.path.abspath(os.path.join(self.dataset,pf))
                         self.iter_scan(cm_list)
@@ -90,8 +89,6 @@ class FileTrack:
 
     def plot_notes(self):
         graph = graphviz.Digraph(node_attr={'shape': 'record'})
-
-
         # graph.node('struct1', '<f0> left|<f1> middle|<f2> right')
         # graph.node('struct2', '<f0> one|<f1> two')
         # graph.node('struct3', r'hello\nworld |{ b |{c|<here> d|e}| f}| g | h')
@@ -99,14 +96,12 @@ class FileTrack:
         # graph.edges([('struct1:f1', 'struct2:f0'), ('struct1:f2', 'struct3:here')])
 
         for index, item in enumerate(self.trackline):
-            graph.node(item.commit, f"file={item.filename}|{{ commit={item.commit}|author={item.author}|date={datetime.fromtimestamp(item.date)}|parent={item.parent} }}")
+            graph.node(item.commit, f"file={item.filename}|{{ commit={item.commit}|author={item.author}|date={datetime.fromtimestamp(item.date)}|parent(s)={item.parent} }}")
             # graph.edge(item.parent, item.filename)
         
         for index, item in enumerate(self.trackline[:-1]):
             graph.edge(item.commit, self.trackline[index+1].commit)
         
-
-    
         st.graphviz_chart(graph)
 
 
