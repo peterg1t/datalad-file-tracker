@@ -67,7 +67,8 @@ class FileTrack:
                     parent_files = dict_object['inputs'] 
                     for pf in parent_files:
                         self.file = os.path.abspath(os.path.join(self.dataset,pf))
-                        return (self.iter_scan(cm_list))
+                        self.iter_scan(cm_list)
+
 
     
 
