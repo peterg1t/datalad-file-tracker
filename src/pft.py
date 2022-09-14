@@ -100,7 +100,12 @@ class FileTrack:
             # graph.edge(item.parent, item.filename)
         
         for index, item in enumerate(self.trackline[:-1]):
-            graph.edge(item.commit, self.trackline[index+1].commit)
+            for pt in item.parent:
+                for j in range(index, len(self.trackline)):
+                    if pt == self.trackline[j].filename:
+                        graph.edge(item.commit, self.trackline[j].commit)
+                
+            
         
         st.graphviz_chart(graph)
 
@@ -113,6 +118,7 @@ class FileTrack:
 def git_log_parse(dirname,filename):
     file_tree = FileTrack(dirname, filename)
     file_tree.search()
+    print(file_tree.trackline)
     st.info('Plotting results')
     file_tree.plot_notes()
 
