@@ -89,6 +89,8 @@ class FileTrack:
 
     def plot_notes(self):
         graph = graphviz.Digraph(node_attr={'shape': 'record'})
+        graph.attr(rankdir='TB')  
+
         # graph.node('struct1', '<f0> left|<f1> middle|<f2> right')
         # graph.node('struct2', '<f0> one|<f1> two')
         # graph.node('struct3', r'hello\nworld |{ b |{c|<here> d|e}| f}| g | h')
@@ -97,37 +99,60 @@ class FileTrack:
 
         for index, item in enumerate(self.trackline):
             graph.node(item.commit, f"file={item.filename}|{{ commit={item.commit}|author={item.author}|date={datetime.fromtimestamp(item.date)}|parent(s)={item.parent} }}")
-            # graph.edge(item.parent, item.filename)
+            
         
         for index, item in enumerate(self.trackline[:-1]):
             for pt in item.parent:
                 for j in range(index, len(self.trackline)):
                     if pt == self.trackline[j].filename:
-                        graph.edge(item.commit, self.trackline[j].commit)
+                        graph.edge(self.trackline[j].commit, item.commit)
                 
             
         
-        st.graphviz_chart(graph)
+        st.graphviz_chart(graph,use_container_width=True)
 
 
 
 
+    def plot_notes_simple(self):
+        graph = graphviz.Digraph(node_attr={'shape': 'record'})
+        graph.attr(rankdir='TB')  
+        # graph.node('struct1', '<f0> left|<f1> middle|<f2> right')
+        # graph.node('struct2', '<f0> one|<f1> two')
+        # graph.node('struct3', r'hello\nworld |{ b |{c|<here> d|e}| f}| g | h')
+
+        # graph.edges([('struct1:f1', 'struct2:f0'), ('struct1:f2', 'struct3:here')])
+
+        for index, item in enumerate(self.trackline):
+            graph.node(item.filename, f"{item.filename}")
+            for pt in item.parent:
+                graph.node(pt, f"{pt}")
+                graph.edge(pt,item.filename)
+        
+        
+                
+        st.graphviz_chart(graph,use_container_width=True)
 
 
 
-def git_log_parse(dirname,filename):
+
+def git_log_parse(dirname,filename,g_option):
     file_tree = FileTrack(dirname, filename)
     file_tree.search()
-    print(file_tree.trackline)
     st.info('Plotting results')
-    file_tree.plot_notes()
+    if g_option == 'Simple':
+        file_tree.plot_notes_simple()
+    elif g_option == 'Process':
+        file_tree.plot_notes()
+    
 
 
 
 dirname = st.text_input('Input the dataset')
 fl = st.text_input('Input the file to track')
+plot_option = st.selectbox('Display mode', ['Simple','Process'])
 if dirname and fl:
-    git_log_parse(dirname,fl)
+    git_log_parse(dirname,fl,plot_option)
 
 # parser = argparse.ArgumentParser() #pylint: disable = invalid-name
 # parser.add_argument('dataset', nargs='?', default=curdir, help='Path to the DataLad subdataset')
