@@ -19,15 +19,6 @@ from datalad_metalad.aggregate import Aggregate
 import argparse
 
 
-st.write("""
-Welcome to file tracker!
-""")
-
-# dataset = "/Users/pemartin/Scripts/datalad-test/Datalad-101"
-# dataset_in = "/Users/pemartin/Scripts/datalad-test/Datalad-101/inputs/I1"
-# dataset_out = "/Users/pemartin/Scripts/datalad-test/Datalad-101/outputs/O1"
-# file_dataset = "/Users/pemartin/Scripts/datalad-test/Datalad-101/inputs/I1/1280px-Philips_PM5544.svg.png"
-
 class FileNote:
     def __init__(self, dataset, filename, parent, author, date, commit, message):
         self.filename = filename
@@ -40,16 +31,11 @@ class FileNote:
         self.message = message
 
 
-
-
-
-
 class FileTrack:
     def __init__(self, dataset, file):
         self.dataset = dataset #dataset where the data belongs
         self.file = file #file to build the file tree in the dataset from its first occurernce
         self.trackline = []
-
 
 
     #     return outlogs
@@ -69,8 +55,6 @@ class FileTrack:
                         self.iter_scan(cm_list)
 
 
-    
-
     def search(self):
         """! This function will return all the instances of a file search
         """
@@ -81,21 +65,13 @@ class FileTrack:
             if 'DATALAD RUNCMD' in item.message:
                 run_cmd_commits.append(item)
                 
-        
-        
+                
         self.iter_scan(run_cmd_commits)
     
 
-
     def plot_notes(self):
         graph = graphviz.Digraph(node_attr={'shape': 'record'})
-        graph.attr(rankdir='TB')  
-
-        # graph.node('struct1', '<f0> left|<f1> middle|<f2> right')
-        # graph.node('struct2', '<f0> one|<f1> two')
-        # graph.node('struct3', r'hello\nworld |{ b |{c|<here> d|e}| f}| g | h')
-
-        # graph.edges([('struct1:f1', 'struct2:f0'), ('struct1:f2', 'struct3:here')])
+        graph.attr(rankdir='TB') 
 
         for index, item in enumerate(self.trackline):
             graph.node(item.commit, f"file={item.filename}|{{ commit={item.commit}|author={item.author}|date={datetime.fromtimestamp(item.date)}|parent(s)={item.parent} }}")
@@ -109,7 +85,7 @@ class FileTrack:
                 
             
         
-        st.graphviz_chart(graph,use_container_width=True)
+        # st.graphviz_chart(graph,use_container_width=True)
 
 
 
@@ -117,11 +93,6 @@ class FileTrack:
     def plot_notes_simple(self):
         graph = graphviz.Digraph(node_attr={'shape': 'record'})
         graph.attr(rankdir='TB')  
-        # graph.node('struct1', '<f0> left|<f1> middle|<f2> right')
-        # graph.node('struct2', '<f0> one|<f1> two')
-        # graph.node('struct3', r'hello\nworld |{ b |{c|<here> d|e}| f}| g | h')
-
-        # graph.edges([('struct1:f1', 'struct2:f0'), ('struct1:f2', 'struct3:here')])
 
         for index, item in enumerate(self.trackline):
             graph.node(item.filename, f"{item.filename}")
@@ -130,8 +101,7 @@ class FileTrack:
                 graph.edge(pt,item.filename)
         
         
-                
-        st.graphviz_chart(graph,use_container_width=True)
+        # st.graphviz_chart(graph,use_container_width=True)
 
 
 
@@ -148,19 +118,19 @@ def git_log_parse(dirname,filename,g_option):
 
 
 
-dirname = st.text_input('Input the dataset')
-fl = st.text_input('Input the file to track')
-plot_option = st.selectbox('Display mode', ['Simple','Process'])
-if dirname and fl:
-    git_log_parse(dirname,fl,plot_option)
+# dirname = st.text_input('Input the dataset')
+# fl = st.text_input('Input the file to track')
+# plot_option = st.selectbox('Display mode', ['Simple','Process'])
+# if dirname and fl:
+#     git_log_parse(dirname,fl,plot_option)
 
-# parser = argparse.ArgumentParser() #pylint: disable = invalid-name
-# parser.add_argument('dataset', nargs='?', default=curdir, help='Path to the DataLad subdataset')
-# parser.add_argument('-f', '--filename', help='Path to the DataLad file to track')
-# # parser.add_argument('-f', '--filename', action='append', help='Path to the DataLad file to track')
-# args = parser.parse_args() #pylint: disable = invalid-name
+parser = argparse.ArgumentParser() #pylint: disable = invalid-name
+parser.add_argument('dataset', nargs='?', default=curdir, help='Path to the DataLad subdataset')
+parser.add_argument('-f', '--filename', help='Path to the DataLad file to track')
+# parser.add_argument('-f', '--filename', action='append', help='Path to the DataLad file to track')
+args = parser.parse_args() #pylint: disable = invalid-name
 
-# if args.dataset and args.filename:
-#     dirname = args.dataset  #pylint: disable = invalid-name
-#     fl = args.filename
-#     git_log_parse(dirname,fl)
+if args.dataset and args.filename:
+    dirname = args.dataset  #pylint: disable = invalid-name
+    fl = args.filename
+    git_log_parse(dirname,fl)
