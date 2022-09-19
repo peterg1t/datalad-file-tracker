@@ -1,3 +1,4 @@
+import cmd
 import os
 from os import curdir
 from tkinter.messagebox import NO
@@ -29,7 +30,7 @@ Welcome to file provenance tracker!
 # file_dataset = "/Users/pemartin/Scripts/datalad-test/Datalad-101/inputs/I1/1280px-Philips_PM5544.svg.png"
 
 class FileNote:
-    def __init__(self, dataset, filename, parent, author, date, commit, message):
+    def __init__(self, dataset, filename, parent, author, date, commit, summary, message):
         self.filename = filename
         self.dataset = dataset #dataset where the data belongs
         self.author = author
@@ -37,11 +38,8 @@ class FileNote:
         self.parent = parent
         self.child = None
         self.commit = commit #commit that created the file
+        self.summary = summary
         self.message = message
-
-
-
-
 
 
 class FileTrack:
@@ -49,7 +47,6 @@ class FileTrack:
         self.dataset = dataset #dataset where the data belongs
         self.file = file #file to build the file tree in the dataset from its first occurernce
         self.trackline = []
-
 
 
     #     return outlogs
@@ -61,14 +58,28 @@ class FileTrack:
                 basename_input_file = os.path.basename(os.path.abspath(self.file))
                 basename_dataset_files = os.path.basename(os.path.abspath(os.path.join(self.dataset,dict_object['outputs'][0])))
                 if basename_dataset_files == basename_input_file:
-                    parent_files = dict_object['inputs'] 
-                    instanceNote = FileNote(self.dataset, self.file, parent_files, item.author, item.committed_date, item.hexsha, item.message)
-                    self.trackline.append(instanceNote)                    
+                    parent_files = dict_object['inputs']
+                    # print(dir(item))
+                    # print('author=',item.author)
+                    # print('author_tz_offset=',item.author_tz_offset)
+                    # print('authored_date=',item.authored_date)
+                    # print('authored_datetime=',item.authored_datetime)
+                    # print('binsha=',item.binsha)
+                    # print('committer=',item.committer)
+                    # print('diff=',item.diff)
+                    # print('env_author_date=',item.env_author_date)
+                    # print('summary=',item.summary)
+
+                    # print('trailers',item.trailers)
+                    # print('traverse',item.traverse)
+                    # print('tree',item.tree)
+                    # print('type',item.type)
+                    # 'author', 'author_tz_offset', 'authored_date', 'authored_datetime', 'binsha', 'committed_date', 'committed_datetime', 'committer', 'committer_tz_offset', 'conf_encoding', 'count', 'create_from_tree', 'data_stream', 'default_encoding', 'diff', 'encoding', 'env_author_date', 'env_committer_date', 'gpgsig', 'hexsha', 'iter_items', 'iter_parents', 'list_items', 'list_traverse', 'message', 'name_rev', 'new', 'new_from_sha', 'parents', 'replace', 'repo', 'size', 'stats', 'stream_data', 'summary', 'trailers', 'traverse', 'tree', 'type'
+                    instanceNote = FileNote(self.dataset, self.file, parent_files, item.author, item.committed_date, item.hexsha, item.summary, item.message)
+                    self.trackline.append(instanceNote)
                     for pf in parent_files:
                         self.file = os.path.abspath(os.path.join(self.dataset,pf))
                         self.iter_scan(cm_list)
-
-
     
 
     def search(self):
@@ -98,7 +109,8 @@ class FileTrack:
         # graph.edges([('struct1:f1', 'struct2:f0'), ('struct1:f2', 'struct3:here')])
 
         for index, item in enumerate(self.trackline):
-            graph.node(item.commit, f"file={item.filename}|{{ commit={item.commit}|author={item.author}|date={datetime.fromtimestamp(item.date)}|parent(s)={item.parent} }}")
+            graph.node(item.commit, f"file={item.filename}|{{ commit={item.commit}|author={item.author}|date={datetime.fromtimestamp(item.date)}|parent(s)={item.parent}|summary={item.summary} }}")
+            print(f"message={item.message}")
             
         
         for index, item in enumerate(self.trackline[:-1]):
@@ -108,9 +120,7 @@ class FileTrack:
                         graph.edge(self.trackline[j].commit, item.commit)
                 
             
-        
         st.graphviz_chart(graph,use_container_width=True)
-
 
 
 
@@ -124,7 +134,7 @@ class FileTrack:
         # graph.edges([('struct1:f1', 'struct2:f0'), ('struct1:f2', 'struct3:here')])
 
         for index, item in enumerate(self.trackline):
-            graph.node(item.filename, f"{item.filename}")
+            graph.node(item.filename, f"{{ commit message={item.summary.replace('[DATALAD RUNCMD]','')}|file={item.filename} }}")
             for pt in item.parent:
                 graph.node(pt, f"{pt}")
                 graph.edge(pt,item.filename)
@@ -132,7 +142,6 @@ class FileTrack:
         
                 
         st.graphviz_chart(graph,use_container_width=True)
-
 
 
 
@@ -144,7 +153,6 @@ def git_log_parse(dirname,filename,g_option):
         file_tree.plot_notes_simple()
     elif g_option == 'Process':
         file_tree.plot_notes()
-    
 
 
 
