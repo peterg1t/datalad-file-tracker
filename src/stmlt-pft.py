@@ -53,8 +53,10 @@ class PlotNotes:
         self.trackline = trackline
         self.option = option
     
-        if option == 'Process':
-            self.plot_notes()
+        if option == 'Process' and mode == 'Reverse':
+            self.plot_notes_rev()
+        elif option == 'Process' and mode == 'Forward':
+            self.plot_notes_fwd()
         elif option == 'Simple' and mode == 'Reverse':
             self.plot_notes_simple_rev()
         elif option == 'Simple' and mode == 'Forward':
@@ -66,7 +68,7 @@ class PlotNotes:
 
 
 
-    def plot_notes(self):
+    def plot_notes_rev(self):
         """ This function will plot the notes to a graphviz
         """
         graph = graphviz.Digraph(node_attr={'shape': 'record'})
@@ -88,7 +90,25 @@ class PlotNotes:
 
 
 
+    def plot_notes_fwd(self):
+        """ This function will plot the notes to a graphviz
+        """
+        graph = graphviz.Digraph(node_attr={'shape': 'record'})
+        graph.attr(rankdir='TB')  
 
+        # this section create the nodes of the graph
+        for index, item in enumerate(self.trackline):
+            graph.node(item.commit, f"file={item.filename}|{{ commit={item.commit}|author={item.author}|date={datetime.fromtimestamp(item.date)}|parent(s)={item.relative}|summary={item.summary} }}")
+            print(f"message={item.message}")
+            
+        #this section create the links on the graph between a file and its parents
+        for index, item in enumerate(self.trackline[:-1]):
+            for rel in item.relative:
+                for j in range(index, len(self.trackline)):
+                    if rel == self.trackline[j].filename:
+                        graph.edge(self.trackline[j].commit, item.commit)
+                
+        return st.graphviz_chart(graph,use_container_width=True)
 
 
 
