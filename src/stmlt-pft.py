@@ -129,15 +129,15 @@ class FileTrack:
         self.trackline.pop(note)
 
         
-    def iter_scan(self, cm_list, mode):
+    def iter_scan(self, cm_list):
         """! This function will iteratively scan for the parent of a file object
 
         Args:
             cm_list (str): A list of DATALAD RUNCMD string commits
         """
-        if mode == 'Reverse':
+        if self.search_option == 'Reverse':
             order = ('outputs','inputs')
-        elif mode == 'Forward':
+        elif self.search_option == 'Forward':
             order = ('inputs','outputs')
 
         for item in cm_list:
@@ -153,7 +153,7 @@ class FileTrack:
                     for f in files:
                         self.file = os.path.abspath(os.path.join(self.superdataset,f))
                         self.dataset = self.get_git_root(self.file)
-                        self.iter_scan_pt(cm_list)
+                        self.iter_scan(cm_list)
 
     
     
@@ -191,7 +191,7 @@ class FileTrack:
             commits = list(repo.iter_commits('master'))
             self.get_commit_list(commits, all_commits)
 
-        self.iter_scan(all_commits,self.search_option)
+        self.iter_scan(all_commits)
 
   
 
