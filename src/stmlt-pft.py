@@ -33,10 +33,10 @@ Welcome to file provenance tracker!
 class FileNote:
     def __init__(self, dataset, filename, relative, author, date, commit, summary, message):
         self.filename = filename
-        self.dataset = dataset #dataset where the data belongs
+        self.dataset = dataset 
         self.author = author
         self.date = date
-        self.relative = relative
+        self.relative = relative # child or parent of the file
         self.commit = commit #commit that created the file
         self.summary = summary
         self.message = message
@@ -112,7 +112,7 @@ class FileTrack:
         self.search_option = s_option
         self.trackline = []
 
-    def add_note(self, note):
+    def _add_note(self, note):
         """ This function will append a note to the trackline
 
         Args:
@@ -120,7 +120,7 @@ class FileTrack:
         """
         self.trackline.append(note)
     
-    def delete_note(self, note):
+    def _delete_note(self, note):
         """ This function will delete a note
 
         Args:
@@ -129,7 +129,7 @@ class FileTrack:
         self.trackline.pop(note)
 
         
-    def iter_scan(self, cm_list):
+    def _iter_scan(self, cm_list):
         """! This function will iteratively scan for the parent of a file object
 
         Args:
@@ -149,11 +149,11 @@ class FileTrack:
                     files = dict_object[order[1]]
                     instanceNote = FileNote(self.dataset, self.file, files, item.author, item.committed_date, \
                         item.hexsha, item.summary, item.message)
-                    self.add_note(instanceNote)
+                    self._add_note(instanceNote)
                     for f in files:
                         self.file = os.path.abspath(os.path.join(self.superdataset,f))
                         self.dataset = self.get_git_root(self.file)
-                        self.iter_scan(cm_list)
+                        self._iter_scan(cm_list)
 
     
     
@@ -168,6 +168,7 @@ class FileTrack:
                 if 'DATALAD RUNCMD' in item.message:
                     run_cmd_commits.append(item)
             # return run_cmd_commits
+
 
 
     def search(self):
@@ -191,7 +192,7 @@ class FileTrack:
             commits = list(repo.iter_commits('master'))
             self.get_commit_list(commits, all_commits)
 
-        self.iter_scan(all_commits)
+        self._iter_scan(all_commits)
 
   
 
