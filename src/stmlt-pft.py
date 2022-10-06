@@ -33,10 +33,10 @@ Welcome to file provenance tracker!
 class FileNote:
     def __init__(self, dataset, filename, relative, author, date, commit, summary, message):
         self.filename = filename
-        self.dataset = dataset #dataset where the data belongs
+        self.dataset = dataset 
         self.author = author
         self.date = date
-        self.relative = relative
+        self.relative = relative # child or parent of the file
         self.commit = commit #commit that created the file
         self.summary = summary
         self.message = message
@@ -88,7 +88,10 @@ class PlotNotes:
                         graph.edge(rel,item.filename)
                     elif self._mode == 'Forward':
                         graph.edge(item.filename,rel)
-                
+        
+        now = datetime.now()
+        time_stamp = datetime.timestamp(now)
+        graph.render(f"/tmp/{time_stamp}",format='png')
         return st.graphviz_chart(graph,use_container_width=True)
 
     
@@ -112,7 +115,7 @@ class FileTrack:
         self.search_option = s_option
         self.trackline = []
 
-    def add_note(self, note):
+    def _add_note(self, note):
         """ This function will append a note to the trackline
 
         Args:
@@ -120,7 +123,7 @@ class FileTrack:
         """
         self.trackline.append(note)
     
-    def delete_note(self, note):
+    def _delete_note(self, note):
         """ This function will delete a note
 
         Args:
@@ -129,50 +132,33 @@ class FileTrack:
         self.trackline.pop(note)
 
         
-    def iter_scan_pt(self, cm_list):
+    def _iter_scan(self, cm_list):
         """! This function will iteratively scan for the parent of a file object
 
         Args:
             cm_list (str): A list of DATALAD RUNCMD string commits
         """
+        if self.search_option == 'Reverse':
+            order = ('outputs','inputs')
+        elif self.search_option == 'Forward':
+            order = ('inputs','outputs')
+
         for item in cm_list:
             dict_object = ast.literal_eval(re.search('(?=\{)(.|\n)*?(?<=\}\n)', item.message).group(0))        
-            if dict_object['outputs']:
+            if dict_object[order[0]]:
                 basename_input_file = os.path.basename(os.path.abspath(self.file))
-                basename_dataset_files = os.path.basename(os.path.abspath(os.path.join(self.dataset,dict_object['outputs'][0])))
+                basename_dataset_files = os.path.basename(os.path.abspath(os.path.join(self.dataset,dict_object[order[0]][0])))
                 if basename_dataset_files == basename_input_file:
-                    parent_files = dict_object['inputs']
-                    instanceNote = FileNote(self.dataset, self.file, parent_files, item.author, item.committed_date, \
+                    files = dict_object[order[1]]
+                    instanceNote = FileNote(self.dataset, self.file, files, item.author, item.committed_date, \
                         item.hexsha, item.summary, item.message)
-                    self.add_note(instanceNote)
-                    for pf in parent_files:
-                        self.file = os.path.abspath(os.path.join(self.superdataset,pf))
+                    self._add_note(instanceNote)
+                    for f in files:
+                        self.file = os.path.abspath(os.path.join(self.superdataset,f))
                         self.dataset = self.get_git_root(self.file)
-                        self.iter_scan_pt(cm_list)
+                        self._iter_scan(cm_list)
 
-    def iter_scan_ch(self, cm_list):
-        """! This function will iteratively scan for the parent of a file object
-
-        Args:
-            cm_list (str): A list of DATALAD RUNCMD string commits
-        """
-
-        for item in cm_list:
-            dict_object = ast.literal_eval(re.search('(?=\{)(.|\n)*?(?<=\}\n)', item.message).group(0))
-
-            if dict_object['inputs']:
-                basename_input_file = os.path.basename(os.path.abspath(self.file))
-                basename_dataset_files = os.path.basename(os.path.abspath(os.path.join(self.dataset,dict_object['inputs'][0])))
-
-                if basename_dataset_files == basename_input_file:
-                    child_files = dict_object['outputs']
-                    instanceNote = FileNote(self.dataset, self.file, child_files, item.author, item.committed_date, \
-                        item.hexsha, item.summary, item.message)
-                    self.add_note(instanceNote)
-                    for cf in child_files:
-                        self.file = os.path.abspath(os.path.join(self.superdataset,cf))
-                        self.dataset = self.get_git_root(self.file)
-                        self.iter_scan_ch(cm_list)
+    
     
 
     def get_git_root(self,path_ff):
@@ -185,6 +171,7 @@ class FileTrack:
                 if 'DATALAD RUNCMD' in item.message:
                     run_cmd_commits.append(item)
             # return run_cmd_commits
+
 
 
     def search(self):
@@ -208,15 +195,7 @@ class FileTrack:
             commits = list(repo.iter_commits('master'))
             self.get_commit_list(commits, all_commits)
 
-
-                  
-
-        if self.search_option == 'Reverse':
-            print('scanning_reverse')
-            self.iter_scan_pt(all_commits)
-        elif self.search_option == 'Forward':
-            print('scanning_forward')
-            self.iter_scan_ch(all_commits)
+        self._iter_scan(all_commits)
 
   
 
@@ -232,7 +211,7 @@ def git_log_parse(filename, s_option, g_option):
         s_option (str): A search option (Reverse/Forward)
         g_option (str): A graph display mode (Process/Simple)
     """
-    file_notes = FileTrack(filename, s_option)
+    file_notes = FileTrack(filename, s_option) #given a filename and a search option we decide to search for all parents or all childs to fill the file track list
     file_notes.search()
 
     #Once the trackline is calculated we use it to generate a graph in graphviz
@@ -247,11 +226,29 @@ def git_log_parse(filename, s_option, g_option):
 
 
 
-# Sreamlit UI implementation
-flnm = st.text_input('Input the file to track')
-search_option = st.selectbox('Search mode', ['Reverse','Forward'])
-plot_option = st.selectbox('Display mode', ['Simple','Process'])
 
-if flnm:
-    git_log_parse(flnm,search_option,plot_option)
 
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p", "--filepath", help="path to file")
+    parser.add_argument("-s", "--search_mode", help="mode to search (Reverse/Forward)", choices=['Reverse','Forward'])
+    parser.add_argument("-d", "--display_mode", help="display type (Process/Simple)", choices=['Process', 'Simple'])
+    
+    args = parser.parse_args()  # pylint: disable = invalid-name
+
+    if args.filepath and args.search_mode and args.display_mode:
+        flnm = args.filepath
+        search_option = args.search_mode
+        plot_option = args.display_mode
+    else: 
+        print("Not all command line arguments were used as input, results might be wrong")
+        flnm = st.text_input('Input the file to track')
+        search_option = st.selectbox('Search mode', ['Reverse','Forward'])
+        plot_option = st.selectbox('Display mode', ['Simple','Process'])
+
+    # Sreamlit UI implementation
+    
+
+    if flnm:
+        git_log_parse(flnm,search_option,plot_option)
