@@ -88,7 +88,10 @@ class PlotNotes:
                         graph.edge(rel,item.filename)
                     elif self._mode == 'Forward':
                         graph.edge(item.filename,rel)
-                
+        
+        now = datetime.now()
+        time_stamp = datetime.timestamp(now)
+        graph.render(f"/tmp/{time_stamp}",format='png')
         return st.graphviz_chart(graph,use_container_width=True)
 
     
@@ -223,11 +226,29 @@ def git_log_parse(filename, s_option, g_option):
 
 
 
-# Sreamlit UI implementation
-flnm = st.text_input('Input the file to track')
-search_option = st.selectbox('Search mode', ['Reverse','Forward'])
-plot_option = st.selectbox('Display mode', ['Simple','Process'])
 
-if flnm:
-    git_log_parse(flnm,search_option,plot_option)
 
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p", "--filepath", help="path to file")
+    parser.add_argument("-s", "--search_mode", help="mode to search (Reverse/Forward)", choices=['Reverse','Forward'])
+    parser.add_argument("-d", "--display_mode", help="display type (Process/Simple)", choices=['Process', 'Simple'])
+    
+    args = parser.parse_args()  # pylint: disable = invalid-name
+
+    if args.filepath and args.search_mode and args.display_mode:
+        flnm = args.filepath
+        search_option = args.search_mode
+        plot_option = args.display_mode
+    else: 
+        print("Not all command line arguments were used as input, results might be wrong")
+        flnm = st.text_input('Input the file to track')
+        search_option = st.selectbox('Search mode', ['Reverse','Forward'])
+        plot_option = st.selectbox('Display mode', ['Simple','Process'])
+
+    # Sreamlit UI implementation
+    
+
+    if flnm:
+        git_log_parse(flnm,search_option,plot_option)
