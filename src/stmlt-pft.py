@@ -104,15 +104,17 @@ class PlotNotes:
 
 
 class FileTrack:
-    def __init__(self, file, s_option):
+    def __init__(self, file, s_option, l_option):
         self.file = file #file to build the file tree in the dataset from its first occurernce
         
-        self.dataset = self.get_git_root(file)
+        self.dataset = self._get_git_root(file)
         ds = dl.Dataset(self.dataset)
         sds = ds.get_superdataset()
         self.superdataset = sds.path
 
         self.search_option = s_option
+        self.level_limit = l_option
+        self.level = 0
         self.trackline = []
 
     def _add_note(self, note):
@@ -131,7 +133,7 @@ class FileTrack:
         """
         self.trackline.pop(note)
 
-        
+
     def _iter_scan(self, cm_list):
         """! This function will iteratively scan for the parent of a file object
 
@@ -144,29 +146,57 @@ class FileTrack:
             order = ('inputs','outputs')
 
         for item in cm_list:
-            dict_object = ast.literal_eval(re.search('(?=\{)(.|\n)*?(?<=\}\n)', item.message).group(0))        
+            dict_object = ast.literal_eval(re.search('(?=\{)(.|\n)*?(?<=\}\n)', item.message).group(0))     
             if dict_object[order[0]]:
                 basename_input_file = os.path.basename(os.path.abspath(self.file))
                 basename_dataset_files = os.path.basename(os.path.abspath(os.path.join(self.dataset,dict_object[order[0]][0])))
-                if basename_dataset_files == basename_input_file:
+                if basename_dataset_files == basename_input_file: #found the file wich in the first run is the input
                     files = dict_object[order[1]]
                     instanceNote = FileNote(self.dataset, self.file, files, item.author, item.committed_date, \
                         item.hexsha, item.summary, item.message)
                     self._add_note(instanceNote)
                     for f in files:
                         self.file = os.path.abspath(os.path.join(self.superdataset,f))
-                        self.dataset = self.get_git_root(self.file)
+                        self.dataset = self._get_git_root(self.file)
                         self._iter_scan(cm_list)
 
-    
-    
+        
+    def _iter_scan_mod(self, cm_list, input_file):
+        """! This function will iteratively scan for the parent of a file object and update the file track
 
-    def get_git_root(self,path_ff):
+        Args:
+            cm_list (str): A list of DATALAD RUNCMD string commits
+        """
+        dataset = self._get_git_root(input_file)
+
+        if self.search_option == 'Reverse':
+            order = ('outputs','inputs')
+        elif self.search_option == 'Forward':
+            order = ('inputs','outputs')
+
+        for item in cm_list:
+            dict_object = ast.literal_eval(re.search('(?=\{)(.|\n)*?(?<=\}\n)', item.message).group(0))
+            if dict_object[order[0]]:
+                basename_input_file = os.path.basename(os.path.abspath(input_file))
+                basename_dataset_files = os.path.basename(os.path.abspath(os.path.join(dataset,dict_object[order[0]][0])))
+                if basename_dataset_files == basename_input_file: #found the file wich in the first run is the input
+                    files = dict_object[order[1]]
+                    print('files',files)
+                    instanceNote = FileNote(dataset, input_file, files, item.author, item.committed_date, \
+                        item.hexsha, item.summary, item.message)
+                    self._add_note(instanceNote)
+                    return files
+
+                
+
+                        
+        
+    def _get_git_root(self,path_ff):
         git_repo = git.Repo(path_ff, search_parent_directories=True)
         git_root = git_repo.git.rev_parse("--show-toplevel")
         return git_root
 
-    def get_commit_list(self, commits, run_cmd_commits): 
+    def _get_commit_list(self, commits, run_cmd_commits): 
             for item in commits:
                 if 'DATALAD RUNCMD' in item.message:
                     run_cmd_commits.append(item)
@@ -180,7 +210,7 @@ class FileTrack:
         """! This function will return all the instances of a file search
         repo is the git repo corresponding to a dataset
         """
-        repo_str = self.get_git_root(self.file)
+        repo_str = self._get_git_root(self.file)
         ds = dl.Dataset(repo_str)
         sds = ds.get_superdataset()
         dataset_list.append(sds.path)
@@ -193,17 +223,27 @@ class FileTrack:
         for subdataset_path in dataset_list:        
             repo = git.Repo(subdataset_path)
             commits = list(repo.iter_commits('master'))
-            self.get_commit_list(commits, all_commits)
+            self._get_commit_list(commits, all_commits)
 
-        self._iter_scan(all_commits)
+        # self._iter_scan(all_commits)        
+        # print(self.file)                
+        relatives = self._iter_scan_mod(all_commits, self.file)
+        while self.level < self.level_limit:
+            rp = relatives
+            self.level = self.level + 1 
+            for relative in rp:
+                relatives = self._iter_scan_mod(all_commits, relative)
+        
+
+        
 
   
 
 
-    
 
 
-def git_log_parse(filename, s_option, g_option):
+
+def git_log_parse(filename, s_option, g_option, l_option):
     """! This function will generate the graphs and objects to represent the filetrack
 
     Args:
@@ -211,8 +251,12 @@ def git_log_parse(filename, s_option, g_option):
         s_option (str): A search option (Reverse/Forward)
         g_option (str): A graph display mode (Process/Simple)
     """
-    file_notes = FileTrack(filename, s_option) #given a filename and a search option we decide to search for all parents or all childs to fill the file track list
+    file_notes = FileTrack(filename, s_option, l_option) #given a filename and a search option we decide to search for all parents or all childs to fill the file track list
     file_notes.search()
+
+    
+
+
 
     #Once the trackline is calculated we use it to generate a graph in graphviz
     if not file_notes.trackline and s_option == 'Reverse':
@@ -246,9 +290,10 @@ if __name__ == "__main__":
         flnm = st.text_input('Input the file to track')
         search_option = st.selectbox('Search mode', ['Reverse','Forward'])
         plot_option = st.selectbox('Display mode', ['Simple','Process'])
+        plot_levels = st.slider('Levels', 0, 10, 1)
 
     # Sreamlit UI implementation
     
 
     if flnm:
-        git_log_parse(flnm,search_option,plot_option)
+        git_log_parse(flnm,search_option,plot_option, plot_levels)
