@@ -20,6 +20,8 @@ from datalad_metalad.extract import Extract
 from datalad_metalad.aggregate import Aggregate
 import argparse
 import itertools
+from pathlib import Path
+import glob 
 
 
 st.write("""
@@ -80,7 +82,6 @@ class PlotNotes:
                     self._graph.node(item.filename, f"{{ commit message={item.summary.replace('[DATALAD RUNCMD]','')}|file={item.filename} }}",color="green")
                 else:
                     self._graph.node(item.filename, f"{{ commit message={item.summary.replace('[DATALAD RUNCMD]','')}|file={item.filename} }}",color="red")
-                print('relatives',index,item.filename,item.relative)
                 for rel in item.relative:
                     self._graph.node(rel, f"{rel}")
                     if self._mode == 'Reverse':
@@ -117,7 +118,6 @@ class PlotNotes:
             # This section creates the nodes and links between the files (nodes of the tree)
             for index, item in enumerate(itertools.islice(trackline,len(trackline)//2)):
                 self._graph.node(item.filename, f"{{ commit message={item.summary.replace('[DATALAD RUNCMD]','')}|file={item.filename} }}")
-                print('1',item.filename)
                 for rel in item.relative:
                     self._graph.node(rel, f"{rel}")
                     print(f"{rel}")
@@ -125,7 +125,6 @@ class PlotNotes:
 
             for index, item in enumerate(itertools.islice(trackline,len(trackline)//2, len(trackline), 1)):
                 self._graph.node(item.filename, f"{{ commit message={item.summary.replace('[DATALAD RUNCMD]','')}|file={item.filename} }}")
-                print('2',item.filename)
                 for rel in item.relative:
                     self._graph.node(rel, f"{rel}")
                     print(f"{rel}")
@@ -167,10 +166,9 @@ class FileTrack:
     def __init__(self, file, s_option, l_option):
         self.file = file #file to build the file tree in the dataset from its first occurernce
         
-        self.dataset = self._get_git_root(file)
-        ds = dl.Dataset(self.dataset)
-        sds = ds.get_superdataset()
-        self.superdataset = sds.path
+        print('inital_get_git_root')
+        self.dataset = self._get_git_root_initial(file)
+        self.sds = self._get_superdataset()        
 
         self.search_option = s_option
         self.level_limit = l_option
@@ -227,7 +225,8 @@ class FileTrack:
         Args:
             cm_list (str): A list of DATALAD RUNCMD string commits
         """
-        dataset = self._get_git_root(input_file)
+        print('scan_get_git_root')
+        dataset = self._get_git_root(os.path.join(self.sds.path,input_file))
 
         if self.search_option == 'Reverse':
             order = ('outputs','inputs')
@@ -248,19 +247,37 @@ class FileTrack:
                 basename_dataset_files = os.path.basename(os.path.abspath(os.path.join(dataset,dict_object[order[0]][0])))
                 if basename_dataset_files == basename_input_file: #found the file wich in the first run is the input
                     files = dict_object[order[1]]
+                    print('files',files,dict_object)
                     instanceNote = FileNote(dataset, input_file, files, item.author, item.committed_date, \
                         item.hexsha, item.summary, item.message)
                     self._add_note(instanceNote)
                     return files
 
                 
-
+    def _get_git_root_initial(self, path_initial_file):
+        git_repo = git.Repo(path_initial_file, search_parent_directories=True)
+        git_root = git_repo.git.rev_parse("--show-toplevel")
+        
+        return git_root
                         
         
-    def _get_git_root(self,path_ff):
-        git_repo = git.Repo(path_ff, search_parent_directories=True)
+    def _get_git_root(self,path_file):
+        real_path = glob.glob(f"{self.sds.path}/**/{os.path.basename(path_file)}",recursive=True)[0]
+        git_repo = git.Repo(real_path, search_parent_directories=True)
+        print('git_repo',git_repo)
         git_root = git_repo.git.rev_parse("--show-toplevel")
+        
         return git_root
+
+    def _get_superdataset(self):
+        ds = dl.Dataset(self.dataset)
+        sds = ds.get_superdataset()
+  
+        return sds
+
+
+
+
 
     def _get_commit_list(self, commits, run_cmd_commits): 
             for item in commits:
@@ -287,11 +304,10 @@ class FileTrack:
         """! This function will return all the instances of a file search
         repo is the git repo corresponding to a dataset
         """
-        repo_str = self._get_git_root(self.file)
-        ds = dl.Dataset(repo_str)
-        sds = ds.get_superdataset()
-        dataset_list.append(sds.path)
-        subdatasets = sds.subdatasets()
+        print('search_get_git_root')
+        super_ds = self._get_superdataset()
+        dataset_list.append(super_ds.path)
+        subdatasets = super_ds.subdatasets()
         
         for subdataset in subdatasets:
             dataset_list.append(subdataset['path'])
