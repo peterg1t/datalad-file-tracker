@@ -19,6 +19,7 @@ from datalad_metalad import extract
 from datalad_metalad.extract import Extract
 from datalad_metalad.aggregate import Aggregate
 import argparse
+import itertools
 
 
 st.write("""
@@ -51,7 +52,92 @@ class PlotNotes:
         self._trackline = trackline
         self._mode = mode
         self._option = option
-        
+        self._graph=None
+
+    def plot_one_direction(self, trackline):
+        if self._option == 'Process':
+            # this section create the nodes of the graph
+            for index, item in enumerate(trackline):
+                if index == 0:
+                    self._graph.node(item.commit, f"file={item.filename}|{{ commit={item.commit}|author={item.author}|date={datetime.fromtimestamp(item.date)}|parent(s)={item.relative}|summary={item.summary} }}", color="green")
+                else:
+                    self._graph.node(item.commit, f"file={item.filename}|{{ commit={item.commit}|author={item.author}|date={datetime.fromtimestamp(item.date)}|parent(s)={item.relative}|summary={item.summary} }}",color="red")
+            
+            #this section create the links on the graph between a file and its parents
+            for index, item in enumerate(trackline[:-1]):
+                for rel in item.relative:
+                    for j in range(index, len(trackline)):
+                        if rel == trackline[j].filename:
+                            if self._mode == 'Reverse':
+                                self._graph.edge(trackline[j].commit, item.commit)
+                            elif self._mode == 'Forward':
+                                self._graph.edge(item.commit, trackline[j].commit)
+
+        elif self._option == 'Simple':
+            # This section creates the nodes and links between the files (nodes of the tree)
+            for index, item in enumerate(trackline):
+                if index == 0:
+                    self._graph.node(item.filename, f"{{ commit message={item.summary.replace('[DATALAD RUNCMD]','')}|file={item.filename} }}",color="green")
+                else:
+                    self._graph.node(item.filename, f"{{ commit message={item.summary.replace('[DATALAD RUNCMD]','')}|file={item.filename} }}",color="red")
+                print('relatives',index,item.filename,item.relative)
+                for rel in item.relative:
+                    self._graph.node(rel, f"{rel}")
+                    if self._mode == 'Reverse':
+                        self._graph.edge(rel,item.filename)
+                    elif self._mode == 'Forward':
+                        self._graph.edge(item.filename,rel)
+
+        now = datetime.now()
+        time_stamp = datetime.timestamp(now)
+        self._graph.render(f"/tmp/{time_stamp}",format='png')
+        return st.graphviz_chart(self._graph,use_container_width=True)
+
+
+    def plot_two_direction(self, trackline):
+        if self._option == 'Process':
+            # this section create the nodes of the graph
+            for index, item in enumerate(trackline):
+                if index == 0:
+                    self._graph.node(item.commit, f"file={item.filename}|{{ commit={item.commit}|author={item.author}|date={datetime.fromtimestamp(item.date)}|parent(s)={item.relative}|summary={item.summary} }}", color="green")
+                else:
+                    self._graph.node(item.commit, f"file={item.filename}|{{ commit={item.commit}|author={item.author}|date={datetime.fromtimestamp(item.date)}|parent(s)={item.relative}|summary={item.summary} }}",color="red")
+            
+            #this section create the links on the graph between a file and its parents
+            for index, item in enumerate(trackline[:-1]):
+                for rel in item.relative:
+                    for j in range(index, len(trackline)):
+                        if rel == trackline[j].filename:
+                            if self._mode == 'Reverse':
+                                self._graph.edge(trackline[j].commit, item.commit)
+                            elif self._mode == 'Forward':
+                                self._graph.edge(item.commit, trackline[j].commit)
+
+        elif self._option == 'Simple':
+            # This section creates the nodes and links between the files (nodes of the tree)
+            for index, item in enumerate(itertools.islice(trackline,len(trackline)//2)):
+                self._graph.node(item.filename, f"{{ commit message={item.summary.replace('[DATALAD RUNCMD]','')}|file={item.filename} }}")
+                print('1',item.filename)
+                for rel in item.relative:
+                    self._graph.node(rel, f"{rel}")
+                    print(f"{rel}")
+                    self._graph.edge(item.filename,rel)
+
+            for index, item in enumerate(itertools.islice(trackline,len(trackline)//2, len(trackline), 1)):
+                self._graph.node(item.filename, f"{{ commit message={item.summary.replace('[DATALAD RUNCMD]','')}|file={item.filename} }}")
+                print('2',item.filename)
+                for rel in item.relative:
+                    self._graph.node(rel, f"{rel}")
+                    print(f"{rel}")
+                    self._graph.edge(item.filename,rel)
+
+        now = datetime.now()
+        time_stamp = datetime.timestamp(now)
+        self._graph.render(f"/tmp/{time_stamp}",format='png')
+        return st.graphviz_chart(self._graph,use_container_width=True)
+
+
+
     
     def plot_notes(self):
         """ This function will generate the graphviz plots
@@ -59,40 +145,14 @@ class PlotNotes:
         Returns:
             _type_: _description_
         """
-        graph = graphviz.Digraph(node_attr={'shape': 'record'})
-        graph.attr(rankdir='TB')  
+        self._graph = graphviz.Digraph(node_attr={'shape': 'record'})
+        self._graph.attr(rankdir='TB')  
 
-        if self._option == 'Process':
-        # this section create the nodes of the graph
-            for index, item in enumerate(self._trackline):
-                graph.node(item.commit, f"file={item.filename}|{{ commit={item.commit}|author={item.author}|date={datetime.fromtimestamp(item.date)}|parent(s)={item.relative}|summary={item.summary} }}")
+        if self._mode == 'Bidirectional':
+            self.plot_two_direction(self._trackline)
+        else:
+            self.plot_one_direction(self._trackline)
             
-        
-            #this section create the links on the graph between a file and its parents
-            for index, item in enumerate(self._trackline[:-1]):
-                for rel in item.relative:
-                    for j in range(index, len(self._trackline)):
-                        if rel == self._trackline[j].filename:
-                            if self._mode == 'Reverse':
-                                graph.edge(self._trackline[j].commit, item.commit)
-                            elif self._mode == 'Forward':
-                                graph.edge(item.commit, self._trackline[j].commit)
-        
-        elif self._option == 'Simple':
-            # This section creates the nodes and links between the files (nodes of the tree)
-            for index, item in enumerate(self._trackline):
-                graph.node(item.filename, f"{{ commit message={item.summary.replace('[DATALAD RUNCMD]','')}|file={item.filename} }}")
-                for rel in item.relative:
-                    graph.node(rel, f"{rel}")
-                    if self._mode == 'Reverse':
-                        graph.edge(rel,item.filename)
-                    elif self._mode == 'Forward':
-                        graph.edge(item.filename,rel)
-        
-        now = datetime.now()
-        time_stamp = datetime.timestamp(now)
-        graph.render(f"/tmp/{time_stamp}",format='png')
-        return st.graphviz_chart(graph,use_container_width=True)
 
     
 
@@ -114,7 +174,7 @@ class FileTrack:
 
         self.search_option = s_option
         self.level_limit = l_option
-        self.level = 0
+        self.level = 1
         self.trackline = []
 
     def _add_note(self, note):
@@ -134,31 +194,31 @@ class FileTrack:
         self.trackline.pop(note)
 
 
-    def _iter_scan(self, cm_list):
-        """! This function will iteratively scan for the parent of a file object
+    # def _iter_scan(self, cm_list):
+    #     """! This function will iteratively scan for the parent of a file object
 
-        Args:
-            cm_list (str): A list of DATALAD RUNCMD string commits
-        """
-        if self.search_option == 'Reverse':
-            order = ('outputs','inputs')
-        elif self.search_option == 'Forward':
-            order = ('inputs','outputs')
+    #     Args:
+    #         cm_list (str): A list of DATALAD RUNCMD string commits
+    #     """
+    #     if self.search_option == 'Reverse':
+    #         order = ('outputs','inputs')
+    #     elif self.search_option == 'Forward':
+    #         order = ('inputs','outputs')
 
-        for item in cm_list:
-            dict_object = ast.literal_eval(re.search('(?=\{)(.|\n)*?(?<=\}\n)', item.message).group(0))     
-            if dict_object[order[0]]:
-                basename_input_file = os.path.basename(os.path.abspath(self.file))
-                basename_dataset_files = os.path.basename(os.path.abspath(os.path.join(self.dataset,dict_object[order[0]][0])))
-                if basename_dataset_files == basename_input_file: #found the file wich in the first run is the input
-                    files = dict_object[order[1]]
-                    instanceNote = FileNote(self.dataset, self.file, files, item.author, item.committed_date, \
-                        item.hexsha, item.summary, item.message)
-                    self._add_note(instanceNote)
-                    for f in files:
-                        self.file = os.path.abspath(os.path.join(self.superdataset,f))
-                        self.dataset = self._get_git_root(self.file)
-                        self._iter_scan(cm_list)
+    #     for item in cm_list:
+    #         dict_object = ast.literal_eval(re.search('(?=\{)(.|\n)*?(?<=\}\n)', item.message).group(0))     
+    #         if dict_object[order[0]]:
+    #             basename_input_file = os.path.basename(os.path.abspath(self.file))
+    #             basename_dataset_files = os.path.basename(os.path.abspath(os.path.join(self.dataset,dict_object[order[0]][0])))
+    #             if basename_dataset_files == basename_input_file: #found the file wich in the first run is the input
+    #                 files = dict_object[order[1]]
+    #                 instanceNote = FileNote(self.dataset, self.file, files, item.author, item.committed_date, \
+    #                     item.hexsha, item.summary, item.message)
+    #                 self._add_note(instanceNote)
+    #                 for f in files:
+    #                     self.file = os.path.abspath(os.path.join(self.superdataset,f))
+    #                     self.dataset = self._get_git_root(self.file)
+    #                     self._iter_scan(cm_list)
 
         
     def _iter_scan_mod(self, cm_list, input_file):
@@ -173,7 +233,14 @@ class FileTrack:
             order = ('outputs','inputs')
         elif self.search_option == 'Forward':
             order = ('inputs','outputs')
+        
+        files = self._iter_scan_kernel(cm_list, order, dataset, input_file)
+        
+        return files
 
+
+
+    def _iter_scan_kernel(self, cm_list, order, dataset, input_file):
         for item in cm_list:
             dict_object = ast.literal_eval(re.search('(?=\{)(.|\n)*?(?<=\}\n)', item.message).group(0))
             if dict_object[order[0]]:
@@ -181,7 +248,6 @@ class FileTrack:
                 basename_dataset_files = os.path.basename(os.path.abspath(os.path.join(dataset,dict_object[order[0]][0])))
                 if basename_dataset_files == basename_input_file: #found the file wich in the first run is the input
                     files = dict_object[order[1]]
-                    print('files',files)
                     instanceNote = FileNote(dataset, input_file, files, item.author, item.committed_date, \
                         item.hexsha, item.summary, item.message)
                     self._add_note(instanceNote)
@@ -201,6 +267,17 @@ class FileTrack:
                 if 'DATALAD RUNCMD' in item.message:
                     run_cmd_commits.append(item)
             # return run_cmd_commits
+
+    def search_level(self, commits):
+        relatives = self._iter_scan_mod(commits, self.file)
+        while self.level < self.level_limit:
+            rp = relatives
+            if rp is not None:
+                self.level = self.level + 1 
+                for relative in rp:
+                    relatives = self._iter_scan_mod(commits, relative)
+            else:
+                self.level = self.level_limit
 
 
 
@@ -225,14 +302,20 @@ class FileTrack:
             commits = list(repo.iter_commits('master'))
             self._get_commit_list(commits, all_commits)
 
-        # self._iter_scan(all_commits)        
-        # print(self.file)                
-        relatives = self._iter_scan_mod(all_commits, self.file)
-        while self.level < self.level_limit:
-            rp = relatives
-            self.level = self.level + 1 
-            for relative in rp:
-                relatives = self._iter_scan_mod(all_commits, relative)
+        if self.search_option == 'Bidirectional':
+            self.search_option = 'Reverse'
+            self.search_level(all_commits)
+            self.trackline.reverse()
+            print(self.trackline)
+            self.search_option = 'Forward'
+            self.search_level(all_commits)
+            print(self.trackline)
+
+        else:
+            self.search_level(all_commits)
+            print(self.trackline)
+            
+
         
 
         
@@ -253,8 +336,6 @@ def git_log_parse(filename, s_option, g_option, l_option):
     """
     file_notes = FileTrack(filename, s_option, l_option) #given a filename and a search option we decide to search for all parents or all childs to fill the file track list
     file_notes.search()
-
-    
 
 
 
@@ -288,9 +369,9 @@ if __name__ == "__main__":
     else: 
         print("Not all command line arguments were used as input, results might be wrong")
         flnm = st.text_input('Input the file to track')
-        search_option = st.selectbox('Search mode', ['Reverse','Forward'])
+        search_option = st.selectbox('Search mode', ['Reverse','Forward', 'Bidirectional'])
         plot_option = st.selectbox('Display mode', ['Simple','Process'])
-        plot_levels = st.slider('Levels', 0, 10, 1)
+        plot_levels = st.slider('Levels', 1, 10, 1)
 
     # Sreamlit UI implementation
     
