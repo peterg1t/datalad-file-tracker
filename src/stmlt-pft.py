@@ -225,7 +225,7 @@ class FileTrack:
         Args:
             cm_list (str): A list of DATALAD RUNCMD string commits
         """
-        print('scan_get_git_root')
+        print('scan_get_git_root', input_file)
         dataset = self._get_git_root(os.path.join(self.sds.path,input_file))
 
         if self.search_option == 'Reverse':
@@ -245,9 +245,10 @@ class FileTrack:
             if dict_object[order[0]]:
                 basename_input_file = os.path.basename(os.path.abspath(input_file))
                 basename_dataset_files = os.path.basename(os.path.abspath(os.path.join(dataset,dict_object[order[0]][0])))
+                print(basename_input_file, basename_dataset_files)
                 if basename_dataset_files == basename_input_file: #found the file wich in the first run is the input
                     files = dict_object[order[1]]
-                    print('files',files,dict_object)
+                    # print('files',files,dict_object)
                     instanceNote = FileNote(dataset, input_file, files, item.author, item.committed_date, \
                         item.hexsha, item.summary, item.message)
                     self._add_note(instanceNote)
@@ -289,6 +290,7 @@ class FileTrack:
         relatives = self._iter_scan_mod(commits, self.file)
         while self.level < self.level_limit:
             rp = relatives
+            print('relatives',rp)
             if rp is not None:
                 self.level = self.level + 1 
                 for relative in rp:
