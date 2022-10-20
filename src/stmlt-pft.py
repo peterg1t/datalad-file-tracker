@@ -174,6 +174,7 @@ class FileTrack:
         self.level_limit = l_option
         self.level = 1
         self.trackline = []
+        self.node_name = []
 
     def _add_note(self, note):
         """ This function will append a note to the trackline
@@ -234,6 +235,8 @@ class FileTrack:
             order = ('inputs','outputs')
         
         files = self._iter_scan_kernel(cm_list, order, dataset, input_file)
+        for file in files:
+            self._iter_scan_mod(cm_list,file)
         
         return files
 
@@ -245,13 +248,17 @@ class FileTrack:
             if dict_object[order[0]]:
                 basename_input_file = os.path.basename(os.path.abspath(input_file))
                 basename_dataset_files = os.path.basename(os.path.abspath(os.path.join(dataset,dict_object[order[0]][0])))
-                print(basename_input_file, basename_dataset_files)
+                # print(basename_input_file, basename_dataset_files)
                 if basename_dataset_files == basename_input_file: #found the file wich in the first run is the input
                     files = dict_object[order[1]]
                     # print('files',files,dict_object)
                     instanceNote = FileNote(dataset, input_file, files, item.author, item.committed_date, \
                         item.hexsha, item.summary, item.message)
-                    self._add_note(instanceNote)
+                    if os.path.abspath(input_file) in self.node_name:
+                        pass
+                    else:
+                        self._add_note(instanceNote)
+                        self.node_name.append(os.path.abspath(input_file))
                     return files
 
                 
@@ -265,7 +272,7 @@ class FileTrack:
     def _get_git_root(self,path_file):
         real_path = glob.glob(f"{self.sds.path}/**/{os.path.basename(path_file)}",recursive=True)[0]
         git_repo = git.Repo(real_path, search_parent_directories=True)
-        print('git_repo',git_repo)
+        # print('git_repo',git_repo)
         git_root = git_repo.git.rev_parse("--show-toplevel")
         
         return git_root
@@ -288,15 +295,15 @@ class FileTrack:
 
     def search_level(self, commits):
         relatives = self._iter_scan_mod(commits, self.file)
-        while self.level < self.level_limit:
-            rp = relatives
-            print('relatives',rp)
-            if rp is not None:
-                self.level = self.level + 1 
-                for relative in rp:
-                    relatives = self._iter_scan_mod(commits, relative)
-            else:
-                self.level = self.level_limit
+        # while self.level < self.level_limit:
+        #     rp = relatives
+        #     # print('relatives',rp)
+        #     if rp is not None:
+        #         self.level = self.level + 1 
+        #         for relative in rp:
+        #             relatives = self._iter_scan_mod(commits, relative)
+        #     else:
+        #         self.level = self.level_limit
 
 
 
@@ -306,7 +313,7 @@ class FileTrack:
         """! This function will return all the instances of a file search
         repo is the git repo corresponding to a dataset
         """
-        print('search_get_git_root')
+        # print('search_get_git_root')
         super_ds = self._get_superdataset()
         dataset_list.append(super_ds.path)
         subdatasets = super_ds.subdatasets()
@@ -332,6 +339,8 @@ class FileTrack:
         else:
             self.search_level(all_commits)
             print(self.trackline)
+            for item in self.trackline:
+                print('filename item',item.filename)
             
 
         
