@@ -120,14 +120,14 @@ class PlotNotes:
                 self._graph.node(item.filename, f"{{ commit message={item.summary.replace('[DATALAD RUNCMD]','')}|file={item.filename} }}")
                 for rel in item.relative:
                     self._graph.node(rel, f"{rel}")
-                    print(f"{rel}")
+                    # print(f"{rel}")
                     self._graph.edge(item.filename,rel)
 
             for index, item in enumerate(itertools.islice(trackline,len(trackline)//2, len(trackline), 1)):
                 self._graph.node(item.filename, f"{{ commit message={item.summary.replace('[DATALAD RUNCMD]','')}|file={item.filename} }}")
                 for rel in item.relative:
                     self._graph.node(rel, f"{rel}")
-                    print(f"{rel}")
+                    # print(f"{rel}")
                     self._graph.edge(item.filename,rel)
 
         now = datetime.now()
@@ -174,6 +174,7 @@ class FileTrack:
         self.level_limit = l_option
         self.level = 1
         self.trackline = []
+        self.queue=[]
 
     def _add_note(self, note):
         """ This function will append a note to the trackline
@@ -182,7 +183,26 @@ class FileTrack:
             note (object): The instance of the object to append to the trackline
         """
         self.trackline.append(note)
+
+    def _add_queue(self, filename):
+        """ This function will append a node to the queue
+
+        Args:
+            note (object): The instance of the object to append to the trackline
+        """
+        self.queue.append(filename)
     
+
+    def _pop_queue(self):
+        """ This function will pop the first element of the queue
+
+        Args:
+            note (object): The instance of the object to append to the trackline
+        """
+        self.queue.pop(0)
+
+
+
     def _delete_note(self, note):
         """ This function will delete a note
 
@@ -192,32 +212,6 @@ class FileTrack:
         self.trackline.pop(note)
 
 
-    # def _iter_scan(self, cm_list):
-    #     """! This function will iteratively scan for the parent of a file object
-
-    #     Args:
-    #         cm_list (str): A list of DATALAD RUNCMD string commits
-    #     """
-    #     if self.search_option == 'Reverse':
-    #         order = ('outputs','inputs')
-    #     elif self.search_option == 'Forward':
-    #         order = ('inputs','outputs')
-
-    #     for item in cm_list:
-    #         dict_object = ast.literal_eval(re.search('(?=\{)(.|\n)*?(?<=\}\n)', item.message).group(0))     
-    #         if dict_object[order[0]]:
-    #             basename_input_file = os.path.basename(os.path.abspath(self.file))
-    #             basename_dataset_files = os.path.basename(os.path.abspath(os.path.join(self.dataset,dict_object[order[0]][0])))
-    #             if basename_dataset_files == basename_input_file: #found the file wich in the first run is the input
-    #                 files = dict_object[order[1]]
-    #                 instanceNote = FileNote(self.dataset, self.file, files, item.author, item.committed_date, \
-    #                     item.hexsha, item.summary, item.message)
-    #                 self._add_note(instanceNote)
-    #                 for f in files:
-    #                     self.file = os.path.abspath(os.path.join(self.superdataset,f))
-    #                     self.dataset = self._get_git_root(self.file)
-    #                     self._iter_scan(cm_list)
-
         
     def _iter_scan_mod(self, cm_list, input_file):
         """! This function will iteratively scan for the parent of a file object and update the file track
@@ -225,7 +219,6 @@ class FileTrack:
         Args:
             cm_list (str): A list of DATALAD RUNCMD string commits
         """
-        print('scan_get_git_root', input_file)
         dataset = self._get_git_root(os.path.join(self.sds.path,input_file))
 
         if self.search_option == 'Reverse':
@@ -234,10 +227,13 @@ class FileTrack:
             order = ('inputs','outputs')
         
         files = self._iter_scan_kernel(cm_list, order, dataset, input_file)
-        # for file in files:
-        #     self._iter_scan_mod(cm_list,file)
+        print('input_file->', input_file, 'childern->', files, 'queue', self.queue)
+        for file in files:
+            self._add_queue(file)
+            # self._iter_scan_mod(cm_list, file)
+
         
-        return files
+        
 
 
 
@@ -247,13 +243,12 @@ class FileTrack:
             if dict_object[order[0]]:
                 basename_input_file = os.path.basename(os.path.abspath(input_file))
                 basename_dataset_files = os.path.basename(os.path.abspath(os.path.join(dataset,dict_object[order[0]][0])))
-                # print(basename_input_file, basename_dataset_files)
                 if basename_dataset_files == basename_input_file: #found the file wich in the first run is the input
                     files = dict_object[order[1]]
-                    # print('files',files,dict_object)
                     instanceNote = FileNote(dataset, input_file, files, item.author, item.committed_date, \
                         item.hexsha, item.summary, item.message)
                     self._add_note(instanceNote)
+                    
                     return files
 
                 
@@ -289,16 +284,11 @@ class FileTrack:
             # return run_cmd_commits
 
     def search_level(self, commits):
-        relatives = self._iter_scan_mod(commits, self.file)
-        while self.level < self.level_limit:
-            rp = relatives
-            # print('relatives',rp)
-            if rp is not None:
-                self.level = self.level + 1 
-                for relative in rp:
-                    relatives = self._iter_scan_mod(commits, relative)
-            else:
-                self.level = self.level_limit
+        self._add_queue(self.file)
+        while len(self.queue)!=0:
+            self._iter_scan_mod(commits, self.file)
+            self._pop_queue()
+
 
 
 
@@ -333,9 +323,7 @@ class FileTrack:
 
         else:
             self.search_level(all_commits)
-            print(self.trackline)
-            for item in self.trackline:
-                print('filename item',item.filename)
+
             
 
         
