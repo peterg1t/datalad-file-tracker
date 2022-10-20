@@ -43,7 +43,8 @@ class FileNote:
         self.commit = commit #commit that created the file
         self.summary = summary
         self.message = message
-
+        
+    
 
 
 
@@ -172,9 +173,12 @@ class FileTrack:
 
         self.search_option = s_option
         self.level_limit = l_option
-        self.level = 1
         self.trackline = []
         self.queue=[]
+        self.queue_invar=[]
+        self.queue_level=[]
+
+
 
     def _add_note(self, note):
         """ This function will append a note to the trackline
@@ -191,7 +195,20 @@ class FileTrack:
             note (object): The instance of the object to append to the trackline
         """
         self.queue.append(filename)
+
+
+
+
+    def _extend_queue(self, list_files):
+        """ This function will append a node to the queue
+
+        Args:
+            note (object): The instance of the object to append to the trackline
+        """
+        self.queue.extend(list_files)
     
+
+
 
     def _pop_queue(self):
         """ This function will pop the first element of the queue
@@ -203,6 +220,8 @@ class FileTrack:
 
 
 
+
+
     def _delete_note(self, note):
         """ This function will delete a note
 
@@ -210,6 +229,8 @@ class FileTrack:
             note (object): The object to remove from the trackline
         """
         self.trackline.pop(note)
+
+
 
 
         
@@ -227,10 +248,35 @@ class FileTrack:
             order = ('inputs','outputs')
         
         files = self._iter_scan_kernel(cm_list, order, dataset, input_file)
-        print('input_file->', input_file, 'childern->', files, 'queue', self.queue)
-        for file in files:
-            self._add_queue(file)
-            # self._iter_scan_mod(cm_list, file)
+        print('input_file->', input_file, 'children->', files)
+        print('queue',self.queue)
+        print('queue_invar',self.queue_invar)
+        print('queue_level', self.queue_level)
+        print('index input file', input_file, self.queue_invar.index(input_file))
+        print(self.trackline)
+
+        self._extend_queue(files)
+        self.queue_invar.extend(files)
+
+
+        index_file = self.queue_invar.index(input_file)
+        index_previous = index_file - 1
+
+        depth_level = self.queue_level[index_file]
+        depth_compare = self.queue_level[index_previous]
+
+        print(depth_level, depth_compare)
+        self.queue_level.extend( len(files)*[depth_level+1] )
+
+        self._pop_queue()
+
+        if depth_compare == self.level_limit and depth_level > self.level_limit:
+            self.trackline.pop()
+        else:
+            if len(self.queue)!=0 and not ():
+                self._iter_scan_mod(cm_list, self.queue[0])
+            
+            
 
         
         
@@ -285,9 +331,10 @@ class FileTrack:
 
     def search_level(self, commits):
         self._add_queue(self.file)
-        while len(self.queue)!=0:
-            self._iter_scan_mod(commits, self.file)
-            self._pop_queue()
+        self.queue_invar.append(self.file)
+        self.queue_level.append(0)
+        self._iter_scan_mod(commits, self.file)
+        
 
 
 
@@ -323,6 +370,8 @@ class FileTrack:
 
         else:
             self.search_level(all_commits)
+            for item in self.trackline:
+                print(item.filename)
 
             
 
@@ -369,6 +418,7 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--filepath", help="path to file")
     parser.add_argument("-s", "--search_mode", help="mode to search (Reverse/Forward)", choices=['Reverse','Forward'])
     parser.add_argument("-d", "--display_mode", help="display type (Process/Simple)", choices=['Process', 'Simple'])
+    parser.add_argument("-l", "--level", help="Tree level", type=int)
     
     args = parser.parse_args()  # pylint: disable = invalid-name
 
@@ -376,12 +426,13 @@ if __name__ == "__main__":
         flnm = args.filepath
         search_option = args.search_mode
         plot_option = args.display_mode
+        plot_levels = args.level
     else: 
         print("Not all command line arguments were used as input, results might be wrong")
         flnm = st.text_input('Input the file to track')
         search_option = st.selectbox('Search mode', ['Reverse','Forward', 'Bidirectional'])
         plot_option = st.selectbox('Display mode', ['Simple','Process'])
-        plot_levels = st.slider('Levels', 1, 10, 1)
+        plot_levels = st.slider('Levels', 0, 10, 1)
 
     # Sreamlit UI implementation
     
