@@ -26,6 +26,7 @@ import glob
 import utils
 
 
+
 st.write("""
 Welcome to file provenance tracker!
 """)
@@ -44,6 +45,7 @@ class FileTrack:
 
         self.search_option = s_option # search option forward or backward
         self.level_limit = l_option # the depth level to search in the tree
+
         self.trackline = [] # a track of notes
         self.queue=[] # a queue of notes
         self.queue_invar=[] # a queue that only gets appended
@@ -160,12 +162,14 @@ class FileTrack:
                 basename_input_file = os.path.basename(os.path.abspath(input_file))
                 basename_dataset_files = os.path.basename(os.path.abspath(os.path.join(dataset,dict_object[order[0]][0])))
                 if basename_dataset_files == basename_input_file: #found the file wich in the first run is the input
-                    files = dict_object[order[1]]
-                    instanceNote = utils.FileNote(dataset, input_file, files, item.author, item.committed_date, \
+                    relative_notes = dict_object[order[1]]
+                    #get the full path of the relatives notes
+                    relative_notes = [os.path.abspath(os.path.join(self._get_git_root(os.path.join(self.sds.path,f)),os.path.basename(f))) for f in relative_notes]
+                    instanceNote = utils.FileNote(dataset, os.path.abspath(os.path.join(dataset,os.path.basename(input_file))), relative_notes, item.author, item.committed_date, \
                         item.hexsha, item.summary, item.message)
                     self._add_note(instanceNote)
                     
-                    return files
+                    return relative_notes
 
                 
     def _get_git_root_initial(self, path_initial_file):
@@ -292,8 +296,11 @@ def git_log_parse(filename, s_option, g_option, l_option):
         st.info('There is no trackline for this specific file, there are no childs to this file')
     else:
         st.info('Plotting results')
+        # graph = utils.PlotNotes(file_track.trackline, s_option, g_option)
+        # graph.plot_notes()
+
         graph = utils.PlotNotes(file_track.trackline, s_option, g_option)
-        graph.plot_notes()
+        graph.plot_bokeh()
 
 
 
@@ -319,7 +326,12 @@ if __name__ == "__main__":
         flnm = st.text_input('Input the file to track')
         search_option = st.selectbox('Search mode', ['Reverse','Forward', 'Bidirectional'])
         plot_option = st.selectbox('Display mode', ['Simple','Process'])
-        plot_levels = st.slider('Levels', 0, 10, 1)
+        
+        plot_levels = st.select_slider(
+        'Select a depth level',
+        options=[0,1,2,3,4,5,6,7,8,9,10,99999])
+
+        # plot_levels = st.slider('Levels', 0, 10, 1)
 
     # Sreamlit UI implementation
     

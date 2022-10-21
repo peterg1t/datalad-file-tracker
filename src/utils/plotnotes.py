@@ -1,7 +1,17 @@
+import os
 from datetime import datetime
 import itertools
 import streamlit as st
 import graphviz as graphviz
+import pandas as pd
+
+from networkx.drawing.nx_agraph import graphviz_layout
+from bokeh.plotting import from_networkx, figure
+from bokeh.models import (BoxZoomTool, Circle, HoverTool, ResetTool, ColumnDataSource, LabelSet)
+from bokeh.palettes import Viridis
+import networkx as nx
+
+
 
 
 class PlotNotes:
@@ -12,6 +22,74 @@ class PlotNotes:
         self._mode = mode
         self._option = option
         self._graph=None
+
+    def _create_network(self):
+        G = nx.DiGraph()
+    
+
+        # author', 'commit', 'dataset', 'date', 'filename', 'message', 'relative', 'summary'
+
+ 
+
+
+        files = [item.filename for item in self._trackline]
+
+        for note in self._trackline:
+            G.add_node(note.filename, date = note.date, author = str(note.author), commit = note.commit, dataset = note.dataset, \
+                message = note.message, relative = note.relative, summary = note.summary)
+
+        # print(list(G.nodes), dir(G))
+
+        for item in self._trackline:
+            for relative in item.relative:
+                G.add_edge(relative, item.filename)        
+        
+        return G
+
+
+
+    def plot_bokeh(self):
+        plot = figure(title="Networkx Integration Demonstration",
+              toolbar_location="below", tools = "pan,wheel_zoom")
+
+        BG = self._create_network()
+        # graph = from_networkx(BG, nx.spring_layout, scale=1, center=(0,0))
+        gl = graphviz_layout(BG, prog='dot', root=None)
+        graph = from_networkx(BG, gl)
+        plot.axis.visible = False
+        # p1.xaxis.visible = False or p1.yaxis.visible=False
+
+        
+        
+        node_hover_tool = HoverTool(tooltips=[("index", "@index"), ("date", "@date"), ("message", "@message")])
+        plot.add_tools(node_hover_tool, BoxZoomTool(), ResetTool())
+        
+
+        graph.node_renderer.glyph = Circle(size=15)
+
+        #ploting the names of the files as labels        
+        plot.renderers.append(graph)
+        x, y = zip(*graph.layout_provider.graph_layout.values())
+        node_labels = nx.get_node_attributes(BG, 'date')
+        fn = list(node_labels.keys())
+        fn_mod = [os.path.basename(f) for f in fn]
+        print(len(x), len(fn), fn, list(node_labels.values())[0])
+        source = ColumnDataSource({'x': x, 'y': y, 'date': fn_mod})
+        labels = LabelSet(x='x', y='y', text='date', source=source,
+                  background_fill_color='white')
+
+        plot.renderers.append(labels)
+
+
+        return st.bokeh_chart(plot, use_container_width=True)
+
+
+
+
+
+
+
+
 
     def plot_one_direction(self, trackline):
         if self._option == 'Process':
