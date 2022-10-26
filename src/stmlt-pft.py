@@ -1,6 +1,7 @@
 import cmd
 import os
 from os import curdir
+import profile
 from tkinter.messagebox import NO
 
 import git
@@ -25,7 +26,11 @@ import glob
 
 import utils
 
+import cProfile, pstats
 
+
+
+profiler = cProfile.Profile()
 
 st.write("""
 Welcome to file provenance tracker!
@@ -175,7 +180,7 @@ class FileTrack:
                         self.trackline.pop()
                     
                     else:
-                        if len(self.queue)!=0:
+                        if self.queue:
                             self._iter_scan_mod(cm_list, self.queue[0])
                     
                     return relative_notes
@@ -309,7 +314,11 @@ def git_log_parse(filename, s_option, l_option):
         g_option (str): A graph display mode (Process/Simple)
     """
     file_track = FileTrack(filename, s_option, l_option) #given a filename and a search option we decide to search for all parents or all childs to fill the file track list
+    # profiler.enable()
     file_track.search()
+    # profiler.disable()
+    # stats = pstats.Stats(profiler).sort_stats('ncalls')
+    # stats.print_stats()
 
 
 
