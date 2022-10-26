@@ -61,6 +61,7 @@ class FileTrack:
         """
         self.trackline.append(note)
 
+
     def _add_queue(self, filename):
         """ This function will append a node to the queue
 
@@ -70,8 +71,6 @@ class FileTrack:
         self.queue.append(filename)
 
 
-
-
     def _extend_queue(self, list_files):
         """ This function will extend the queue with the relatives of a certain note
 
@@ -79,8 +78,6 @@ class FileTrack:
             list_files (list): A list to append to the queue
         """
         self.queue.extend(list_files)
-    
-
 
 
     def _pop_queue(self):
