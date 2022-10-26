@@ -111,6 +111,7 @@ class FileTrack:
             cm_list (str): A list of DATALAD RUNCMD string commits
         """
         dataset = self._get_git_root(os.path.join(self.sds.path,input_file))
+        print('calling dataset')
 
         if self.search_option == 'Reverse':
             order = ('outputs','inputs')
@@ -118,33 +119,16 @@ class FileTrack:
             order = ('inputs','outputs')
         
         files = self._iter_scan_kernel(cm_list, order, dataset, input_file)
+        
 
-        # Add the relative notes to the queue and invariant queue
-        self._extend_queue(files)
-        self.queue_invar.extend(files)
-
-
-        index_file = self.queue_invar.index(input_file)
-        index_previous = index_file - 1
-
-        depth_level = self.queue_level[index_file]
-        depth_compare = self.queue_level[index_previous]
-
-        self.queue_level.extend( len(files)*[depth_level+1] )
-
-        self._pop_queue()
-
-        if depth_compare == self.level_limit and depth_level > self.level_limit:
-            self.trackline.pop()
-        else:
-            if len(self.queue)!=0 and not ():
-                self._iter_scan_mod(cm_list, self.queue[0])
+        
+                
             
 
             
 
 
-    def _iter_scan_kernel(self, cm_list, order, dataset, input_file):
+    def _iter_scan_kernel(self, cm_list, order, dataset, input_file) -> list:
         """! This function will return all the child or parent notes
 
         Args:
@@ -163,13 +147,42 @@ class FileTrack:
                 basename_dataset_files = os.path.basename(os.path.abspath(os.path.join(dataset,dict_object[order[0]][0])))
                 if basename_dataset_files == basename_input_file: #found the file wich in the first run is the input
                     relative_notes = dict_object[order[1]]
+                    
                     #get the full path of the relatives notes
                     relative_notes = [os.path.abspath(os.path.join(self._get_git_root(os.path.join(self.sds.path,f)),os.path.basename(f))) for f in relative_notes]
                     instanceNote = utils.FileNote(dataset, os.path.abspath(os.path.join(dataset,os.path.basename(input_file))), relative_notes, item.author, item.committed_date, \
                         item.hexsha, item.summary, item.message)
                     self._add_note(instanceNote)
+
+                    # Add the relative notes to the queue and invariant queue
+                    self._extend_queue(relative_notes)
+                    self.queue_invar.extend(relative_notes)
+
+                    #get the index of the input file in the invariant queue
+                    self.index_file = self.queue_invar.index(input_file)
+                    #get the previous index
+                    self.index_previous = self.index_file - 1
+
+                    #get the depth level from the queue level
+                    self.depth_level = self.queue_level[self.index_file]
+                    #get the previous depth level to compare
+                    self.depth_compare = self.queue_level[self.index_previous]
+
+                    #extend the queue level
+                    self.queue_level.extend( len(relative_notes)*[self.depth_level+1] )
+
+                    #pop  the queue
+                    self._pop_queue()
+
+                    if self.depth_compare == self.level_limit and self.depth_level > self.level_limit:
+                        self.trackline.pop()
+                    
+                    else:
+                        if len(self.queue)!=0:
+                            self._iter_scan_mod(cm_list, self.queue[0])
                     
                     return relative_notes
+            
 
                 
     def _get_git_root_initial(self, path_initial_file):
@@ -261,13 +274,27 @@ class FileTrack:
 
         if self.search_option == 'Bidirectional':
             self.search_option = 'Reverse'
+            
             self.search_level(all_commits)
-            self.trackline.reverse()
+            trackline_reverse=self.trackline[::-1]            
+            
+            self.trackline.clear()
+            self.queue.clear()
+            self.queue_invar.clear()
+            self.queue_level.clear()
+
+        
             self.search_option = 'Forward'
             self.search_level(all_commits)
+            trackline_forward=self.trackline
+            
+            self.trackline = trackline_reverse+trackline_forward
+
 
         else:
             self.search_level(all_commits)
+
+        
 
 
 
@@ -276,7 +303,7 @@ class FileTrack:
         
 
 
-def git_log_parse(filename, s_option, g_option, l_option):
+def git_log_parse(filename, s_option, l_option):
     """! This function will generate the graphs and objects to represent the filetrack
 
     Args:
@@ -299,8 +326,8 @@ def git_log_parse(filename, s_option, g_option, l_option):
         # graph = utils.PlotNotes(file_track.trackline, s_option, g_option)
         # graph.plot_notes()
 
-        graph = utils.PlotNotes(file_track.trackline, s_option, g_option)
-        graph.plot_bokeh()
+        graph = utils.PlotNotes(file_track.trackline, s_option)
+        graph.plot_notes()
 
 
 
@@ -325,7 +352,7 @@ if __name__ == "__main__":
         print("Not all command line arguments were used as input, results might be wrong")
         flnm = st.text_input('Input the file to track')
         search_option = st.selectbox('Search mode', ['Reverse','Forward', 'Bidirectional'])
-        plot_option = st.selectbox('Display mode', ['Simple','Process'])
+        # plot_option = st.selectbox('Display mode', ['Simple','Process'])
         
         plot_levels = st.select_slider(
         'Select a depth level',
@@ -337,4 +364,4 @@ if __name__ == "__main__":
     
 
     if flnm:
-        git_log_parse(flnm,search_option,plot_option, plot_levels)
+        git_log_parse(flnm,search_option, plot_levels)

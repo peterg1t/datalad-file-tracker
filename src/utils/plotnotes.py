@@ -7,7 +7,7 @@ import pandas as pd
 
 from networkx.drawing.nx_agraph import graphviz_layout
 from bokeh.plotting import from_networkx, figure
-from bokeh.models import (BoxZoomTool, Circle, HoverTool, ResetTool, ColumnDataSource, LabelSet)
+from bokeh.models import (BoxZoomTool, Circle, HoverTool, ResetTool, ColumnDataSource, LabelSet, DataRange1d)
 from bokeh.palettes import Viridis
 import networkx as nx
 
@@ -17,39 +17,74 @@ import networkx as nx
 class PlotNotes:
     """ This is a builder class for the graphs
     """
-    def __init__(self, trackline, mode, option):
+    def __init__(self, trackline, mode):
         self._trackline = trackline
         self._mode = mode
-        self._option = option
         self._graph=None
+
+
+    def _loc_duplicate(self, value_list):
+        for i in range(len(value_list)):
+            if value_list[i]==value_list[i+1]:
+                return i+1
 
     def _create_network(self):
         G = nx.DiGraph()
-    
-
-        # author', 'commit', 'dataset', 'date', 'filename', 'message', 'relative', 'summary'
-
- 
-
-
-        files = [item.filename for item in self._trackline]
-
+        k = 0
         for note in self._trackline:
-            G.add_node(note.filename, date = note.date, author = str(note.author), commit = note.commit, dataset = note.dataset, \
-                message = note.message, relative = note.relative, summary = note.summary)
+            if self._mode == 'Bidirectional':
+                indx_dupl = self._loc_duplicate([item.filename for item in self._trackline])
+                if k == indx_dupl:
+                    G.add_node(note.filename, date = datetime.fromtimestamp(note.date).strftime("%d/%m/%Y, %H:%M:%S"), author = str(note.author), commit = note.commit, dataset = note.dataset, \
+                    message = note.message, relative = note.relative, summary = note.summary, colour = 'green')
+                else:
+                    G.add_node(note.filename, date = datetime.fromtimestamp(note.date).strftime("%d/%m/%Y, %H:%M:%S"), author = str(note.author), commit = note.commit, dataset = note.dataset, \
+                    message = note.message, relative = note.relative, summary = note.summary, colour = 'red')
 
-        # print(list(G.nodes), dir(G))
+            else:
+                if k == 0:
+                    G.add_node(note.filename, date = datetime.fromtimestamp(note.date).strftime("%d/%m/%Y, %H:%M:%S"), author = str(note.author), commit = note.commit, dataset = note.dataset, \
+                    message = note.message, relative = note.relative, summary = note.summary, colour = 'green')
+                else:
+                    G.add_node(note.filename, date = datetime.fromtimestamp(note.date).strftime("%d/%m/%Y, %H:%M:%S"), author = str(note.author), commit = note.commit, dataset = note.dataset, \
+                    message = note.message, relative = note.relative, summary = note.summary, colour = 'red')
+            
+            k = k + 1
 
-        for item in self._trackline:
-            for relative in item.relative:
-                G.add_edge(relative, item.filename)        
+
+        if self._mode == 'Reverse':
+            for item in self._trackline:
+                for relative in item.relative:
+                    G.add_edge(relative, item.filename) 
+
+        elif self._mode == 'Forward':       
+            for item in self._trackline:
+                for relative in item.relative:
+                    G.add_edge(item.filename, relative)
+
+        elif self._mode == 'Bidirectional':
+            indx_dupl = self._loc_duplicate([item.filename for item in self._trackline])
+            
+            for item in self._trackline[:indx_dupl]:
+                for relative in item.relative:
+                    G.add_edge(relative, item.filename)
+            for item in self._trackline[indx_dupl:]:
+                for relative in item.relative:
+                    G.add_edge(item.filename, relative)
+            
+
         
         return G
 
 
 
+
+
+
+
+
     def plot_bokeh(self):
-        plot = figure(title="Networkx Integration Demonstration",
+        plot = figure(title="File provenance tracker",
               toolbar_location="below", tools = "pan,wheel_zoom")
 
         BG = self._create_network()
@@ -57,7 +92,10 @@ class PlotNotes:
         gl = graphviz_layout(BG, prog='dot', root=None)
         graph = from_networkx(BG, gl)
         plot.axis.visible = False
-        # p1.xaxis.visible = False or p1.yaxis.visible=False
+        
+        
+        plot.x_range = DataRange1d(range_padding=0.2)
+        plot.y_range = DataRange1d(range_padding=0.2)
 
         
         
@@ -65,18 +103,22 @@ class PlotNotes:
         plot.add_tools(node_hover_tool, BoxZoomTool(), ResetTool())
         
 
-        graph.node_renderer.glyph = Circle(size=15)
+        graph.node_renderer.glyph = Circle(size=20, fill_color='colour')
 
         #ploting the names of the files as labels        
         plot.renderers.append(graph)
         x, y = zip(*graph.layout_provider.graph_layout.values())
         node_labels = nx.get_node_attributes(BG, 'date')
+        # colour_node = nx.get_node_attributes(BG, 'colour')
         fn = list(node_labels.keys())
+
+        
+        
         fn_mod = [os.path.basename(f) for f in fn]
-        print(len(x), len(fn), fn, list(node_labels.values())[0])
+        
         source = ColumnDataSource({'x': x, 'y': y, 'date': fn_mod})
         labels = LabelSet(x='x', y='y', text='date', source=source,
-                  background_fill_color='white')
+                  background_fill_color='white', text_align='center', y_offset=11)
 
         plot.renderers.append(labels)
 
@@ -88,91 +130,6 @@ class PlotNotes:
 
 
 
-
-
-
-    def plot_one_direction(self, trackline):
-        if self._option == 'Process':
-            # this section create the nodes of the graph
-            for index, item in enumerate(trackline):
-                if index == 0:
-                    self._graph.node(item.commit, f"file={item.filename}|{{ commit={item.commit}|author={item.author}|date={datetime.fromtimestamp(item.date)}|parent(s)={item.relative}|summary={item.summary} }}", color="green")
-                else:
-                    self._graph.node(item.commit, f"file={item.filename}|{{ commit={item.commit}|author={item.author}|date={datetime.fromtimestamp(item.date)}|parent(s)={item.relative}|summary={item.summary} }}",color="red")
-            
-            #this section create the links on the graph between a file and its parents
-            for index, item in enumerate(trackline[:-1]):
-                for rel in item.relative:
-                    for j in range(index, len(trackline)):
-                        if rel == trackline[j].filename:
-                            if self._mode == 'Reverse':
-                                self._graph.edge(trackline[j].commit, item.commit)
-                            elif self._mode == 'Forward':
-                                self._graph.edge(item.commit, trackline[j].commit)
-
-        elif self._option == 'Simple':
-            # This section creates the nodes and links between the files (nodes of the tree)
-            for index, item in enumerate(trackline):
-                if index == 0:
-                    self._graph.node(item.filename, f"{{ commit message={item.summary.replace('[DATALAD RUNCMD]','')}|file={item.filename} }}",color="green")
-                else:
-                    self._graph.node(item.filename, f"{{ commit message={item.summary.replace('[DATALAD RUNCMD]','')}|file={item.filename} }}",color="red")
-                for rel in item.relative:
-                    self._graph.node(rel, f"{rel}")
-                    if self._mode == 'Reverse':
-                        self._graph.edge(rel,item.filename)
-                    elif self._mode == 'Forward':
-                        self._graph.edge(item.filename,rel)
-
-        now = datetime.now()
-        time_stamp = datetime.timestamp(now)
-        self._graph.render(f"/tmp/{time_stamp}",format='png')
-        return st.graphviz_chart(self._graph,use_container_width=True)
-
-
-    def plot_two_direction(self, trackline):
-        if self._option == 'Process':
-            # this section create the nodes of the graph
-            for index, item in enumerate(trackline):
-                if index == 0:
-                    self._graph.node(item.commit, f"file={item.filename}|{{ commit={item.commit}|author={item.author}|date={datetime.fromtimestamp(item.date)}|parent(s)={item.relative}|summary={item.summary} }}", color="green")
-                else:
-                    self._graph.node(item.commit, f"file={item.filename}|{{ commit={item.commit}|author={item.author}|date={datetime.fromtimestamp(item.date)}|parent(s)={item.relative}|summary={item.summary} }}",color="red")
-            
-            #this section create the links on the graph between a file and its parents
-            for index, item in enumerate(trackline[:-1]):
-                for rel in item.relative:
-                    for j in range(index, len(trackline)):
-                        if rel == trackline[j].filename:
-                            if self._mode == 'Reverse':
-                                self._graph.edge(trackline[j].commit, item.commit)
-                            elif self._mode == 'Forward':
-                                self._graph.edge(item.commit, trackline[j].commit)
-
-        elif self._option == 'Simple':
-            # This section creates the nodes and links between the files (nodes of the tree)
-            for index, item in enumerate(itertools.islice(trackline,len(trackline)//2)):
-                self._graph.node(item.filename, f"{{ commit message={item.summary.replace('[DATALAD RUNCMD]','')}|file={item.filename} }}")
-                for rel in item.relative:
-                    self._graph.node(rel, f"{rel}")
-                    # print(f"{rel}")
-                    self._graph.edge(item.filename,rel)
-
-            for index, item in enumerate(itertools.islice(trackline,len(trackline)//2, len(trackline), 1)):
-                self._graph.node(item.filename, f"{{ commit message={item.summary.replace('[DATALAD RUNCMD]','')}|file={item.filename} }}")
-                for rel in item.relative:
-                    self._graph.node(rel, f"{rel}")
-                    # print(f"{rel}")
-                    self._graph.edge(item.filename,rel)
-
-        now = datetime.now()
-        time_stamp = datetime.timestamp(now)
-        self._graph.render(f"/tmp/{time_stamp}",format='png')
-        return st.graphviz_chart(self._graph,use_container_width=True)
-
-
-
-    
     def plot_notes(self):
         """ This function will generate the graphviz plots
 
@@ -181,8 +138,105 @@ class PlotNotes:
         """
         self._graph = graphviz.Digraph(node_attr={'shape': 'record'})
         self._graph.attr(rankdir='TB')  
+        self.plot_bokeh()
 
-        if self._mode == 'Bidirectional':
-            self.plot_two_direction(self._trackline)
-        else:
-            self.plot_one_direction(self._trackline)
+
+
+
+
+
+    # def plot_one_direction(self, trackline):
+    #     if self._option == 'Process':
+    #         # this section create the nodes of the graph
+    #         for index, item in enumerate(trackline):
+    #             if index == 0:
+    #                 self._graph.node(item.commit, f"file={item.filename}|{{ commit={item.commit}|author={item.author}|date={datetime.fromtimestamp(item.date)}|parent(s)={item.relative}|summary={item.summary} }}", color="green")
+    #             else:
+    #                 self._graph.node(item.commit, f"file={item.filename}|{{ commit={item.commit}|author={item.author}|date={datetime.fromtimestamp(item.date)}|parent(s)={item.relative}|summary={item.summary} }}",color="red")
+            
+    #         #this section create the links on the graph between a file and its parents
+    #         for index, item in enumerate(trackline[:-1]):
+    #             for rel in item.relative:
+    #                 for j in range(index, len(trackline)):
+    #                     if rel == trackline[j].filename:
+    #                         if self._mode == 'Reverse':
+    #                             self._graph.edge(trackline[j].commit, item.commit)
+    #                         elif self._mode == 'Forward':
+    #                             self._graph.edge(item.commit, trackline[j].commit)
+
+    #     elif self._option == 'Simple':
+    #         # This section creates the nodes and links between the files (nodes of the tree)
+    #         for index, item in enumerate(trackline):
+    #             if index == 0:
+    #                 self._graph.node(item.filename, f"{{ commit message={item.summary.replace('[DATALAD RUNCMD]','')}|file={item.filename} }}",color="green")
+    #             else:
+    #                 self._graph.node(item.filename, f"{{ commit message={item.summary.replace('[DATALAD RUNCMD]','')}|file={item.filename} }}",color="red")
+    #             for rel in item.relative:
+    #                 self._graph.node(rel, f"{rel}")
+    #                 if self._mode == 'Reverse':
+    #                     self._graph.edge(rel,item.filename)
+    #                 elif self._mode == 'Forward':
+    #                     self._graph.edge(item.filename,rel)
+
+    #     now = datetime.now()
+    #     time_stamp = datetime.timestamp(now)
+    #     self._graph.render(f"/tmp/{time_stamp}",format='png')
+    #     return st.graphviz_chart(self._graph,use_container_width=True)
+
+
+    # def plot_two_direction(self, trackline):
+    #     if self._option == 'Process':
+    #         # this section create the nodes of the graph
+    #         for index, item in enumerate(trackline):
+    #             if index == 0:
+    #                 self._graph.node(item.commit, f"file={item.filename}|{{ commit={item.commit}|author={item.author}|date={datetime.fromtimestamp(item.date)}|parent(s)={item.relative}|summary={item.summary} }}", color="green")
+    #             else:
+    #                 self._graph.node(item.commit, f"file={item.filename}|{{ commit={item.commit}|author={item.author}|date={datetime.fromtimestamp(item.date)}|parent(s)={item.relative}|summary={item.summary} }}",color="red")
+            
+    #         #this section create the links on the graph between a file and its parents
+    #         for index, item in enumerate(trackline[:-1]):
+    #             for rel in item.relative:
+    #                 for j in range(index, len(trackline)):
+    #                     if rel == trackline[j].filename:
+    #                         if self._mode == 'Reverse':
+    #                             self._graph.edge(trackline[j].commit, item.commit)
+    #                         elif self._mode == 'Forward':
+    #                             self._graph.edge(item.commit, trackline[j].commit)
+
+    #     elif self._option == 'Simple':
+    #         # This section creates the nodes and links between the files (nodes of the tree)
+    #         for index, item in enumerate(itertools.islice(trackline,len(trackline)//2)):
+    #             self._graph.node(item.filename, f"{{ commit message={item.summary.replace('[DATALAD RUNCMD]','')}|file={item.filename} }}")
+    #             for rel in item.relative:
+    #                 self._graph.node(rel, f"{rel}")
+    #                 # print(f"{rel}")
+    #                 self._graph.edge(item.filename,rel)
+
+    #         for index, item in enumerate(itertools.islice(trackline,len(trackline)//2, len(trackline), 1)):
+    #             self._graph.node(item.filename, f"{{ commit message={item.summary.replace('[DATALAD RUNCMD]','')}|file={item.filename} }}")
+    #             for rel in item.relative:
+    #                 self._graph.node(rel, f"{rel}")
+    #                 # print(f"{rel}")
+    #                 self._graph.edge(item.filename,rel)
+
+    #     now = datetime.now()
+    #     time_stamp = datetime.timestamp(now)
+    #     self._graph.render(f"/tmp/{time_stamp}",format='png')
+    #     return st.graphviz_chart(self._graph,use_container_width=True)
+
+
+
+    
+    # def plot_notes(self):
+    #     """ This function will generate the graphviz plots
+
+    #     Returns:
+    #         _type_: _description_
+    #     """
+    #     self._graph = graphviz.Digraph(node_attr={'shape': 'record'})
+    #     self._graph.attr(rankdir='TB')  
+
+    #     if self._mode == 'Bidirectional':
+    #         self.plot_two_direction(self._trackline)
+    #     else:
+    #         self.plot_one_direction(self._trackline)
