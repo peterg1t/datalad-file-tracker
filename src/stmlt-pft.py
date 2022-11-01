@@ -10,6 +10,7 @@ import ast
 from fileinput import filename
 from importlib.resources import path
 from importlib_metadata import method_cache
+from sqlalchemy import between
 import streamlit as st
 
 
@@ -25,6 +26,8 @@ from pathlib import Path
 import glob 
 
 import utils
+
+import matplotlib.pyplot as plt
 
 import cProfile, pstats
 
@@ -340,12 +343,14 @@ def git_log_parse(filename, s_option, l_option):
 
 
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--filepath", help="path to file")
-    parser.add_argument("-s", "--search_mode", help="mode to search (Reverse/Forward)", choices=['Reverse','Forward'])
-    parser.add_argument("-d", "--display_mode", help="display type (Process/Simple)", choices=['Process', 'Simple'])
+    parser.add_argument("-p", "--filepath", help="Path to file")
+    parser.add_argument("-s", "--search_mode", help="Mode to search (Reverse/Forward)", choices=['Reverse','Forward'])
+    # parser.add_argument("-d", "--display_mode", help="display type (Process/Simple)", choices=['Process', 'Simple'])
     parser.add_argument("-l", "--level", help="Tree level", type=int)
+    parser.add_argument("-a", "--analysis", help="Analysis to apply to nodes", choices=['Centrality','Betweeness'])
     
     args = parser.parse_args()  # pylint: disable = invalid-name
 
@@ -358,6 +363,7 @@ if __name__ == "__main__":
         print("Not all command line arguments were used as input, results might be wrong")
         flnm = st.text_input('Input the file to track')
         search_option = st.selectbox('Search mode', ['Reverse','Forward', 'Bidirectional'])
+        analysis_type = st.selectbox('Analysis mode', ['None', 'Degree Centrality', 'Betweeness Centrality'])
         # plot_option = st.selectbox('Display mode', ['Simple','Process'])
         
         plot_levels = st.select_slider(

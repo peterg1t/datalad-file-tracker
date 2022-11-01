@@ -4,11 +4,14 @@ import itertools
 import streamlit as st
 import graphviz as graphviz
 import pandas as pd
+import utils
 
 from networkx.drawing.nx_agraph import graphviz_layout
 from bokeh.plotting import from_networkx, figure
 from bokeh.models import (BoxZoomTool, Circle, HoverTool, ResetTool, ColumnDataSource, LabelSet, DataRange1d)
+from bokeh.transform import linear_cmap
 from bokeh.palettes import Viridis
+import matplotlib.pyplot as plt
 import networkx as nx
 
 
@@ -18,17 +21,36 @@ class PlotNotes:
     """ This is a builder class for the graphs
     """
     def __init__(self, trackline, mode):
+        """_summary_
+
+        Args:
+            trackline (_type_): _description_
+            mode (_type_): _description_
+        """
         self._trackline = trackline
         self._mode = mode
         self._graph=None
 
 
     def _loc_duplicate(self, value_list):
+        """_summary_
+
+        Args:
+            value_list (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
         for i in range(len(value_list)):
             if value_list[i]==value_list[i+1]:
                 return i+1
 
     def _create_network(self):
+        """This function will calculate and return a graph
+
+        Returns:
+            graph: A networkx digraph
+        """
         G = nx.DiGraph()
         k = 0
         for note in self._trackline:
@@ -88,7 +110,10 @@ class PlotNotes:
               toolbar_location="below", tools = "pan,wheel_zoom")
 
         BG = self._create_network()
-        # graph = from_networkx(BG, nx.spring_layout, scale=1, center=(0,0))
+        betweeness_centr = utils.calc_betw_centrl(BG)
+        nx.set_node_attributes(BG, betweeness_centr, name='bc')
+        
+
         gl = graphviz_layout(BG, prog='dot', root=None)
         graph = from_networkx(BG, gl)
         plot.axis.visible = False
@@ -97,13 +122,14 @@ class PlotNotes:
         plot.x_range = DataRange1d(range_padding=0.2)
         plot.y_range = DataRange1d(range_padding=0.2)
 
-        
-        
-        node_hover_tool = HoverTool(tooltips=[("index", "@index"), ("date", "@date"), ("message", "@message")])
+
+
+        node_hover_tool = HoverTool(tooltips=[("index", "@index"), ("date", "@date"), ("message", "@message"), ("bc", "@bc")])
         plot.add_tools(node_hover_tool, BoxZoomTool(), ResetTool())
         
-
-        graph.node_renderer.glyph = Circle(size=20, fill_color='colour')
+        fc = linear_cmap('bc', 'Spectral8', min(list(betweeness_centr.values())), max(list(betweeness_centr.values())))
+        graph.node_renderer.glyph = Circle(size=20, fill_color=fc)
+        # graph.node_renderer.glyph = Circle(size=20, fill_color='colour')
 
         #ploting the names of the files as labels        
         plot.renderers.append(graph)
@@ -115,9 +141,9 @@ class PlotNotes:
         
         
         fn_mod = [os.path.basename(f) for f in fn]
-        
-        source = ColumnDataSource({'x': x, 'y': y, 'date': fn_mod})
-        labels = LabelSet(x='x', y='y', text='date', source=source,
+                
+        source = ColumnDataSource({'x': x, 'y': y, 'name': fn_mod})
+        labels = LabelSet(x='x', y='y', text='name', source=source,
                   background_fill_color='white', text_align='center', y_offset=11)
 
         plot.renderers.append(labels)
@@ -136,8 +162,8 @@ class PlotNotes:
         Returns:
             _type_: _description_
         """
-        self._graph = graphviz.Digraph(node_attr={'shape': 'record'})
-        self._graph.attr(rankdir='TB')  
+        # self._graph = graphviz.Digraph(node_attr={'shape': 'record'})
+        # self._graph.attr(rankdir='TB')  
         self.plot_bokeh()
 
 
