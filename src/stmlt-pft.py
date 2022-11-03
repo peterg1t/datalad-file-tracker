@@ -47,8 +47,11 @@ class FileTrack:
     """
     def __init__(self, file, s_option, l_option):
         self.file = file #file to build the file tree in the dataset from its first occurernce
-        
-        self.dataset = self._get_git_root_initial(file)
+        try:
+            self.dataset = self._get_git_root_initial(file)
+        except:
+            st.info('File not found')
+            st.stop()
         self.sds = self._get_superdataset()        
 
         self.search_option = s_option # search option forward or backward
@@ -308,7 +311,7 @@ class FileTrack:
         
 
 
-def git_log_parse(filename, s_option, l_option):
+def git_log_parse(filename, s_option, l_option, a_option):
     """! This function will generate the graphs and objects to represent the filetrack
 
     Args:
@@ -335,8 +338,8 @@ def git_log_parse(filename, s_option, l_option):
         # graph = utils.PlotNotes(file_track.trackline, s_option, g_option)
         # graph.plot_notes()
 
-        graph = utils.PlotNotes(file_track.trackline, s_option)
-        graph.plot_notes()
+        graph = utils.PlotNotes(file_track.trackline, s_option, a_option)
+        graph.plot_bokeh()
 
 
 
@@ -359,21 +362,19 @@ if __name__ == "__main__":
         search_option = args.search_mode
         plot_option = args.display_mode
         plot_levels = args.level
+        analysis_type = args.analysis
     else: 
         print("Not all command line arguments were used as input, results might be wrong")
         flnm = st.text_input('Input the file to track')
-        search_option = st.selectbox('Search mode', ['Reverse','Forward', 'Bidirectional'])
-        analysis_type = st.selectbox('Analysis mode', ['None', 'Degree Centrality', 'Betweeness Centrality'])
-        # plot_option = st.selectbox('Display mode', ['Simple','Process'])
-        
-        plot_levels = st.select_slider(
-        'Select a depth level',
-        options=[0,1,2,3,4,5,6,7,8,9,10,99999])
+        with st.sidebar:
+            search_option = st.selectbox('Search mode', ['Reverse','Forward', 'Bidirectional'])
+            analysis_type = st.selectbox('Analysis mode', ['None', 'Degree Centrality', 'Betweeness Centrality'])
+            plot_levels = st.select_slider('Select a depth level',options=[0,1,2,3,4,5,6,7,8,9,10,99999])
 
-        # plot_levels = st.slider('Levels', 0, 10, 1)
+
 
     # Sreamlit UI implementation
     
 
     if flnm:
-        git_log_parse(flnm,search_option, plot_levels)
+        git_log_parse(flnm,search_option, plot_levels, analysis_type)

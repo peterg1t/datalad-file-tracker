@@ -16,11 +16,10 @@ import networkx as nx
 
 
 
-
 class PlotNotes:
     """ This is a builder class for the graphs
     """
-    def __init__(self, trackline, mode):
+    def __init__(self, trackline, mode, analysis):
         """_summary_
 
         Args:
@@ -29,6 +28,7 @@ class PlotNotes:
         """
         self._trackline = trackline
         self._mode = mode
+        self._analysismode = analysis
         self._graph=None
 
 
@@ -36,14 +36,15 @@ class PlotNotes:
         """_summary_
 
         Args:
-            value_list (_type_): _description_
+            value_list (list): A list of values
 
         Returns:
-            _type_: _description_
+            i: An index where there is a duplicate
         """
-        for i in range(len(value_list)):
-            if value_list[i]==value_list[i+1]:
-                return i+1
+        print(len(value_list))
+        for i in range(1,len(value_list)):
+            if value_list[i-1]==value_list[i]:
+                return i
 
     def _create_network(self):
         """This function will calculate and return a graph
@@ -110,8 +111,17 @@ class PlotNotes:
               toolbar_location="below", tools = "pan,wheel_zoom")
 
         BG = self._create_network()
-        betweeness_centr = utils.calc_betw_centrl(BG)
-        nx.set_node_attributes(BG, betweeness_centr, name='bc')
+
+        if self._analysismode == 'Betweeness Centrality':
+            node_attr = utils.calc_betw_centrl(BG)
+            nx.set_node_attributes(BG, node_attr, name='node_a')
+            fc = linear_cmap('node_a', 'Spectral8', min(list(node_attr.values())), max(list(node_attr.values())))
+        elif self._analysismode == 'Degree Centrality':
+            node_attr = utils.deg_centrl(BG)
+            nx.set_node_attributes(BG, node_attr, name='node_a')
+            fc = linear_cmap('node_a', 'Spectral8', min(list(node_attr.values())), max(list(node_attr.values())))
+        elif self._analysismode == 'None':
+            fc = 'colour'
         
 
         gl = graphviz_layout(BG, prog='dot', root=None)
@@ -123,11 +133,10 @@ class PlotNotes:
         plot.y_range = DataRange1d(range_padding=0.2)
 
 
-
-        node_hover_tool = HoverTool(tooltips=[("index", "@index"), ("date", "@date"), ("message", "@message"), ("bc", "@bc")])
+        node_hover_tool = HoverTool(tooltips=[("index", "@index"), ("date", "@date"), ("message", "@message"), ("node_a", "@node_a")])
         plot.add_tools(node_hover_tool, BoxZoomTool(), ResetTool())
         
-        fc = linear_cmap('bc', 'Spectral8', min(list(betweeness_centr.values())), max(list(betweeness_centr.values())))
+        
         graph.node_renderer.glyph = Circle(size=20, fill_color=fc)
         # graph.node_renderer.glyph = Circle(size=20, fill_color='colour')
 
@@ -156,15 +165,7 @@ class PlotNotes:
 
 
 
-    def plot_notes(self):
-        """ This function will generate the graphviz plots
 
-        Returns:
-            _type_: _description_
-        """
-        # self._graph = graphviz.Digraph(node_attr={'shape': 'record'})
-        # self._graph.attr(rankdir='TB')  
-        self.plot_bokeh()
 
 
 
