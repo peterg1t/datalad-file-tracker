@@ -1,6 +1,8 @@
 import cmd
 import os
 from os import curdir
+from pathlib import Path
+import glob 
 import profile
 from tkinter.messagebox import NO
 
@@ -22,8 +24,7 @@ from datalad_metalad.extract import Extract
 from datalad_metalad.aggregate import Aggregate
 import argparse
 
-from pathlib import Path
-import glob 
+
 
 import utils
 
