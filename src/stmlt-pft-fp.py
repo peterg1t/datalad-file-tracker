@@ -312,37 +312,13 @@ class FileTrack:
         
 
 
-def git_log_parse(filename, s_option, l_option, a_option):
-    """! This function will generate the graphs and objects to represent the filetrack
-
+def git_log_parse(dsname, a_option):
+    """! This function will generate the graph of the entire project
     Args:
-        filename (str): An absolute path to the filename
-        s_option (str): A search option (Reverse/Forward)
-        g_option (str): A graph display mode (Process/Simple)
+        dsname (str): An absolute path to the filename
         a_option (str): An analysis mode for the node calculation 
     """
-    file_track = FileTrack(filename, s_option, l_option) #given a filename and a search option we decide to search for all parents or all childs to fill the file track list
-    # profiler.enable()
-    file_track.search()
-    # profiler.disable()
-    # stats = pstats.Stats(profiler).sort_stats('ncalls')
-    # stats.print_stats()
-
-
-
-    #Once the trackline is calculated we use it to generate a graph in graphviz
-    if not file_track.trackline and s_option == 'Reverse':
-        st.info('There is no trackline for this specific file, there are no parents to this file')
-    elif not file_track.trackline and s_option == 'Forward':
-        st.info('There is no trackline for this specific file, there are no childs to this file')
-    else:
-        st.info('Plotting results')
-        # graph = utils.PlotNotes(file_track.trackline, s_option, g_option)
-        # graph.plot_notes()
-
-        graph = utils.PlotNotes(file_track.trackline, s_option, a_option)
-        graph.plot_bokeh()
-
+    
 
 
 
@@ -351,32 +327,24 @@ def git_log_parse(filename, s_option, l_option, a_option):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--filepath", help="Path to file")
-    parser.add_argument("-s", "--search_mode", help="Mode to search (Reverse/Forward)", choices=['Reverse','Forward'])
-    # parser.add_argument("-d", "--display_mode", help="display type (Process/Simple)", choices=['Process', 'Simple'])
-    parser.add_argument("-l", "--level", help="Tree level", type=int)
+    parser.add_argument("-p", "--dspath", help="Path to dataset")
     parser.add_argument("-a", "--analysis", help="Analysis to apply to nodes", choices=['Centrality','Betweeness'])
     
     args = parser.parse_args()  # pylint: disable = invalid-name
 
-    if args.filepath and args.search_mode and args.display_mode:
-        flnm = args.filepath
-        search_option = args.search_mode
-        plot_option = args.display_mode
-        plot_levels = args.level
+    if args.dspath and args.analysis:
+        dsnm = args.dspath
         analysis_type = args.analysis
     else: 
         print("Not all command line arguments were used as input, results might be wrong")
-        flnm = st.text_input('Input the file to track')
+        dsnm = st.text_input('Input the dataset to track')
         with st.sidebar:
-            search_option = st.selectbox('Search mode', ['Reverse','Forward', 'Bidirectional'])
             analysis_type = st.selectbox('Analysis mode', ['None', 'Degree Centrality', 'Betweeness Centrality'])
-            plot_levels = st.select_slider('Select a depth level',options=[0,1,2,3,4,5,6,7,8,9,10,99999])
 
 
 
     # Sreamlit UI implementation
     
 
-    if flnm:
-        git_log_parse(flnm,search_option, plot_levels, analysis_type)
+    if dsnm:
+        git_log_parse(dsnm, analysis_type)
