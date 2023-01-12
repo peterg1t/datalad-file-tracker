@@ -41,6 +41,8 @@ from bokeh.palettes import Viridis
 
 import cProfile, pstats
 
+from utils.plotnotes import plot_bokeh_full_project
+
 
 
 
@@ -49,7 +51,7 @@ import cProfile, pstats
 class nodeWorkflow:
     """ Base class of a node in the provenance trail (can be task or file)
     """
-    def __init__(self, name, graphInstanceID, abstractNodeIndex, concreteGraphID, commit):
+    def __init__(self, graphInstanceID, abstractNodeIndex, concreteGraphID, commit):
         """ Init method of the class
 
         Args:
@@ -58,7 +60,6 @@ class nodeWorkflow:
             concreteGraphID (str): _description_
             commit (str): _description_
         """
-        self.name = name
         self.graphInstanceID = graphInstanceID
         self.abstractNodeIndex = abstractNodeIndex
         self.concreteGraphID = concreteGraphID
@@ -75,9 +76,12 @@ class fileWorkflow(nodeWorkflow):
     def __init__(self, name, graphInstanceID, abstractNodeIndex, concreteGraphID, commit, fileBlob):
         super().__init__(graphInstanceID, abstractNodeIndex, concreteGraphID, commit)
         self.name = name
+        self.basename = os.path.basename(name)
         self.fileBlob = fileBlob
         self.parentTask=[]
         self.childTask=[]
+        self.node_color = 'red'
+        
     
 
 class taskWorkflow(nodeWorkflow):
@@ -86,11 +90,14 @@ class taskWorkflow(nodeWorkflow):
     Args:
         nodeWorkflow (_type_): _description_
     """
-    def __init__(self, graphInstanceID, abstractNodeIndex, concreteGraphID, commit, taskID):
+    def __init__(self, name, graphInstanceID, abstractNodeIndex, concreteGraphID, commit, taskID):
         super().__init__(graphInstanceID, abstractNodeIndex, concreteGraphID, commit)
+        self.name = name
+        self.basename = name
         self.taskID = taskID
         self.parentFiles=[]
         self.childFiles=[]
+        self.node_color = 'green'
 
 
 
@@ -152,7 +159,7 @@ def search(ds):
     dataset_list = []
     NodeList = []
     EdgeList = []
-    
+        
     super_ds = _get_superdataset(ds)
     dataset_list.append(super_ds.path)
     subdatasets = super_ds.subdatasets()
@@ -172,15 +179,13 @@ def search(ds):
             gI=1
             aNI=2
             cGID=3
-
-            task = taskWorkflow(gI, aNI, cGID, commit.hexsha, commit.hexsha) 
-            print(dir(task))
+            task = taskWorkflow(dict_o['cmd'],gI, aNI, cGID, commit.hexsha, commit.hexsha) 
 
             dict_task = copy.copy(task.__dict__)
             dict_task.pop('childFiles')
             dict_task.pop('parentFiles')
             NodeList.append((task.taskID, task.__dict__))
-            print('dict_task',dict_task)
+            
             
             for input in dict_o['inputs']:
                 task.parentFiles.append(input)
@@ -189,12 +194,11 @@ def search(ds):
                 ds_file = git.Repo(os.path.dirname(input_path))
                 file_status = dl.status(path=input_path, dataset=ds_file.working_tree_dir)[0]
 
-                file = fileWorkflow(gI, aNI, cGID, commit.hexsha, file_status['gitshasum'])
+                file = fileWorkflow(input_path,gI, aNI, cGID, commit.hexsha, file_status['gitshasum'])
                 file.childTask=dict_o['cmd']
                 
                 dict_file = copy.copy(file.__dict__)
                 dict_file.pop('childTask', None)
-                print('dict_file',dict_file)
 
                 NodeList.append((file.fileBlob, dict_file))
                 # print(input) # We are going to make this a node and link it to a command
@@ -208,7 +212,7 @@ def search(ds):
                 ds_file = git.Repo(os.path.dirname(output_path))
                 file_status = dl.status(path=output_path, dataset=ds_file.working_tree_dir)[0]
                 
-                file = fileWorkflow(gI, aNI, cGID, commit.hexsha, file_status['gitshasum'])
+                file = fileWorkflow(output_path, gI, aNI, cGID, commit.hexsha, file_status['gitshasum'])
                 file.parentTask=dict_o['cmd']
                 
                 dict_file = copy.copy(file.__dict__)
@@ -222,35 +226,17 @@ def search(ds):
 
 
 
-    print(NodeList, len(NodeList))
-    print(EdgeList)
 
-    g = nx.Graph()
-    g.add_nodes_from(NodeList)
-    g.add_edges_from(EdgeList)
-    # nx.draw(g)
-    # plt.show()
+    graph = nx.DiGraph()
+    graph.add_nodes_from(NodeList)
+    graph.add_edges_from(EdgeList)
 
-    gl = graphviz_layout(g, prog='dot', root=None)
-    graph = from_networkx(g, gl)
+    plot_bokeh_full_project(graph)
 
-    plot = figure(title="File provenance tracker",
-              toolbar_location="below", tools = "pan,wheel_zoom")
-    plot.axis.visible = False
-
-    plot.x_range = DataRange1d(range_padding=0.2)
-    plot.y_range = DataRange1d(range_padding=0.2)
-
-    node_hover_tool = HoverTool(tooltips=[("index", "@index"), ("date", "@date"), ("message", "@message"), ("node_a", "@node_a")])
-    plot.add_tools(node_hover_tool, BoxZoomTool(), ResetTool())
     
-    fc = 'colour'
-    graph.node_renderer.glyph = Circle(size=20, fill_color=fc)
-    plot.renderers.append(graph)
-    x, y = zip(*graph.layout_provider.graph_layout.values())
-    node_labels = nx.get_node_attributes(g, 'date')
 
-    return st.bokeh_chart(plot, use_container_width=True)
+
+    
         
         
 
