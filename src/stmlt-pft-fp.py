@@ -5,6 +5,8 @@ from pathlib import Path
 import glob 
 import profile
 from tkinter.messagebox import NO
+import copy
+
 
 import git
 import re
@@ -24,13 +26,77 @@ from datalad_metalad.extract import Extract
 from datalad_metalad.aggregate import Aggregate
 import argparse
 
+import networkx as nx
+
 
 
 import utils
 
 import matplotlib.pyplot as plt
+from networkx.drawing.nx_agraph import graphviz_layout
+from bokeh.plotting import from_networkx, figure
+from bokeh.models import (BoxZoomTool, Circle, HoverTool, ResetTool, ColumnDataSource, LabelSet, DataRange1d)
+from bokeh.transform import linear_cmap
+from bokeh.palettes import Viridis
 
 import cProfile, pstats
+
+
+
+
+
+
+class nodeWorkflow:
+    """ Base class of a node in the provenance trail (can be task or file)
+    """
+    def __init__(self, name, graphInstanceID, abstractNodeIndex, concreteGraphID, commit):
+        """ Init method of the class
+
+        Args:
+            graphInstanceID (str): The graph instance
+            abstractNodeIndex (str): _description_
+            concreteGraphID (str): _description_
+            commit (str): _description_
+        """
+        self.name = name
+        self.graphInstanceID = graphInstanceID
+        self.abstractNodeIndex = abstractNodeIndex
+        self.concreteGraphID = concreteGraphID
+        self.commit = commit
+    
+
+
+class fileWorkflow(nodeWorkflow):
+    """_summary_
+
+    Args:
+        nodeWorkflow (_type_): _description_
+    """
+    def __init__(self, name, graphInstanceID, abstractNodeIndex, concreteGraphID, commit, fileBlob):
+        super().__init__(graphInstanceID, abstractNodeIndex, concreteGraphID, commit)
+        self.name = name
+        self.fileBlob = fileBlob
+        self.parentTask=[]
+        self.childTask=[]
+    
+
+class taskWorkflow(nodeWorkflow):
+    """_summary_
+
+    Args:
+        nodeWorkflow (_type_): _description_
+    """
+    def __init__(self, graphInstanceID, abstractNodeIndex, concreteGraphID, commit, taskID):
+        super().__init__(graphInstanceID, abstractNodeIndex, concreteGraphID, commit)
+        self.taskID = taskID
+        self.parentFiles=[]
+        self.childFiles=[]
+
+
+
+
+
+
 
 
 
@@ -42,272 +108,156 @@ Welcome to file provenance tracker!
 
 
 
-
-class FileTrack:
-    """! Class filetrack to store the info regarding the notes (nodes)
+def _get_superdataset(ds):
+    """! This function will return the superdataset
+    Returns:
+        sds: A datalad superdataset
     """
-    def __init__(self, file, s_option, l_option):
-        self.file = file #file to build the file tree in the dataset from its first occurernce
-        try:
-            self.dataset = self._get_git_root_initial(file)
-        except:
-            st.info('File not found')
-            st.stop()
-        self.sds = self._get_superdataset()        
 
-        self.search_option = s_option # search option forward or backward
-        self.level_limit = l_option # the depth level to search in the tree
-
-        self.trackline = [] # a track of notes
-        self.queue=[] # a queue of notes
-        self.queue_invar=[] # a queue that only gets appended
-        self.queue_level=[] # a list of the levels of every note on the tree
-
-
-
-    def _add_note(self, note):
-        """ This function will append a note to the trackline
-
-        Args:
-            note (object): The instance of the object to append to the trackline
-        """
-        self.trackline.append(note)
-
-
-    def _add_queue(self, filename):
-        """ This function will append a node to the queue
-
-        Args:
-            filename (str): The file name to add to the queue
-        """
-        self.queue.append(filename)
-
-
-    def _extend_queue(self, list_files):
-        """ This function will extend the queue with the relatives of a certain note
-
-        Args:
-            list_files (list): A list to append to the queue
-        """
-        self.queue.extend(list_files)
-
-
-    def _pop_queue(self):
-        """This function will pop the first element of the queue
-        """
-        self.queue.pop(0)
-
-
-
-
-
-    def _delete_note(self, note):
-        """ This function will delete a note
-
-        Args:
-            note (object): The object to remove from the trackline
-        """
-        self.trackline.pop(note)
-
-
-
-
-        
-    def _iter_scan_mod(self, cm_list, input_file):
-        """! This function will iteratively scan for the parent of a file object and update the file track
-
-        Args:
-            cm_list (str): A list of DATALAD RUNCMD string commits
-        """
-        dataset = self._get_git_root(os.path.join(self.sds.path,input_file))
-        print('calling dataset')
-
-        if self.search_option == 'Reverse':
-            order = ('outputs','inputs')
-        elif self.search_option == 'Forward':
-            order = ('inputs','outputs')
-        
-        files = self._iter_scan_kernel(cm_list, order, dataset, input_file)
-        
-
-        
-                
-            
-
-            
-
-
-    def _iter_scan_kernel(self, cm_list, order, dataset, input_file) -> list:
-        """! This function will return all the child or parent notes
-
-        Args:
-            cm_list (list): A list of commits
-            order (list): The order to search the tree from "outputs" to "inputs" or viceversa
-            dataset (str): A path to the dataset
-            input_file (str): The name of the input file
-
-        Returns:
-            _type_: _description_
-        """
-        for item in cm_list:
-            dict_object = ast.literal_eval(re.search('(?=\{)(.|\n)*?(?<=\}\n)', item.message).group(0))
-            if dict_object[order[0]]:
-                basename_input_file = os.path.basename(os.path.abspath(input_file))
-                basename_dataset_files = os.path.basename(os.path.abspath(os.path.join(dataset,dict_object[order[0]][0])))
-                if basename_dataset_files == basename_input_file: #found the file wich in the first run is the input
-                    relative_notes = dict_object[order[1]]
-                    
-                    #get the full path of the relatives notes
-                    relative_notes = [os.path.abspath(os.path.join(self._get_git_root(os.path.join(self.sds.path,f)),os.path.basename(f))) for f in relative_notes]
-                    instanceNote = utils.FileNote(dataset, os.path.abspath(os.path.join(dataset,os.path.basename(input_file))), relative_notes, item.author, item.committed_date, \
-                        item.hexsha, item.summary, item.message)
-                    self._add_note(instanceNote)
-
-                    # Add the relative notes to the queue and invariant queue
-                    self._extend_queue(relative_notes)
-                    self.queue_invar.extend(relative_notes)
-
-                    #get the index of the input file in the invariant queue
-                    self.index_file = self.queue_invar.index(input_file)
-                    #get the previous index
-                    self.index_previous = self.index_file - 1
-
-                    #get the depth level from the queue level
-                    self.depth_level = self.queue_level[self.index_file]
-                    #get the previous depth level to compare
-                    self.depth_compare = self.queue_level[self.index_previous]
-
-                    #extend the queue level
-                    self.queue_level.extend( len(relative_notes)*[self.depth_level+1] )
-
-                    #pop  the queue
-                    self._pop_queue()
-
-                    if self.depth_compare == self.level_limit and self.depth_level > self.level_limit:
-                        self.trackline.pop()
-                    
-                    else:
-                        if self.queue:
-                            self._iter_scan_mod(cm_list, self.queue[0])
-                    
-                    return relative_notes
-            
-
-                
-    def _get_git_root_initial(self, path_initial_file):
-        """! This function will get the git repo of a file
-
-        Args:
-            path_initial_file (str): A path to the initial file
-
-        Returns:
-            str: The root of the git repo
-        """
-        git_repo = git.Repo(path_initial_file, search_parent_directories=True)
-        git_root = git_repo.git.rev_parse("--show-toplevel")
-        
-        return git_root
-                        
-        
-    def _get_git_root(self,path_file):
-        """! This function will get the the git directory of a certain file
-
-        Args:
-            path_file (str): A path to the file
-
-        Returns:
-            str: The root of the git directory
-        """
-        real_path = glob.glob(f"{self.sds.path}/**/{os.path.basename(path_file)}",recursive=True)[0]
-        git_repo = git.Repo(real_path, search_parent_directories=True)
-        
-        git_root = git_repo.git.rev_parse("--show-toplevel")
-        
-        return git_root
-
-
-
-    def _get_superdataset(self):
-        """! This function will return the superdataset
-
-        Returns:
-            sds: A datalad superdataset
-        """
-        ds = dl.Dataset(self.dataset)
-        sds = ds.get_superdataset()
-  
+    dset = dl.Dataset(ds)
+    sds = dset.get_superdataset()
+    if sds is not None:
         return sds
+    else:
+        return dset
 
 
 
-    def _get_commit_list(self, commits, run_cmd_commits):
-        """! This function will append to run_cmd_commits if there is a DATALAD RUNCMD 
-        """ 
-        for item in commits:
-            if 'DATALAD RUNCMD' in item.message:
-                run_cmd_commits.append(item)
+def _get_commit_list(commits):
+    """! This function will append to run_cmd_commits if there is a DATALAD RUNCMD 
+    """
+    dl_run_commits =[] 
+    for item in commits:
+        if 'DATALAD RUNCMD' in item.message:
+            dl_run_commits.append(item)
+    
+    return dl_run_commits
 
 
 
-    def search_level(self, commits):
-        """! This function will search all the notes given an input file
 
-        Args:
-            commits (list): A list of commits with datalad run commands
-        """
-        self._add_queue(self.file)
-        self.queue_invar.append(self.file)
-        self.queue_level.append(0)
-        self._iter_scan_mod(commits, self.file)
+def _commit_message_node_extract(commit):
+    dict_object = ast.literal_eval(re.search('(?=\{)(.|\n)*?(?<=\}\n)', commit.message).group(0))
+    return dict_object
+    
 
 
-    def search(self):
-        """! This function will return all the instances of a file search
-        repo is the git repo corresponding to a dataset
-        """
-        all_commits=[]
-        dataset_list = []
-        
-        super_ds = self._get_superdataset()
-        dataset_list.append(super_ds.path)
-        subdatasets = super_ds.subdatasets()
-        
-        for subdataset in subdatasets:
-            dataset_list.append(subdataset['path'])
 
-        #now that we have all the datasets in one list lets find all the commits that were generated by datalad run
-        for subdataset_path in dataset_list:        
-            repo = git.Repo(subdataset_path)
-            commits = list(repo.iter_commits('master'))
-            self._get_commit_list(commits, all_commits)
 
-        if self.search_option == 'Bidirectional':
-            self.search_option = 'Reverse'
+def search(ds):
+    """! This function will return all the instances of a file search
+    repo is the git repo corresponding to a dataset
+    """
+    run_commits = []
+    dataset_list = []
+    NodeList = []
+    EdgeList = []
+    
+    super_ds = _get_superdataset(ds)
+    dataset_list.append(super_ds.path)
+    subdatasets = super_ds.subdatasets()
+
+   
+    for subdataset in subdatasets:
+        repo = git.Repo(subdataset['path'])
+        commits = list(repo.iter_commits('master'))
+        # _get_commit_list(commits, run_commits)
+        dl_run_commits = _get_commit_list(commits)
+
+
+
+        for commit in dl_run_commits:
+            dict_o = _commit_message_node_extract(commit)
+
+            gI=1
+            aNI=2
+            cGID=3
+
+            task = taskWorkflow(gI, aNI, cGID, commit.hexsha, commit.hexsha) 
+            print(dir(task))
+
+            dict_task = copy.copy(task.__dict__)
+            dict_task.pop('childFiles')
+            dict_task.pop('parentFiles')
+            NodeList.append((task.taskID, task.__dict__))
+            print('dict_task',dict_task)
             
-            self.search_level(all_commits)
-            trackline_reverse=self.trackline[::-1]            
-            
-            self.trackline.clear()
-            self.queue.clear()
-            self.queue_invar.clear()
-            self.queue_level.clear()
+            for input in dict_o['inputs']:
+                task.parentFiles.append(input)
+                
+                input_path = glob.glob(super_ds.path+f"/**/*{os.path.basename(input)}", recursive=True)[0]
+                ds_file = git.Repo(os.path.dirname(input_path))
+                file_status = dl.status(path=input_path, dataset=ds_file.working_tree_dir)[0]
 
+                file = fileWorkflow(gI, aNI, cGID, commit.hexsha, file_status['gitshasum'])
+                file.childTask=dict_o['cmd']
+                
+                dict_file = copy.copy(file.__dict__)
+                dict_file.pop('childTask', None)
+                print('dict_file',dict_file)
+
+                NodeList.append((file.fileBlob, dict_file))
+                # print(input) # We are going to make this a node and link it to a command
+                EdgeList.append((file.fileBlob,task.taskID))
+
+
+            for output in dict_o['outputs']:
+                task.childFiles.append(output)
+
+                output_path = glob.glob(super_ds.path+f"/**/*{os.path.basename(output)}", recursive=True)[0]
+                ds_file = git.Repo(os.path.dirname(output_path))
+                file_status = dl.status(path=output_path, dataset=ds_file.working_tree_dir)[0]
+                
+                file = fileWorkflow(gI, aNI, cGID, commit.hexsha, file_status['gitshasum'])
+                file.parentTask=dict_o['cmd']
+                
+                dict_file = copy.copy(file.__dict__)
+                dict_file.pop('parentTask', None)
+
+                NodeList.append((file.fileBlob, dict_file))
+                # print(output) # We are going to make this a node and link it to a command
+                EdgeList.append((task.taskID,file.fileBlob))
+
+
+
+
+
+    print(NodeList, len(NodeList))
+    print(EdgeList)
+
+    g = nx.Graph()
+    g.add_nodes_from(NodeList)
+    g.add_edges_from(EdgeList)
+    # nx.draw(g)
+    # plt.show()
+
+    gl = graphviz_layout(g, prog='dot', root=None)
+    graph = from_networkx(g, gl)
+
+    plot = figure(title="File provenance tracker",
+              toolbar_location="below", tools = "pan,wheel_zoom")
+    plot.axis.visible = False
+
+    plot.x_range = DataRange1d(range_padding=0.2)
+    plot.y_range = DataRange1d(range_padding=0.2)
+
+    node_hover_tool = HoverTool(tooltips=[("index", "@index"), ("date", "@date"), ("message", "@message"), ("node_a", "@node_a")])
+    plot.add_tools(node_hover_tool, BoxZoomTool(), ResetTool())
+    
+    fc = 'colour'
+    graph.node_renderer.glyph = Circle(size=20, fill_color=fc)
+    plot.renderers.append(graph)
+    x, y = zip(*graph.layout_provider.graph_layout.values())
+    node_labels = nx.get_node_attributes(g, 'date')
+
+    return st.bokeh_chart(plot, use_container_width=True)
         
-            self.search_option = 'Forward'
-            self.search_level(all_commits)
-            trackline_forward=self.trackline
-            
-            self.trackline = trackline_reverse+trackline_forward
-
-
-        else:
-            self.search_level(all_commits)
-
         
 
 
 
-            
+    
+           
 
         
 
@@ -318,7 +268,15 @@ def git_log_parse(dsname, a_option):
         dsname (str): An absolute path to the filename
         a_option (str): An analysis mode for the node calculation 
     """
-    
+    search(dsname)    
+
+
+
+
+
+
+
+
 
 
 
