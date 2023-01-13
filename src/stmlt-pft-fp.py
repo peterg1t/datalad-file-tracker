@@ -41,8 +41,139 @@ from bokeh.palettes import Viridis
 
 import cProfile, pstats
 
-from utils.plotnotes import plot_bokeh_full_project
 
+
+
+class GraphProvDB:
+    """This class will represent a graph created from provenance
+
+    Returns:
+        _type_: _description_
+    """
+    def __init__(self,dsname):
+        self.dataset_name = dsname
+        self.graph = self._graph_gen()
+
+    def _graph_gen(self):
+        """! This function will return a graph from a dataset input
+        Args:
+            dsname (str): A path to the dataset (or subdataset)
+
+        Returns:
+            graph: A networkx graph
+        """
+
+        dataset_list = []
+        NodeList = []
+        EdgeList = []
+
+        super_ds = _get_superdataset(self.dataset_name)
+        dataset_list.append(super_ds.path)
+        subdatasets = super_ds.subdatasets()
+
+    
+        for subdataset in subdatasets:
+            repo = git.Repo(subdataset['path'])
+            commits = list(repo.iter_commits('master'))
+            # _get_commit_list(commits, run_commits)
+            dl_run_commits = _get_commit_list(commits)
+
+
+            for commit in dl_run_commits:
+                dict_o = _commit_message_node_extract(commit)
+
+                gI=1
+                aNI=2
+                cGID=3
+                task = taskWorkflow(dict_o['cmd'],gI, aNI, cGID, commit.hexsha, commit.hexsha) 
+
+                dict_task = copy.copy(task.__dict__)
+                dict_task.pop('childFiles')
+                dict_task.pop('parentFiles')
+                NodeList.append((task.taskID, task.__dict__))
+
+
+                for input in dict_o['inputs']:
+                    task.parentFiles.append(input)
+
+                    input_path = glob.glob(super_ds.path+f"/**/*{os.path.basename(input)}", recursive=True)[0]
+                    ds_file = git.Repo(os.path.dirname(input_path))
+                    file_status = dl.status(path=input_path, dataset=ds_file.working_tree_dir)[0]
+
+                    file = fileWorkflow(input_path,gI, aNI, cGID, commit.hexsha, file_status['gitshasum'])
+                    file.childTask=dict_o['cmd']
+
+                    dict_file = copy.copy(file.__dict__)
+                    dict_file.pop('childTask', None)
+
+                    NodeList.append((file.fileBlob, dict_file))
+                    EdgeList.append((file.fileBlob,task.taskID))
+
+
+                for output in dict_o['outputs']:
+                    task.childFiles.append(output)
+
+                    output_path = glob.glob(super_ds.path+f"/**/*{os.path.basename(output)}", recursive=True)[0]
+                    ds_file = git.Repo(os.path.dirname(output_path))
+                    file_status = dl.status(path=output_path, dataset=ds_file.working_tree_dir)[0]
+
+                    file = fileWorkflow(output_path, gI, aNI, cGID, commit.hexsha, file_status['gitshasum'])
+                    file.parentTask=dict_o['cmd']
+
+                    dict_file = copy.copy(file.__dict__)
+                    dict_file.pop('parentTask', None)
+
+                    NodeList.append((file.fileBlob, dict_file))
+                    EdgeList.append((task.taskID,file.fileBlob))
+
+
+        graph = nx.DiGraph()
+        graph.add_nodes_from(NodeList)
+        graph.add_edges_from(EdgeList)
+
+
+        return graph
+
+
+
+
+
+    def graph_plot(self):
+        # Uncomment to plot the graph
+        
+        gl = graphviz_layout(self.graph, prog='dot', root=None)
+        graph = from_networkx(self.graph, gl)
+
+        plot = figure(title="File provenance tracker",
+                  toolbar_location="below", tools = "pan,wheel_zoom")
+        plot.axis.visible = False
+
+        plot.x_range = DataRange1d(range_padding=1)
+        plot.y_range = DataRange1d(range_padding=1)
+
+        node_hover_tool = HoverTool(tooltips=[("index", "@index"), ("name", "@name")])
+        plot.add_tools(node_hover_tool, BoxZoomTool(), ResetTool())
+
+
+        graph.node_renderer.glyph = Circle(size=20, fill_color='node_color')
+        plot.renderers.append(graph)
+
+        x, y = zip(*graph.layout_provider.graph_layout.values())
+        node_labels = nx.get_node_attributes(self.graph, 'basename')
+
+        fn = list(node_labels.values())
+        source = ColumnDataSource({'x': x, 'y': y, 'basename': fn})
+        labels = LabelSet(x='x', y='y', text='basename', source=source,
+                  background_fill_color='white', text_align='center', y_offset=11)
+        plot.renderers.append(labels)
+
+    
+        return plot
+
+
+        # this finds the 
+        # end_nodes = [x for x in graph.nodes() if graph.out_degree(x)==0 and graph.in_degree(x)==1]
+        
 
 
 
@@ -133,119 +264,13 @@ def _get_superdataset(ds):
 def _get_commit_list(commits):
     """! This function will append to run_cmd_commits if there is a DATALAD RUNCMD 
     """
-    dl_run_commits =[] 
-    for item in commits:
-        if 'DATALAD RUNCMD' in item.message:
-            dl_run_commits.append(item)
-    
-    return dl_run_commits
-
+    return [item for item in commits if 'DATALAD RUNCMD' in item.message]
 
 
 
 def _commit_message_node_extract(commit):
-    dict_object = ast.literal_eval(re.search('(?=\{)(.|\n)*?(?<=\}\n)', commit.message).group(0))
-    return dict_object
-    
-
-
-
-
-def search(ds):
-    """! This function will return all the instances of a file search
-    repo is the git repo corresponding to a dataset
-    """
-    run_commits = []
-    dataset_list = []
-    NodeList = []
-    EdgeList = []
-        
-    super_ds = _get_superdataset(ds)
-    dataset_list.append(super_ds.path)
-    subdatasets = super_ds.subdatasets()
-
+    return ast.literal_eval(re.search('(?=\{)(.|\n)*?(?<=\}\n)', commit.message).group(0))
    
-    for subdataset in subdatasets:
-        repo = git.Repo(subdataset['path'])
-        commits = list(repo.iter_commits('master'))
-        # _get_commit_list(commits, run_commits)
-        dl_run_commits = _get_commit_list(commits)
-
-
-
-        for commit in dl_run_commits:
-            dict_o = _commit_message_node_extract(commit)
-
-            gI=1
-            aNI=2
-            cGID=3
-            task = taskWorkflow(dict_o['cmd'],gI, aNI, cGID, commit.hexsha, commit.hexsha) 
-
-            dict_task = copy.copy(task.__dict__)
-            dict_task.pop('childFiles')
-            dict_task.pop('parentFiles')
-            NodeList.append((task.taskID, task.__dict__))
-            
-            
-            for input in dict_o['inputs']:
-                task.parentFiles.append(input)
-                
-                input_path = glob.glob(super_ds.path+f"/**/*{os.path.basename(input)}", recursive=True)[0]
-                ds_file = git.Repo(os.path.dirname(input_path))
-                file_status = dl.status(path=input_path, dataset=ds_file.working_tree_dir)[0]
-
-                file = fileWorkflow(input_path,gI, aNI, cGID, commit.hexsha, file_status['gitshasum'])
-                file.childTask=dict_o['cmd']
-                
-                dict_file = copy.copy(file.__dict__)
-                dict_file.pop('childTask', None)
-
-                NodeList.append((file.fileBlob, dict_file))
-                # print(input) # We are going to make this a node and link it to a command
-                EdgeList.append((file.fileBlob,task.taskID))
-
-
-            for output in dict_o['outputs']:
-                task.childFiles.append(output)
-
-                output_path = glob.glob(super_ds.path+f"/**/*{os.path.basename(output)}", recursive=True)[0]
-                ds_file = git.Repo(os.path.dirname(output_path))
-                file_status = dl.status(path=output_path, dataset=ds_file.working_tree_dir)[0]
-                
-                file = fileWorkflow(output_path, gI, aNI, cGID, commit.hexsha, file_status['gitshasum'])
-                file.parentTask=dict_o['cmd']
-                
-                dict_file = copy.copy(file.__dict__)
-                dict_file.pop('parentTask', None)
-
-                NodeList.append((file.fileBlob, dict_file))
-                # print(output) # We are going to make this a node and link it to a command
-                EdgeList.append((task.taskID,file.fileBlob))
-
-
-
-
-
-
-    graph = nx.DiGraph()
-    graph.add_nodes_from(NodeList)
-    graph.add_edges_from(EdgeList)
-
-    plot_bokeh_full_project(graph)
-
-    
-
-
-    
-        
-        
-
-
-
-    
-           
-
-        
 
 
 def git_log_parse(dsname, a_option):
@@ -254,7 +279,10 @@ def git_log_parse(dsname, a_option):
         dsname (str): An absolute path to the filename
         a_option (str): An analysis mode for the node calculation 
     """
-    search(dsname)    
+    gdb = GraphProvDB(dsname)
+    plot_db = gdb.graph_plot()
+    st.bokeh_chart(plot_db, use_container_width=True)
+        
 
 
 
