@@ -34,9 +34,11 @@ class taskWorkflow(nodeWorkflow):
         childs_path=[]
 
         if self.parentFiles:
-            parents_path = [glob.glob(self.dataset+f"/**/*{os.path.basename(item)}", recursive=True)[0] for item in self.parentFiles]
+            parents_path = [os.path.basename(glob.glob(self.dataset+f"/**/*{os.path.basename(item)}", recursive=True)[0]) for item in self.parentFiles]
 
         if self.childFiles:
-            childs_path = [glob.glob(self.dataset+f"/**/*{os.path.basename(item)}", recursive=True)[0] for item in self.childFiles]
+            childs_path = [os.path.basename(glob.glob(self.dataset+f"/**/*{os.path.basename(item)}", recursive=True)[0]) for item in self.childFiles]
 
-        self.id = self._encode('<>'.join([','.join(sorted(parents_path)), self.name, ','.join(sorted(childs_path))]))
+        unique_id = '<>'.join([','.join(sorted(parents_path)), self.name, ','.join(sorted(childs_path))])
+        # print(unique_id)
+        self.id = self._encode(unique_id)
