@@ -4,8 +4,10 @@ import re
 import ast
 import copy
 import glob
+import base64
 import datalad.api as dl
 import networkx as nx
+import toposort
 from networkx.drawing.nx_agraph import graphviz_layout
 from bokeh.plotting import from_networkx, figure
 from bokeh.models import (BoxZoomTool, Quad, Circle, HoverTool, ResetTool, ColumnDataSource, LabelSet, DataRange1d)
@@ -23,12 +25,19 @@ class graphProvDB:
     Returns:
         _type_: _description_
     """
-    def __init__(self, dsname):
+    def __init__(self, dsname, absGraphID):
         self.superdataset = self._get_superdataset(dsname)
         self.dataset_list = []
         self.NodeList = []
         self.EdgeList = []
+        self.absGraphID = absGraphID # An abstract graph ID to match with this graph
+        self.conGraphID = 0
         self.graph = self._graph_gen()        
+
+    def _gen_graph_ID(self, node_list):
+        """Given a graph with a series of nodes compute the ID of the concrete graph
+        """
+        return hash(tuple(node_list))
 
 
     def _get_commit_list(self,commits):
@@ -68,7 +77,6 @@ class graphProvDB:
 
         self.dataset_list.append(self.superdataset.path)
         subdatasets = self.superdataset.subdatasets()
-
     
         for subdataset in subdatasets:
             repo = git.Repo(subdataset['path'])
@@ -76,20 +84,10 @@ class graphProvDB:
             # _get_commit_list(commits, run_commits)
             dl_run_commits = self._get_commit_list(commits)
 
-
             for commit in dl_run_commits:
                 dict_o = self._commit_message_node_extract(commit)
 
-                gI=1
-                aNI=2
-                cGID=3
-                task = taskWorkflow(dict_o['cmd'],gI, aNI, cGID, commit.hexsha, commit.hexsha) 
-
-                dict_task = copy.copy(task.__dict__)
-                dict_task.pop('childFiles')
-                dict_task.pop('parentFiles')
-                self.NodeList.append((task.taskID, task.__dict__))
-
+                task = taskWorkflow(self.superdataset.path, dict_o['cmd'], commit.hexsha) 
 
                 for input in dict_o['inputs']:
                     task.parentFiles.append(input)
@@ -98,14 +96,15 @@ class graphProvDB:
                     ds_file = git.Repo(os.path.dirname(input_path))
                     file_status = dl.status(path=input_path, dataset=ds_file.working_tree_dir)[0]
 
-                    file = fileWorkflow(input_path,gI, aNI, cGID, commit.hexsha, file_status['gitshasum'])
+                    file = fileWorkflow(subdataset,input_path, commit.hexsha, file_status['gitshasum'])
                     file.childTask=dict_o['cmd']
-
+                    
+                    #Creating a shallow copy of the object attribute dictionary
                     dict_file = copy.copy(file.__dict__)
                     dict_file.pop('childTask', None)
 
                     self.NodeList.append((file.fileBlob, dict_file))
-                    self.EdgeList.append((file.fileBlob,task.taskID))
+                    self.EdgeList.append((file.fileBlob,task.commit))
 
 
                 for output in dict_o['outputs']:
@@ -115,22 +114,36 @@ class graphProvDB:
                     ds_file = git.Repo(os.path.dirname(output_path))
                     file_status = dl.status(path=output_path, dataset=ds_file.working_tree_dir)[0]
 
-                    file = fileWorkflow(output_path, gI, aNI, cGID, commit.hexsha, file_status['gitshasum'])
+                    file = fileWorkflow(subdataset,output_path, commit.hexsha, file_status['gitshasum'])
                     file.parentTask=dict_o['cmd']
 
                     dict_file = copy.copy(file.__dict__)
                     dict_file.pop('parentTask', None)
 
                     self.NodeList.append((file.fileBlob, dict_file))
-                    self.EdgeList.append((task.taskID,file.fileBlob))
+                    self.EdgeList.append((task.commit,file.fileBlob))
 
+
+                task.compute_id()
+                # dict_task = copy.copy(task.__dict__)
+                # dict_task.pop('childFiles')
+                # dict_task.pop('parentFiles')
+                self.NodeList.append((task.commit, task.__dict__))
+
+
+
+      
+    
 
         graph = nx.DiGraph()
         graph.add_nodes_from(self.NodeList)
         graph.add_edges_from(self.EdgeList)
 
-
+        
         return graph
+
+
+
 
     def graph_plot(self):
         # Uncomment to plot the graph
@@ -145,7 +158,7 @@ class graphProvDB:
         plot.x_range = DataRange1d(range_padding=1)
         plot.y_range = DataRange1d(range_padding=1)
 
-        node_hover_tool = HoverTool(tooltips=[("index", "@index"), ("name", "@name")])
+        node_hover_tool = HoverTool(tooltips=[("index", "@index"), ("name", "@name"), ("id", "@id")])
         plot.add_tools(node_hover_tool, BoxZoomTool(), ResetTool())
 
 
