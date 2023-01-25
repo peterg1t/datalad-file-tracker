@@ -42,5 +42,5 @@ class taskWorkflow(nodeWorkflow):
             childs_path = [os.path.basename(item) for item in self.childFiles]
 
         unique_id = '<>'.join([','.join(sorted(parents_path)), self.name, ','.join(sorted(childs_path))])
-        # print(unique_id)
         self.id = self._encode(unique_id)
+        # print('encoded id',self.id)

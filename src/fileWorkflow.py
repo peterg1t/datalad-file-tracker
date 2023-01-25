@@ -18,7 +18,7 @@ class fileWorkflow(nodeWorkflow):
         self.childTask=[]
         self.type='file'
         self.node_color = 'red'
-        self.id = self._encode(name)
+        self.id = self._encode(self.basename)
 
     def _encode(self, message):
         message_bytes = message.encode('ascii')

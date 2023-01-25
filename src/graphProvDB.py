@@ -8,6 +8,7 @@ import base64
 import datalad.api as dl
 import networkx as nx
 import toposort
+from utils import graph_plot
 from networkx.drawing.nx_agraph import graphviz_layout
 from bokeh.plotting import from_networkx, figure
 from bokeh.models import (BoxZoomTool, Quad, Circle, HoverTool, ResetTool, ColumnDataSource, LabelSet, DataRange1d)
@@ -25,12 +26,12 @@ class graphProvDB:
     Returns:
         _type_: _description_
     """
-    def __init__(self, dsname, absGraphID):
+    def __init__(self, dsname):
         self.superdataset = self._get_superdataset(dsname)
         self.dataset_list = []
         self.NodeList = []
         self.EdgeList = []
-        self.absGraphID = absGraphID # An abstract graph ID to match with this graph
+        # self.absGraphID = absGraphID # An abstract graph ID to match with this graph
         self.conGraphID = 0
         self.graph = self._graph_gen()        
 
@@ -131,52 +132,18 @@ class graphProvDB:
                 self.NodeList.append((task.commit, task.__dict__))
 
 
-
-      
-    
-
         graph = nx.DiGraph()
         graph.add_nodes_from(self.NodeList)
         graph.add_edges_from(self.EdgeList)
-
         
         return graph
 
 
 
 
-    def graph_plot(self):
-        # Uncomment to plot the graph
-        
-        gl = graphviz_layout(self.graph, prog='dot', root=None)
-        graph = from_networkx(self.graph, gl)
-
-        plot = figure(title="File provenance tracker",
-                  toolbar_location="below", tools = "pan,wheel_zoom")
-        plot.axis.visible = False
-
-        plot.x_range = DataRange1d(range_padding=1)
-        plot.y_range = DataRange1d(range_padding=1)
-
-        node_hover_tool = HoverTool(tooltips=[("index", "@index"), ("name", "@name"), ("id", "@id")])
-        plot.add_tools(node_hover_tool, BoxZoomTool(), ResetTool())
-
-
-        graph.node_renderer.glyph = Circle(size=20, fill_color='node_color')
-        plot.renderers.append(graph)
-
-        x, y = zip(*graph.layout_provider.graph_layout.values())
-        node_labels = nx.get_node_attributes(self.graph, 'basename')
-
-        fn = list(node_labels.values())
-        source = ColumnDataSource({'x': x, 'y': y, 'basename': fn})
-        labels = LabelSet(x='x', y='y', text='basename', source=source,
-                  background_fill_color='white', text_align='center', y_offset=11)
-        plot.renderers.append(labels)
-
-    
+    def graph_ObjPlot(self):
+        plot = graph_plot(self.graph)
         return plot
-
 
         # this finds the 
         # end_nodes = [x for x in graph.nodes() if graph.out_degree(x)==0 and graph.in_degree(x)==1]

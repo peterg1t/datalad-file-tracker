@@ -9,8 +9,9 @@ from graphProvDB import graphProvDB
 
 profiler = cProfile.Profile()
 
+st.set_page_config(layout="wide")
 st.write("""
-Welcome to file provenance tracker!
+Welcome to the database provenance tracker!
 """)
 
 
@@ -21,8 +22,8 @@ def git_log_parse(dsname):
         dsname (str): An absolute path to the filename
         a_option (str): An analysis mode for the node calculation
     """
-    gdb = graphProvDB(dsname, 'h57683hjd')
-    plot_db = gdb.graph_plot()
+    gdb = graphProvDB(dsname)
+    plot_db = gdb.graph_ObjPlot()
     st.bokeh_chart(plot_db, use_container_width=True)
 
 
