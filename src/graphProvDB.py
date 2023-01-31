@@ -26,13 +26,13 @@ class graphProvDB:
     Returns:
         _type_: _description_
     """
-    def __init__(self, dsname):
-        self.superdataset = self._get_superdataset(dsname)
+    def __init__(self, ds_name):
+        self.superdataset = self._get_superdataset(ds_name)
         self.dataset_list = []
-        self.NodeList = []
-        self.EdgeList = []
+        self.node_list = []
+        self.edge_list = []
         # self.absGraphID = absGraphID # An abstract graph ID to match with this graph
-        self.conGraphID = 0
+        self.concrete_graph_ID = 0
         self.graph = self._graph_gen()        
 
     def _gen_graph_ID(self, node_list):
@@ -69,7 +69,7 @@ class graphProvDB:
     def _graph_gen(self):
         """! This function will return a graph from a dataset input
         Args:
-            dsname (str): A path to the dataset (or subdataset)
+            ds_name (str): A path to the dataset (or subdataset)
 
         Returns:
             graph: A networkx graph
@@ -104,8 +104,8 @@ class graphProvDB:
                     dict_file = copy.copy(file.__dict__)
                     dict_file.pop('childTask', None)
 
-                    self.NodeList.append((file.fileBlob, dict_file))
-                    self.EdgeList.append((file.fileBlob,task.commit))
+                    self.node_list.append((file.fileBlob, dict_file))
+                    self.edge_list.append((file.fileBlob,task.commit))
 
 
                 for output in dict_o['outputs']:
@@ -121,27 +121,27 @@ class graphProvDB:
                     dict_file = copy.copy(file.__dict__)
                     dict_file.pop('parentTask', None)
 
-                    self.NodeList.append((file.fileBlob, dict_file))
-                    self.EdgeList.append((task.commit,file.fileBlob))
+                    self.node_list.append((file.fileBlob, dict_file))
+                    self.edge_list.append((task.commit,file.fileBlob))
 
 
                 task.compute_id()
                 # dict_task = copy.copy(task.__dict__)
                 # dict_task.pop('childFiles')
                 # dict_task.pop('parentFiles')
-                self.NodeList.append((task.commit, task.__dict__))
+                self.node_list.append((task.commit, task.__dict__))
 
 
         graph = nx.DiGraph()
-        graph.add_nodes_from(self.NodeList)
-        graph.add_edges_from(self.EdgeList)
+        graph.add_nodes_from(self.node_list)
+        graph.add_edges_from(self.edge_list)
         
         return graph
 
 
 
 
-    def graph_ObjPlot(self):
+    def graph_object_plot(self):
         plot = graph_plot(self.graph)
         return plot
 

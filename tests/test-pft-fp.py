@@ -50,11 +50,11 @@ class GraphProvDB:
     Returns:
         _type_: _description_
     """
-    def __init__(self, dsname):
-        self.superdataset = self._get_superdataset(dsname)
+    def __init__(self, ds_name):
+        self.superdataset = self._get_superdataset(ds_name)
         self.dataset_list = []
-        self.NodeList = []
-        self.EdgeList = []
+        self.node_list = []
+        self.edge_list = []
         self.graph = self._graph_gen()        
 
 
@@ -75,7 +75,7 @@ class GraphProvDB:
     def _graph_gen(self):
         """! This function will return a graph from a dataset input
         Args:
-            dsname (str): A path to the dataset (or subdataset)
+            ds_name (str): A path to the dataset (or subdataset)
 
         Returns:
             graph: A networkx graph
@@ -104,7 +104,7 @@ class GraphProvDB:
                 dict_task = copy.copy(task.__dict__)
                 dict_task.pop('childFiles')
                 dict_task.pop('parentFiles')
-                self.NodeList.append((task.taskID, task.__dict__))
+                self.node_list.append((task.taskID, task.__dict__))
 
 
                 for input in dict_o['inputs']:
@@ -120,8 +120,8 @@ class GraphProvDB:
                     dict_file = copy.copy(file.__dict__)
                     dict_file.pop('childTask', None)
 
-                    self.NodeList.append((file.fileBlob, dict_file))
-                    self.EdgeList.append((file.fileBlob,task.taskID))
+                    self.node_list.append((file.fileBlob, dict_file))
+                    self.edge_list.append((file.fileBlob,task.taskID))
 
 
                 for output in dict_o['outputs']:
@@ -137,13 +137,13 @@ class GraphProvDB:
                     dict_file = copy.copy(file.__dict__)
                     dict_file.pop('parentTask', None)
 
-                    self.NodeList.append((file.fileBlob, dict_file))
-                    self.EdgeList.append((task.taskID,file.fileBlob))
+                    self.node_list.append((file.fileBlob, dict_file))
+                    self.edge_list.append((task.taskID,file.fileBlob))
 
 
         graph = nx.DiGraph()
-        graph.add_nodes_from(self.NodeList)
-        graph.add_edges_from(self.EdgeList)
+        graph.add_nodes_from(self.node_list)
+        graph.add_edges_from(self.edge_list)
 
 
         return graph
@@ -273,13 +273,13 @@ def _commit_message_node_extract(commit):
    
 
 
-def git_log_parse(dsname, a_option):
+def git_log_parse(ds_name, a_option):
     """! This function will generate the graph of the entire project
     Args:
-        dsname (str): An absolute path to the filename
+        ds_name (str): An absolute path to the filename
         a_option (str): An analysis mode for the node calculation 
     """
-    gdb = GraphProvDB(dsname)
+    gdb = GraphProvDB(ds_name)
     plot_db = gdb.graph_plot()
     st.bokeh_chart(plot_db, use_container_width=True)
         
@@ -305,11 +305,11 @@ if __name__ == "__main__":
     args = parser.parse_args()  # pylint: disable = invalid-name
 
     if args.dspath and args.analysis:
-        dsnm = args.dspath
+        dataset_name = args.dspath
         analysis_type = args.analysis
     else: 
         print("Not all command line arguments were used as input, results might be wrong")
-        dsnm = st.text_input('Input the dataset to track')
+        dataset_name = st.text_input('Input the dataset to track')
         with st.sidebar:
             analysis_type = st.selectbox('Analysis mode', ['None', 'Degree Centrality', 'Betweeness Centrality'])
 
@@ -318,5 +318,5 @@ if __name__ == "__main__":
     # Sreamlit UI implementation
     
 
-    if dsnm:
-        git_log_parse(dsnm, analysis_type)
+    if dataset_name:
+        git_log_parse(dataset_name, analysis_type)

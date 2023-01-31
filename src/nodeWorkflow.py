@@ -8,5 +8,5 @@ class nodeWorkflow:
             commit (str): _description_
         """
         self.commit = commit
-        self.conGraphID = 0
+        self.concrete_graph_ID = 0
     

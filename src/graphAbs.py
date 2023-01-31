@@ -32,15 +32,21 @@ class graphAbs:
         self.commands = commands
         self.outputs = file_outputs
         self.dataset_list = []
-        self.NodeList = []
-        self.EdgeList = []
+        self.node_list = []
+        self.edge_list = []
         self.status = []
         # self.absGraphID = absGraphID # An abstract graph ID to match with this graph
-        self.conGraphID = 0
+        self.concrete_graph_ID = 0
         self.graph = self._graph_gen()        
 
     def _gen_graph_ID(self, node_list):
         """Given a graph with a series of nodes compute the ID of the concrete graph
+
+        Args:
+            node_list (list): A list of nodes
+
+        Returns:
+            int: A hash computed from the tuple of the node list (inmutable)
         """
         return hash(tuple(node_list))
 
@@ -50,7 +56,7 @@ class graphAbs:
     def _graph_gen(self):
         """! This function will return a graph from a dataset input
         Args:
-            dsname (str): A path to the dataset (or subdataset)
+            ds_name (str): A path to the dataset (or subdataset)
 
         Returns:
             graph: A networkx graph
@@ -61,38 +67,38 @@ class graphAbs:
             # For every input list we create an edge from file to task and a node for the file input
             for item in inp_list.split(','):
                 if item:
-                    self.NodeList.append((item, {'name': item, 'type': 'file', 'node_color': 'red', 'id': encode(item)}))
-                    self.EdgeList.append((item, self.commands[idx]))
+                    self.node_list.append((item, {'name': item, 'type': 'file', 'node_color': 'red', 'id': encode(item)}))
+                    self.edge_list.append((item, self.commands[idx]))
 
 
         for idx, out_list in enumerate(self.outputs):
             # For every input list we create an edge from file to task and a node for the file output
             for item in out_list.split(','):
                 if item:
-                    self.NodeList.append((item, {'name': item, 'type': 'file', 'node_color': 'red', 'id': encode(item)}))
-                    self.EdgeList.append((self.commands[idx], item))
+                    self.node_list.append((item, {'name': item, 'type': 'file', 'node_color': 'red', 'id': encode(item)}))
+                    self.edge_list.append((self.commands[idx], item))
 
 
         # Generate task ID
         for idx, task in enumerate(self.commands):
             if task:
                 taskID=f"{self.inputs[idx]}<>{task}<>{self.outputs[idx]}"
-                self.NodeList.append((task, {'name': task, 'type': 'task', 'node_color': 'green', 'id': encode(taskID)}))
+                self.node_list.append((task, {'name': task, 'type': 'task', 'node_color': 'green', 'id': encode(taskID)}))
 
 
 
         #If nodes have been created by the user
         
         graph = nx.DiGraph()
-        graph.add_nodes_from(self.NodeList)
-        graph.add_edges_from(self.EdgeList)
+        graph.add_nodes_from(self.node_list)
+        graph.add_edges_from(self.edge_list)
         
         return graph
 
 
 
 
-    def graph_ObjPlot(self):
+    def graph_object_plot(self):
         return graph_plot(self.graph)
 
         # this finds the 
