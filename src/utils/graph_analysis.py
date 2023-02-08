@@ -7,7 +7,7 @@ import networkx as nx
 
 
 def calc_betw_centrl(graph):
-    """_summary_
+    """This function will calculate the betweenness centrality. https://en.wikipedia.org/wiki/Betweenness_centrality
 
     Args:
         graph (graph (Networkx)): A netwrokx graph
@@ -16,7 +16,6 @@ def calc_betw_centrl(graph):
         node attribute: betweenness centrality
     """
     return nx.betweenness_centrality(graph)
-
 
 
 def deg_centrl(graph):
