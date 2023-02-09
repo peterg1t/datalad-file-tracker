@@ -6,16 +6,17 @@ import copy
 import glob
 import datalad.api as dl
 import networkx as nx
-from utils import graph_plot
+import utils
 from taskWorkflow import taskWorkflow
 from fileWorkflow import fileWorkflow
 
 
 class graphProvDB:
-    """This class will represent a graph created from provenance
+    
+    """! This class will represent a graph created from provenance
 
     Returns:
-        _type_: _description_
+        obj: A provenance graph object
     """
 
     def __init__(self, ds_name):
@@ -133,7 +134,7 @@ class graphProvDB:
         return graph
 
     def graph_object_plot(self):
-        plot = graph_plot(self.graph)
+        plot = utils.graph_plot(self.graph)
         return plot
 
     def end_nodes(self):

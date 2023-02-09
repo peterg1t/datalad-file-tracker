@@ -13,7 +13,7 @@ from bokeh.models import (
 
 
 def graph_plot(graph_nx):
-    """Utility to generate a plot for a networkx graph
+    """! Utility to generate a plot for a networkx graph
 
     Args:
         graph_nx (graph): A networkx graph

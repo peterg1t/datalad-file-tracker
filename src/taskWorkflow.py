@@ -1,6 +1,7 @@
 import os
 import base64
 from nodeWorkflow import nodeWorkflow
+import utils
 
 
 class taskWorkflow(nodeWorkflow):
@@ -46,7 +47,7 @@ class taskWorkflow(nodeWorkflow):
         unique_id = "<>".join(
             [
                 ",".join(sorted(parents_path)),
-                self.literal_name,
+                utils.remove_space(self.literal_name),
                 ",".join(sorted(childs_path)),
             ]
         )

@@ -1,0 +1,8 @@
+<>echo '1' > {outputs}<>FILE1
+<>echo '1A' > {outputs}<>AUX1
+FILE1<>cat {inputs} >> {outputs} && echo '2' >> {outputs}<>FILE2
+AUX1<>cat {inputs} >> {outputs} && echo '2A' >> {outputs}<>AUX2
+AUX2,FILE2<>cat {inputs} > {outputs}<>FILE3
+FILE3<>cat {inputs} >> {outputs} && echo '4' >> {outputs}<>FILE4
+FILE4<>cat {inputs} >> {outputs} && echo '5' >> {outputs}<>FILEOUT5
+FILEOUT5<>cat {inputs} >> {outputs} && echo '6' >> {outputs}<>FILE6

@@ -23,7 +23,7 @@ import utils
 
 
 class PlotNotes:  # pylint: disable=too-few-public-methods
-    """This is a builder class for the graphs"""
+    """! This is a builder class for the graphs"""
 
     def __init__(self, trackline, mode, analysis):
         """_summary_

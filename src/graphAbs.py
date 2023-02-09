@@ -1,6 +1,6 @@
 import networkx as nx
-from utils import graph_plot
-from utils import encode
+import utils
+
 
 
 class graphAbs:
@@ -51,13 +51,13 @@ class graphAbs:
                 inputs_sorted = ",".join(sorted(self.inputs[idx].split(",")))
                 outputs_sorted = ",".join(sorted(self.outputs[idx].split(",")))
 
-                taskID = f"{inputs_sorted}<>{task}<>{outputs_sorted}"
+                taskID = utils.encode(f"{inputs_sorted}<>{utils.remove_space(task)}<>{outputs_sorted}")
                 taskID_list.append(taskID)
                 self.node_list.append(
                     (
-                        encode(taskID),
+                        taskID,
                         {
-                            "name": encode(task),
+                            "name": task,
                             "type": "task",
                             "node_color": "grey",
                             "status": "pending",
@@ -73,9 +73,9 @@ class graphAbs:
                 if item:
                     self.node_list.append(
                         (
-                            encode(item),
+                            utils.encode(item),
                             {
-                                "name": encode(item),
+                                "name": utils.encode(item),
                                 "type": "file",
                                 "node_color": "grey",
                                 "status": "pending",
@@ -83,7 +83,7 @@ class graphAbs:
                             },
                         )
                     )
-                    self.edge_list.append((encode(item), encode(taskID_list[idx])))
+                    self.edge_list.append((utils.encode(item), taskID_list[idx]))
 
         for idx, out_list in enumerate(self.outputs):
             # For every input list we create an edge from file to 
@@ -92,9 +92,9 @@ class graphAbs:
                 if item:
                     self.node_list.append(
                         (
-                            encode(item),
+                            utils.encode(item),
                             {
-                                "name": encode(item),
+                                "name": utils.encode(item),
                                 "type": "file",
                                 "node_color": "grey",
                                 "status": "pending",
@@ -102,7 +102,7 @@ class graphAbs:
                             },
                         )
                     )
-                    self.edge_list.append((encode(taskID_list[idx]), encode(item)))
+                    self.edge_list.append((taskID_list[idx], utils.encode(item)))
 
         graph = nx.DiGraph()
         graph.add_nodes_from(self.node_list)
@@ -126,7 +126,7 @@ class graphAbs:
         Returns:
             plot: A plot of the networkx graph
         """
-        return graph_plot(self.graph)
+        return utils.graph_plot(self.graph)
 
     def end_nodes(self):
         """This function return the last node(s) in a tree
