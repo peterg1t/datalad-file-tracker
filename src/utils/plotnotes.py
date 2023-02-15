@@ -1,4 +1,4 @@
-""" Plot Notes Module
+"""! Plot Notes Module
 
 This module allows the user to print the Networkx graph containing all the notes (nodes)
 
@@ -26,11 +26,11 @@ class PlotNotes:  # pylint: disable=too-few-public-methods
     """! This is a builder class for the graphs"""
 
     def __init__(self, trackline, mode, analysis):
-        """_summary_
+        """! Init method of the PlotNotes Class
 
         Args:
-            trackline (_type_): _description_
-            mode (_type_): _description_
+            trackline (list): A list of notes/nodes in the trackline
+            mode (str): Analysis mode
         """
         self._trackline = trackline
         self._mode = mode
@@ -38,7 +38,7 @@ class PlotNotes:  # pylint: disable=too-few-public-methods
         self._graph = None
 
     def _loc_duplicate(self, value_list):
-        """_summary_
+        """! This function will find duplicates in our value list and mark where these exist
         Args:
             value_list (list): A list of values
 
@@ -51,7 +51,7 @@ class PlotNotes:  # pylint: disable=too-few-public-methods
                 return i
 
     def _create_network(self):
-        """This function will calculate and return a graph
+        """! This function will calculate and return a graph
 
         Returns:
             graph: A networkx digraph
@@ -147,7 +147,7 @@ class PlotNotes:  # pylint: disable=too-few-public-methods
         return grp
 
     def plot_bokeh(self):
-        """This function will make a bokeh plot
+        """! This function will make a bokeh plot
 
         Returns:
             plot: A streamlit bokeh plot

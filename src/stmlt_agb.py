@@ -1,14 +1,28 @@
 """
 Docstring
 """
+import os
 import argparse
 import copy
+import shutil
 import cProfile
 import streamlit as st
 import networkx as nx
-from graphAbs import graphAbs
-from graphProvDB import graphProvDB
+from pytz import utc
+
+from graphs.graph_abstract import graph_abstract
+from graphs.graph_provenance import graph_provenance
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+from apscheduler.executors.pool import ThreadPoolExecutor, ProcessPoolExecutor
+
+from multiprocessing import Pool
+from functools import partial
+from itertools import repeat
+import time
 import utils
+
+
 
 
 profiler = cProfile.Profile()
@@ -21,6 +35,8 @@ Welcome to the abstract graph builder!
 )
 
 
+
+
 def graph_components_generator_from_file(filename):
     inputs = []
     commands = []
@@ -28,9 +44,10 @@ def graph_components_generator_from_file(filename):
     with open(filename, encoding="utf-8") as f:
         read_data = f.readlines()
         for item in read_data:
-            inputs.append(item.strip().split('<>')[0])
-            commands.append(item.strip().split('<>')[1])
-            outputs.append(item.strip().split('<>')[2])
+            inputs.append(item.split('<>')[0].strip())
+            # commands.append(item.strip().split('<>')[1])
+            commands.append(item.split('<>')[1])
+            outputs.append(item.split('<>')[2].strip())
 
     return inputs, commands, outputs
 
@@ -102,7 +119,7 @@ def provenance_graph(dataset):
     Returns:
         **: _description_
     """
-    return graphProvDB(dataset)
+    return graph_provenance(dataset)
 
 
 def workflow_diff(abstract, provenance):
@@ -122,10 +139,22 @@ def workflow_diff(abstract, provenance):
     gdb_diff.graph.remove_nodes_from(n for n in abstract.graph if n in provenance.graph)
 
     # In the difference graph the start_nodes is the list of nodes that can be started (these should usually be a task)
-    start_nodes = gdb_diff.start_nodes()
-    # print("start nodes", start_nodes)
+    next_nodes = gdb_diff.start_nodes()
 
-    # print("diff", nx.get_node_attributes(gdb_diff.graph, "literal_name"))
+    tasks_requirements=[]
+
+    for node in next_nodes:
+        inputs_task=[]
+        predecesor = abstract.graph.predecessors(node)
+        for item in predecesor:
+            inputs_task.append(provenance.graph.nodes[item]['literal_name'])
+        tasks_requirements.append((inputs_task, abstract.graph.nodes[node]["name"]))
+
+    return tasks_requirements
+
+
+
+
 
 
 if __name__ == "__main__":
@@ -140,20 +169,68 @@ if __name__ == "__main__":
     parser.add_argument("-e", "--export", type=str, help="Flag to export abstract graph to GML format")
     
     args = parser.parse_args()  # pylint: disable = invalid-name
+
+
+    
+
+    # We now start the background scheduler
+    # scheduler = BackgroundScheduler()
+    # This will get you a BackgroundScheduler with a MemoryJobStore named “default” and a ThreadPoolExecutor named “default” with a default maximum thread count of 10.
+
+    # Lets cutomize the scheduler a little bit lets keep the default MemoryJobStore but define a ProcessPoolExecutor
+    jobstores = {
+        'default': SQLAlchemyJobStore(url='sqlite:////Users/pemartin/Projects/datalad-file-tracker/src/jobstore.sqlite')
+    }
+    executors = {
+    'default': ThreadPoolExecutor(8),
+    }
+    job_defaults = {
+    'coalesce': False,
+    'max_instances': 3
+    }
+    scheduler = BackgroundScheduler(jobstores=jobstores, executors=executors, job_defaults=job_defaults)
+    scheduler.start() #We start the scheduler
+
+    
+
+
+    
+    next_nodes_req = []
     if args.agraph:
+        
+        gdb_prov = None
+        
         file_inputs, commands, file_outputs = graph_components_generator_from_file(args.agraph)
         graph_plot = None
  
-        gdb = graphAbs(file_inputs, commands, file_outputs)
+        gdb = graph_abstract(file_inputs, commands, file_outputs)
         graph_plot = gdb.graph_object_plot()
         plot_graph(graph_plot)
 
         if args.pgraph:
             gdb_prov = provenance_graph(args.pgraph)
-            workflow_diff(gdb, gdb_prov)
+            next_nodes_req = workflow_diff(gdb, gdb_prov)
 
         if args.export:
             export_graph(graph=gdb, filename=args.export)
+
+        if next_nodes_req:
+            for req in next_nodes_req:
+                for idx,input in enumerate(req[0]):
+                    print('req',req, input)
+                    message = 'this is a test'
+                    print('folder to search', os.path.dirname(input))
+                    dataset = utils.get_git_root(os.path.dirname(input))
+                    print('dataset', dataset)
+                    command = req[1]
+                    print('command',command)
+                    # command = "cat {inputs} >> {outputs} &&echo '6' >> {outputs}"
+                    output_filename = req[2][idx]
+                    print('output filename', output_filename)
+                    output = f"{os.path.dirname(input)}/{output_filename}"
+                    print('output', output)
+                    scheduler.add_job(utils.job_submit, args=[dataset, input, output, message, command])
+            # print('Scheduled Jobs', scheduler.get_jobs())
 
         
 
@@ -170,7 +247,7 @@ if __name__ == "__main__":
             pass
 
         else:
-            gdb = graphAbs(file_inputs, commands, file_outputs)
+            gdb = graph_abstract(file_inputs, commands, file_outputs)
             graph_plot = gdb.graph_object_plot()
             plot_graph(graph_plot)
 
@@ -189,4 +266,8 @@ if __name__ == "__main__":
 
             if button_clicked:
                 gdb_prov = provenance_graph(provenance_graph_name)
-                workflow_diff(gdb, gdb_prov)
+                next_nodes = workflow_diff(gdb, gdb_prov)
+
+    
+
+    

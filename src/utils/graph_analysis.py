@@ -1,13 +1,12 @@
-"""Graph Analisys Module
-
+"""! Graph Analisys Module
 This module allows the user to print the different network attributes
-
 """
+
 import networkx as nx
 
 
 def calc_betw_centrl(graph):
-    """This function will calculate the betweenness centrality. https://en.wikipedia.org/wiki/Betweenness_centrality
+    """! This function will calculate the betweenness centrality. https://en.wikipedia.org/wiki/Betweenness_centrality
 
     Args:
         graph (graph (Networkx)): A netwrokx graph
@@ -19,7 +18,7 @@ def calc_betw_centrl(graph):
 
 
 def deg_centrl(graph):
-    """This function will return the degree centrality
+    """! This function will return the degree centrality
 
     Args:
         graph (graph (Networkx)): A netwrokx graph

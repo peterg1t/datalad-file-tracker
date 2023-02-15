@@ -4,7 +4,7 @@ Docstring
 import argparse
 import cProfile
 import streamlit as st
-from graphProvDB import graphProvDB
+from graphs.graph_provenance import graph_provenance
 
 
 profiler = cProfile.Profile()
@@ -30,7 +30,7 @@ def git_log_parse(ds_name):
         ds_name (str): An absolute path to the dataset name
         a_option (str): An analysis mode for the node calculation
     """
-    gdb = graphProvDB(ds_name)
+    gdb = graph_provenance(ds_name)
     plot_db = gdb.graph_object_plot()
     st.bokeh_chart(plot_db, use_container_width=True)
 
