@@ -1,5 +1,6 @@
 import git
 
+
 def get_git_root(path_file):
     """! This function will get the git repo of a file
     Args:
@@ -9,5 +10,5 @@ def get_git_root(path_file):
     """
     git_repo = git.Repo(path_file, search_parent_directories=True)
     git_root = git_repo.git.rev_parse("--show-toplevel")
-    
+
     return git_root

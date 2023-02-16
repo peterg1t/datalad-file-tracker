@@ -5,14 +5,15 @@ import subprocess
 
 
 def command_submit(command):
-    command_run_output = subprocess.run(command, shell=True, capture_output=True, text=True, check=False)
-    outlog = command_run_output.stdout.split('\n')
-    errlog = command_run_output.stderr.split('\n')
-    outlog.pop() # drop the empty last element
-    errlog.pop() # drop the empty last element
+    command_run_output = subprocess.run(
+        command, shell=True, capture_output=True, text=True, check=False
+    )
+    outlog = command_run_output.stdout.split("\n")
+    errlog = command_run_output.stderr.split("\n")
+    outlog.pop()  # drop the empty last element
+    errlog.pop()  # drop the empty last element
 
     return outlog, errlog
-
 
 
 def job_submit(dataset, input, output, message, command):
@@ -28,9 +29,9 @@ def job_submit(dataset, input, output, message, command):
     Raises:
         Exception: If error is found
     """
-    outlogs=[]
-    errlogs=[]
-    
+    outlogs = []
+    errlogs = []
+
     # making the output stage folder
     if os.path.exists(os.path.dirname(output)):
         pass
@@ -41,12 +42,14 @@ def job_submit(dataset, input, output, message, command):
     dl.save(path=dataset, dataset=dataset)
 
     containers_run_command = f"cd {dataset} && datalad run -m '{message}' -d '{dataset}' -i '{input}' -o '{output}' '{command}'"
-    print('full run command',containers_run_command)
+    print("full run command", containers_run_command)
     # containers_run_command = f"which datalad; datalad wtf -S extensions"
     outlog, errlog = command_submit(containers_run_command)
     outlogs.append(outlog)
     errlogs.append(errlog)
-    print('logs_job', outlogs, errlogs)
+    print("logs_job", outlogs, errlogs)
     for item in errlogs[0]:
-        if 'error' in item:
-            raise  Exception("Error found in the datalad containers run command, check the log for more information on this error.")
+        if "error" in item:
+            raise Exception(
+                "Error found in the datalad containers run command, check the log for more information on this error."
+            )

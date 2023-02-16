@@ -1,6 +1,6 @@
+import os
 import networkx as nx
 import utils
-
 
 
 class graph_abstract:
@@ -10,13 +10,9 @@ class graph_abstract:
         abstract graph: An abstract graph
     """
 
-    def __init__(self, inputs, commands, outputs):
-        self.inputs = inputs
-        self.commands = commands
-        self.outputs = outputs
-        self.dataset_list = []
-        self.node_list = []
-        self.edge_list = []
+    def __init__(self, node_list, edge_list):
+        self.node_list = node_list
+        self.edge_list = edge_list
         self.status = []
         # self.absGraphID = absGraphID # An abstract graph ID
         #  to match with this graph
@@ -44,71 +40,60 @@ class graph_abstract:
         Returns:
             graph: A networkx graph
         """
-        # Generate task ID and node list for the tasks
-        taskID_list = []
-        for idx, task in enumerate(self.commands):
-            if task:
-                inputs_sorted = ",".join(sorted(self.inputs[idx].split(",")))
-                outputs_sorted = ",".join(sorted(self.outputs[idx].split(",")))
-
-                taskID = utils.encode(f"{inputs_sorted}<>{utils.remove_space(task)}<>{outputs_sorted}")
-                taskID_list.append(taskID)
-                self.node_list.append(
-                    (
-                        taskID,
-                        {
-                            "name": task,
-                            "type": "task",
-                            "node_color": "grey",
-                            "status": "pending",
-                            "literal_name": task,
-                        },
-                    )
-                )
-
-        for idx, inp_list in enumerate(self.inputs):
-            # For every input list we create an edge from file to 
-            # task and a node for the file input
-            for item in inp_list.split(","):
-                if item:
-                    self.node_list.append(
-                        (
-                            utils.encode(item),
-                            {
-                                "name": utils.encode(item),
-                                "type": "file",
-                                "node_color": "grey",
-                                "status": "pending",
-                                "literal_name": item,
-                            },
-                        )
-                    )
-                    self.edge_list.append((utils.encode(item), taskID_list[idx]))
-
-        for idx, out_list in enumerate(self.outputs):
-            # For every input list we create an edge from file to 
-            # task and a node for the file output
-            for item in out_list.split(","):
-                if item:
-                    self.node_list.append(
-                        (
-                            utils.encode(item),
-                            {
-                                "name": utils.encode(item),
-                                "type": "file",
-                                "node_color": "grey",
-                                "status": "pending",
-                                "literal_name": item,
-                            },
-                        )
-                    )
-                    self.edge_list.append((taskID_list[idx], utils.encode(item)))
-
         graph = nx.DiGraph()
         graph.add_nodes_from(self.node_list)
         graph.add_edges_from(self.edge_list)
 
+        # Once a graph is computed we need to apply the transforms of every task, 
+        # if there are any to the neighbours nodes and then recompute all IDs 
+        # in preparation for graph matching
+
+        task_nodes = [n for n,v in graph.nodes(data=True) if v['type']=='task']
+
+        
+
+        for node in task_nodes:
+            transform = graph.nodes[node]['transform']
+
+
+            predecesors = list(graph.predecessors(node))
+            successors = list(graph.successors(node))
+
+
+            if (len(predecesors) == len(successors)) and len(transform.rstrip()) != 0:
+                for idx,item in enumerate(successors):
+                    full_path = transform.replace('*',graph.nodes[(predecesors[idx])]['label'])
+                    graph.nodes[item]['name'] = full_path
+                    graph.nodes[item]['path'] = os.path.dirname(full_path)
+                    graph.nodes[item]['label'] = os.path.basename(full_path).split('.')[0]
+                    graph.nodes[item]['ID'] = utils.encode(full_path)
+
+
+            elif len(transform.rstrip()) != 0:
+                for idx,item in enumerate(successors):
+                    full_path = transform.replace('*',graph.nodes[item]['label'])
+                    graph.nodes[item]['name'] = full_path
+                    graph.nodes[item]['path'] = os.path.dirname(full_path)
+                    graph.nodes[item]['label'] = os.path.basename(full_path).split('.')[0]
+                    graph.nodes[item]['ID'] = utils.encode(full_path)
+
+
+            neighbors = list(nx.all_neighbors(graph,node))
+            neighbors_name=[]
+            for n in neighbors:
+                neighbors_name.append(graph.nodes[n]['name'])
+
+            print('to_encode', ''.join(sorted(neighbors_name)))
+            graph.nodes[node]['ID'] = utils.encode(''.join(sorted(neighbors_name)))
+                
+                # mapping = {item:os.path.basename(full_path)}
+                # graph = nx.relabel_nodes(graph, mapping)
+            
+
+        
         return graph
+    
+
 
     def _graph_export(self, filename):
         """This function will write the graph to the path specified
@@ -119,6 +104,8 @@ class graph_abstract:
         """
         nx.write_gml(self.graph, filename)
 
+
+
     def graph_object_plot(self):
         """This function will return a plot of the networkx graph that
           can be plotted with bokeh or plotly
@@ -127,6 +114,8 @@ class graph_abstract:
             plot: A plot of the networkx graph
         """
         return utils.graph_plot(self.graph)
+    
+
 
     def end_nodes(self):
         """This function return the last node(s) in a tree
@@ -140,9 +129,11 @@ class graph_abstract:
             if self.graph.out_degree(x) == 0 and self.graph.in_degree(x) == 1
         ]
         return end_nodes
+    
+
 
     def start_nodes(self):
-        """This function return the first node(s) in a tree or in the 
+        """This function return the first node(s) in a tree or in the
         case of a diff graph the next node scheduled to run
 
         Returns:

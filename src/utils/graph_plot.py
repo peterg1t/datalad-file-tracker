@@ -39,8 +39,10 @@ def graph_plot(graph_nx):
     node_hover_tool = HoverTool(
         tooltips=[
             ("index", "@index"),
-            ("literal_name", "@literal_name"),
+            ("name", "@name"),
+            ("label", "@label"),
             ("status", "@status"),
+            ("ID", "@ID"),
         ]
     )
     plot.add_tools(node_hover_tool, BoxZoomTool(), ResetTool())
@@ -48,21 +50,23 @@ def graph_plot(graph_nx):
     graph.node_renderer.glyph = Circle(size=20, fill_color="node_color")
     plot.renderers.append(graph)
 
+    print('graph layout values',graph.layout_provider.graph_layout.values())
+
     x, y = zip(*graph.layout_provider.graph_layout.values())
-    node_labels = nx.get_node_attributes(graph_nx, "literal_name")
+    node_labels = nx.get_node_attributes(graph_nx, "name")
 
     fn = list(node_labels.values())
-    source = ColumnDataSource({"x": x, "y": y, "basename": fn})
+    source = ColumnDataSource({"x": x, "y": y, "name": fn})
     labels = LabelSet(
         x="x",
         y="y",
-        text="basename",
+        text="name",
         source=source,
         background_fill_color="white",
         text_align="center",
         y_offset=11,
     )
-    print("labels", labels)
+
     plot.renderers.append(labels)
 
     return plot

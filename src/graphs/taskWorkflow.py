@@ -12,10 +12,9 @@ class taskWorkflow(nodeWorkflow):
     """
 
     def __init__(self, dataset, name, commit):
-        super().__init__(commit)
-        self.literal_name = name
-        self.basename = name
+        super().__init__(commit, name, '', '', '')
         self.dataset = dataset
+        self.transform = ''
         self.parentFiles = []
         self.childFiles = []
         self.type = "task"
@@ -43,12 +42,3 @@ class taskWorkflow(nodeWorkflow):
         if self.childFiles:
             # childs_path = [os.path.basename(glob.glob(self.dataset+f"/**/*{os.path.basename(item)}", recursive=True)[0]) for item in self.childFiles] # Just in case we need the full path in the future
             childs_path = [os.path.basename(item) for item in self.childFiles]
-
-        unique_id = "<>".join(
-            [
-                ",".join(sorted(parents_path)),
-                utils.remove_space(self.literal_name),
-                ",".join(sorted(childs_path)),
-            ]
-        )
-        self.name = self._encode(unique_id)
