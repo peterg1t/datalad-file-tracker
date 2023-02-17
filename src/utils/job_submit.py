@@ -16,7 +16,7 @@ def command_submit(command):
     return outlog, errlog
 
 
-def job_submit(dataset, input, output, message, command):
+def job_submit(dataset, inputs, outputs, message, command):
     """! This function will execute the datalad run command
 
     Args:
@@ -33,15 +33,20 @@ def job_submit(dataset, input, output, message, command):
     errlogs = []
 
     # making the output stage folder
-    if os.path.exists(os.path.dirname(output)):
+    if os.path.exists(os.path.dirname(outputs[0])):
         pass
     else:
-        os.mkdir(os.path.dirname(output))
+        os.mkdir(os.path.dirname(outputs[0]))
+
+
+    inputs_proc = ' -i '.join(inputs)
+    outputs_proc = ' -o '.join(outputs)
+
 
     # saving the dataset prior to processing
     dl.save(path=dataset, dataset=dataset)
 
-    containers_run_command = f"cd {dataset} && datalad run -m '{message}' -d '{dataset}' -i '{input}' -o '{output}' '{command}'"
+    containers_run_command = f"cd {dataset} && datalad run -m '{message}' -d '{dataset}' -i {inputs_proc} -o {outputs_proc} '{command}'"
     print("full run command", containers_run_command)
     # containers_run_command = f"which datalad; datalad wtf -S extensions"
     outlog, errlog = command_submit(containers_run_command)

@@ -88,7 +88,8 @@ class GraphProvDB:
     
         for subdataset in subdatasets:
             repo = git.Repo(subdataset['path'])
-            commits = list(repo.iter_commits('master'))
+            branch = repo.active_branch
+            commits = list(repo.iter_commits(branch))
             # _get_commit_list(commits, run_commits)
             dl_run_commits = _get_commit_list(commits)
 

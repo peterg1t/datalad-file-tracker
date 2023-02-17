@@ -99,14 +99,14 @@ def graph_components_generator(tasks_number):
                                 "path": os.path.dirname(file),
                                 "type": level_type,
                                 "status": "pending",
-                                "node_color": "red",
+                                "node_color": "grey",
                                 "ID": utils.encode(file),
                             },
                         )
                     )
                     for node in prec_nodes:
                         if node:
-                            edges.append((node, file))
+                            edges.append((node, os.path.basename(file).split('.')[0]))
 
             elif level_type == "task":
                 task = col2.text_input(
@@ -137,7 +137,7 @@ def graph_components_generator(tasks_number):
                             "type": level_type,
                             "cmd": command,
                             "status": "pending",
-                            "node_color": "green",
+                            "node_color": "grey",
                             "transform": transform,
                             "ID": "",
                         },
@@ -184,36 +184,42 @@ def provenance_graph(dataset):
 
 
 def workflow_diff(abstract, provenance):
-    for node in provenance.graph.nodes():
-        if node in abstract.graph.nodes():
-            nx.set_node_attributes(abstract.graph, {node: "complete"}, "status")
-            if abstract.graph.nodes()[node]["type"] == "task":
-                nx.set_node_attributes(abstract.graph, {node: "green"}, "node_color")
-            elif abstract.graph.nodes()[node]["type"] == "file":
-                nx.set_node_attributes(abstract.graph, {node: "red"}, "node_color")
+    abs_graph_id = list(nx.get_node_attributes(abstract.graph, 'ID').values())
+    prov_graph_id = list(nx.get_node_attributes(provenance.graph, 'ID').values())
+    nodes_abs = list(abstract.graph.nodes())
+    
+    nodes_update = [n for n,v in abstract.graph.nodes(data=True) if v['ID'] in prov_graph_id]
+
+    for node in nodes_update:
+        nx.set_node_attributes(abstract.graph, {node: "complete"}, "status")
+        if abstract.graph.nodes()[node]["type"] == "task":
+            nx.set_node_attributes(abstract.graph, {node: "green"}, "node_color")
+        elif abstract.graph.nodes()[node]["type"] == "file":
+            nx.set_node_attributes(abstract.graph, {node: "red"}, "node_color")
+
+
 
     graph_plot = abstract.graph_object_plot()
     plot_graph(graph_plot)
 
     gdb_diff = copy.deepcopy(gdb)
-    gdb_diff.graph.remove_nodes_from(n for n in abstract.graph if n in provenance.graph)
+    gdb_diff.graph.remove_nodes_from(n for n,v in abstract.graph.nodes(data=True) if v['status']=='complete')
+
 
     # In the difference graph the start_nodes is the list of nodes that can be started (these should usually be a task)
     next_nodes = gdb_diff.start_nodes()
+    print('next_nodes',next_nodes)
+
+    return next_nodes
 
 
-    tasks_requirements = []
 
 
 
-    for node in next_nodes:
-        inputs_task = []
-        predecesor = abstract.graph.predecessors(node)
-        for item in predecesor:
-            inputs_task.append(provenance.graph.nodes[item]["literal_name"])
-        tasks_requirements.append((inputs_task, abstract.graph.nodes[node]["name"]))
 
-    return tasks_requirements
+
+
+
 
 
 if __name__ == "__main__":
@@ -257,43 +263,11 @@ if __name__ == "__main__":
     )
     scheduler.start()  # We start the scheduler
 
-    # next_nodes_req = []
+    next_nodes_req = []
     if args.agraph:
         pass
 
-    #     gdb_prov = None
-
-    #     file_inputs, commands, file_outputs = graph_components_generator_from_file(args.agraph)
-    #     graph_plot = None
-
-    #     gdb = graph_abstract(file_inputs, commands, file_outputs)
-    #     graph_plot = gdb.graph_object_plot()
-    #     plot_graph(graph_plot)
-
-    #     if args.pgraph:
-    #         gdb_prov = provenance_graph(args.pgraph)
-    #         next_nodes_req = workflow_diff(gdb, gdb_prov)
-
-    #     if args.export:
-    #         export_graph(graph=gdb, filename=args.export)
-
-    #     if next_nodes_req:
-    #         for req in next_nodes_req:
-    #             for idx,input in enumerate(req[0]):
-    #                 print('req',req, input)
-    #                 message = 'this is a test'
-    #                 print('folder to search', os.path.dirname(input))
-    #                 dataset = utils.get_git_root(os.path.dirname(input))
-    #                 print('dataset', dataset)
-    #                 command = req[1]
-    #                 print('command',command)
-    #                 # command = "cat {inputs} >> {outputs} &&echo '6' >> {outputs}"
-    #                 output_filename = req[2][idx]
-    #                 print('output filename', output_filename)
-    #                 output = f"{os.path.dirname(input)}/{output_filename}"
-    #                 print('output', output)
-    #                 scheduler.add_job(utils.job_submit, args=[dataset, input, output, message, command])
-    #         # print('Scheduled Jobs', scheduler.get_jobs())
+    
 
     else:
         tasks_number = st.number_input("Please define a number of levels", min_value=1)
@@ -325,4 +299,23 @@ if __name__ == "__main__":
 
         if button_clicked:
             gdb_prov = provenance_graph(provenance_graph_name)
-        #         next_nodes = workflow_diff(gdb, gdb_prov)
+            next_nodes_req = workflow_diff(gdb, gdb_prov)
+
+        inputs_dict = {}
+        outputs_dict = {}
+        if next_nodes_req:
+            for item in next_nodes_req:
+                for predecessors in gdb.graph.predecessors(item):
+                    inputs_dict[predecessors] = gdb.graph.nodes[predecessors]['name']
+
+                for successors in gdb.graph.successors(item):
+                    outputs_dict[successors] = gdb.graph.nodes[successors]['name']
+
+                inputs = list(inputs_dict.values())
+                outputs = list(outputs_dict.values())
+        
+                dataset = utils.get_git_root(os.path.dirname(inputs[0]))
+                command  = gdb.graph.nodes[item]['cmd']
+                message = "test"
+                scheduler.add_job(utils.job_submit, args=[dataset, inputs, outputs, message, command])
+                

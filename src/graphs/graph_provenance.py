@@ -80,7 +80,8 @@ class graph_provenance:
 
         for subdataset in subdatasets:
             repo = git.Repo(subdataset["path"])
-            commits = list(repo.iter_commits("master"))
+            branch = repo.active_branch
+            commits = list(repo.iter_commits(branch))
             # _get_commit_list(commits, run_commits)
             dl_run_commits = self._get_commit_list(commits)
 
@@ -121,7 +122,6 @@ class graph_provenance:
 
 
                 for output in dict_o["outputs"]:
-                    print("output", output)
                     output_path = glob.glob(
                         self.superdataset.path + f"/**/*{os.path.basename(output)}",
                         recursive=True,
@@ -136,7 +136,6 @@ class graph_provenance:
                     )
                     file.ID = utils.encode(file.name)
                     file.parentTask = dict_o["cmd"]
-                    print('file_values', file.name, file.label, file.path)
 
                     dict_file = copy.copy(file.__dict__)
                     dict_file.pop("parentTask", None)
@@ -154,7 +153,7 @@ class graph_provenance:
         graph.add_nodes_from(self.node_list)
         graph.add_edges_from(self.edge_list)
 
-        print('all nodes',graph.nodes(data=True))
+        # print('all nodes',graph.nodes(data=True))
 
         # Once a graph is computed we need to apply the transforms of every task, 
         # if there are any to the neighbours nodes and then recompute all IDs 
