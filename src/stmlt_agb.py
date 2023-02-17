@@ -295,27 +295,30 @@ if __name__ == "__main__":
         provenance_graph_name = st.sidebar.text_input(
             "Path for concrete provenance graph"
         )
-        button_clicked = st.sidebar.button("Match")
+        match_button = st.sidebar.button("Match")
 
-        if button_clicked:
+        if match_button:
             gdb_prov = provenance_graph(provenance_graph_name)
             next_nodes_req = workflow_diff(gdb, gdb_prov)
 
-        inputs_dict = {}
-        outputs_dict = {}
-        if next_nodes_req:
-            for item in next_nodes_req:
-                for predecessors in gdb.graph.predecessors(item):
-                    inputs_dict[predecessors] = gdb.graph.nodes[predecessors]['name']
+        run_next_button = st.sidebar.button("Run pending nodes")
 
-                for successors in gdb.graph.successors(item):
-                    outputs_dict[successors] = gdb.graph.nodes[successors]['name']
+        if run_next_button:
+            inputs_dict = {}
+            outputs_dict = {}
+            if next_nodes_req:
+                for item in next_nodes_req:
+                    for predecessors in gdb.graph.predecessors(item):
+                        inputs_dict[predecessors] = gdb.graph.nodes[predecessors]['name']
 
-                inputs = list(inputs_dict.values())
-                outputs = list(outputs_dict.values())
-        
-                dataset = utils.get_git_root(os.path.dirname(inputs[0]))
-                command  = gdb.graph.nodes[item]['cmd']
-                message = "test"
-                scheduler.add_job(utils.job_submit, args=[dataset, inputs, outputs, message, command])
+                    for successors in gdb.graph.successors(item):
+                        outputs_dict[successors] = gdb.graph.nodes[successors]['name']
+
+                    inputs = list(inputs_dict.values())
+                    outputs = list(outputs_dict.values())
+
+                    dataset = utils.get_git_root(os.path.dirname(inputs[0]))
+                    command  = gdb.graph.nodes[item]['cmd']
+                    message = "test"
+                    scheduler.add_job(utils.job_submit, args=[dataset, inputs, outputs, message, command])
                 
