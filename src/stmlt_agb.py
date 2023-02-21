@@ -4,23 +4,18 @@ Docstring
 import os
 import argparse
 import copy
-import shutil
 import cProfile
 import streamlit as st
 import networkx as nx
-from pytz import utc
 
 
-from graphs.graph_abstract import graph_abstract
-from graphs.graph_provenance import graph_provenance
+import graphs
+
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor, ProcessPoolExecutor
 
 from multiprocessing import Pool
-from functools import partial
-from itertools import repeat
-import time
 import utils
 
 
@@ -92,10 +87,10 @@ def graph_components_generator(tasks_number):
                 for file in files:
                     nodes.append(
                         (
-                            os.path.basename(file).split('.')[0],
+                            os.path.basename(file).split(".")[0],
                             {
                                 "name": file,
-                                "label": os.path.basename(file).split('.')[0],
+                                "label": os.path.basename(file).split(".")[0],
                                 "path": os.path.dirname(file),
                                 "type": level_type,
                                 "status": "pending",
@@ -106,7 +101,7 @@ def graph_components_generator(tasks_number):
                     )
                     for node in prec_nodes:
                         if node:
-                            edges.append((node, os.path.basename(file).split('.')[0]))
+                            edges.append((node, os.path.basename(file).split(".")[0]))
 
             elif level_type == "task":
                 task = col2.text_input(
@@ -123,8 +118,8 @@ def graph_components_generator(tasks_number):
                     f"Data transform for task {i}", key=f"trf_{i}"
                 )
 
-                if '*' not in transform:
-                    st.text('Special character * not in Data transform string')
+                if "*" not in transform:
+                    st.text("Special character * not in Data transform string")
                     # st.stop()
 
                 nodes.append(
@@ -150,8 +145,6 @@ def graph_components_generator(tasks_number):
     return nodes, edges
 
 
-
-
 def plot_graph(plot):
     """Function to generate a bokeh chart
 
@@ -161,8 +154,6 @@ def plot_graph(plot):
     st.bokeh_chart(plot, use_container_width=True)
 
 
-
-
 def export_graph(**kwargs):
     try:
         kwargs["graph"]._graph_export(kwargs["filename"])
@@ -170,25 +161,14 @@ def export_graph(**kwargs):
         st.sidebar.text(f"{e}")
 
 
-
-
-def provenance_graph(dataset):
-    """This function will return a provenance graph
-
-    Returns:
-        **: _description_
-    """
-    return graph_provenance(dataset)
-
-
-
-
 def workflow_diff(abstract, provenance):
-    abs_graph_id = list(nx.get_node_attributes(abstract.graph, 'ID').values())
-    prov_graph_id = list(nx.get_node_attributes(provenance.graph, 'ID').values())
+    abs_graph_id = list(nx.get_node_attributes(abstract.graph, "ID").values())
+    prov_graph_id = list(nx.get_node_attributes(provenance.graph, "ID").values())
     nodes_abs = list(abstract.graph.nodes())
-    
-    nodes_update = [n for n,v in abstract.graph.nodes(data=True) if v['ID'] in prov_graph_id]
+
+    nodes_update = [
+        n for n, v in abstract.graph.nodes(data=True) if v["ID"] in prov_graph_id
+    ]
 
     for node in nodes_update:
         nx.set_node_attributes(abstract.graph, {node: "complete"}, "status")
@@ -197,29 +177,18 @@ def workflow_diff(abstract, provenance):
         elif abstract.graph.nodes()[node]["type"] == "file":
             nx.set_node_attributes(abstract.graph, {node: "red"}, "node_color")
 
-
-
     graph_plot = abstract.graph_object_plot()
     plot_graph(graph_plot)
 
     gdb_diff = copy.deepcopy(gdb)
-    gdb_diff.graph.remove_nodes_from(n for n,v in abstract.graph.nodes(data=True) if v['status']=='complete')
-
+    gdb_diff.graph.remove_nodes_from(
+        n for n, v in abstract.graph.nodes(data=True) if v["status"] == "complete"
+    )
 
     # In the difference graph the start_nodes is the list of nodes that can be started (these should usually be a task)
     next_nodes = gdb_diff.start_nodes()
-    print('next_nodes',next_nodes)
 
     return next_nodes
-
-
-
-
-
-
-
-
-
 
 
 if __name__ == "__main__":
@@ -267,18 +236,14 @@ if __name__ == "__main__":
     if args.agraph:
         pass
 
-    
-
     else:
         tasks_number = st.number_input("Please define a number of levels", min_value=1)
         # file_inputs, commands, file_outputs = graph_components_generator(tasks_number)
         node_list, edge_list = graph_components_generator(tasks_number)
 
-        gdb = graph_abstract(node_list, edge_list)
+        gdb = graphs.graph_abstract(node_list, edge_list)
         graph_plot = gdb.graph_object_plot()
         plot_graph(graph_plot)
-
-
 
         export_name = st.sidebar.text_input("Path for abstract graph export")
         st.sidebar.button(
@@ -287,10 +252,8 @@ if __name__ == "__main__":
             kwargs={"graph": gdb, "filename": export_name},
         )
 
-        
-
-        # The provenance graph name is the path to any directory in a project where provenance is recorded. 
-        # When the button is clicked a full provenance graph for all the project is generated and matched 
+        # The provenance graph name is the path to any directory in a project where provenance is recorded.
+        # When the button is clicked a full provenance graph for all the project is generated and matched
         # to the abstract graph
         provenance_graph_name = st.sidebar.text_input(
             "Path for concrete provenance graph"
@@ -298,27 +261,39 @@ if __name__ == "__main__":
         match_button = st.sidebar.button("Match")
 
         if match_button:
-            gdb_prov = provenance_graph(provenance_graph_name)
-            next_nodes_req = workflow_diff(gdb, gdb_prov)
+            if provenance_graph_name:
+                gdb_prov = graphs.graph_provenance(provenance_graph_name)
+                next_nodes_req = workflow_diff(gdb, gdb_prov)
+                if "next_nodes_req" not in st.session_state:
+                    st.session_state["next_nodes_req"] = next_nodes_req
 
         run_next_button = st.sidebar.button("Run pending nodes")
 
         if run_next_button:
             inputs_dict = {}
             outputs_dict = {}
-            if next_nodes_req:
+            try:
+                next_nodes_req = st.session_state["next_nodes_req"]
                 for item in next_nodes_req:
                     for predecessors in gdb.graph.predecessors(item):
-                        inputs_dict[predecessors] = gdb.graph.nodes[predecessors]['name']
+                        inputs_dict[predecessors] = gdb.graph.nodes[predecessors][
+                            "name"
+                        ]
 
                     for successors in gdb.graph.successors(item):
-                        outputs_dict[successors] = gdb.graph.nodes[successors]['name']
+                        outputs_dict[successors] = gdb.graph.nodes[successors]["name"]
 
                     inputs = list(inputs_dict.values())
                     outputs = list(outputs_dict.values())
 
                     dataset = utils.get_git_root(os.path.dirname(inputs[0]))
-                    command  = gdb.graph.nodes[item]['cmd']
+                    command = gdb.graph.nodes[item]["cmd"]
                     message = "test"
-                    scheduler.add_job(utils.job_submit, args=[dataset, inputs, outputs, message, command])
-                
+
+                    print("submit_job", dataset, inputs, outputs, message, command)
+                    # scheduler.add_job(utils.job_submit, args=[dataset, inputs, outputs, message, command])
+
+            except Exception as e:
+                st.warning(
+                    "No provance graph has been matched to this abstract graph, match one first"
+                )

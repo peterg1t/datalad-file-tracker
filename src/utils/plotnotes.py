@@ -5,7 +5,6 @@ This module allows the user to print the Networkx graph containing all the notes
 """
 import os
 from datetime import datetime
-import streamlit as st
 from networkx.drawing.nx_agraph import graphviz_layout
 from bokeh.plotting import from_networkx, figure
 from bokeh.models import (
@@ -225,4 +224,4 @@ class PlotNotes:  # pylint: disable=too-few-public-methods
 
         plot.renderers.append(labels)  # pylint: disable=no-member
 
-        return st.bokeh_chart(plot, use_container_width=True)
+        return plot

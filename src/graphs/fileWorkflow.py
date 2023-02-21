@@ -11,14 +11,19 @@ class fileWorkflow(nodeWorkflow):
     """
 
     def __init__(self, dataset, name, commit, fileBlob):
-        super().__init__(commit, name, os.path.dirname(name), os.path.basename(name).split('.')[0], '')
+        super().__init__(
+            commit,
+            name,
+            os.path.dirname(name),
+            os.path.basename(name).split(".")[0],
+            "",
+        )
         self.dataset = dataset
         self.fileBlob = fileBlob
         self.parentTask = []
         self.childTask = []
         self.type = "file"
         self.node_color = "red"
-    
 
     def _encode(self, message):
         message_bytes = message.encode("ascii")

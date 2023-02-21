@@ -50,7 +50,7 @@ def graph_plot(graph_nx):
     graph.node_renderer.glyph = Circle(size=20, fill_color="node_color")
     plot.renderers.append(graph)
 
-    print('graph layout values',graph.layout_provider.graph_layout.values())
+    print("graph layout values", graph.layout_provider.graph_layout.values())
 
     x, y = zip(*graph.layout_provider.graph_layout.values())
     node_labels = nx.get_node_attributes(graph_nx, "name")

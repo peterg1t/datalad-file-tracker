@@ -44,56 +44,56 @@ class graph_abstract:
         graph.add_nodes_from(self.node_list)
         graph.add_edges_from(self.edge_list)
 
-        # Once a graph is computed we need to apply the transforms of every task, 
-        # if there are any to the neighbours nodes and then recompute all IDs 
+        # Once a graph is computed we need to apply the transforms of every task,
+        # if there are any to the neighbours nodes and then recompute all IDs
         # in preparation for graph matching
 
-        task_nodes = [n for n,v in graph.nodes(data=True) if v['type']=='task']
-
-        
+        task_nodes = [n for n, v in graph.nodes(data=True) if v["type"] == "task"]
 
         for node in task_nodes:
-            transform = graph.nodes[node]['transform']
-
+            transform = graph.nodes[node]["transform"]
 
             predecesors = list(graph.predecessors(node))
             successors = list(graph.successors(node))
 
-
             if (len(predecesors) == len(successors)) and len(transform.rstrip()) != 0:
-                for idx,item in enumerate(successors):
-                    full_path = transform.replace('*',graph.nodes[(predecesors[idx])]['label'])
-                    graph.nodes[item]['name'] = full_path
-                    graph.nodes[item]['path'] = os.path.dirname(full_path)
-                    graph.nodes[item]['label'] = os.path.basename(full_path).split('.')[0]
-                    graph.nodes[item]['ID'] = utils.encode(full_path)
-
+                for idx, item in enumerate(successors):
+                    full_path = transform.replace(
+                        "*", graph.nodes[(predecesors[idx])]["label"]
+                    )
+                    graph.nodes[item]["name"] = full_path
+                    graph.nodes[item]["path"] = os.path.dirname(full_path)
+                    graph.nodes[item]["label"] = os.path.basename(full_path).split(".")[
+                        0
+                    ]
+                    graph.nodes[item]["ID"] = utils.encode(full_path)
 
             elif len(transform.rstrip()) != 0:
-                for idx,item in enumerate(successors):
-                    full_path = transform.replace('*',graph.nodes[item]['label'])
-                    graph.nodes[item]['name'] = full_path
-                    graph.nodes[item]['path'] = os.path.dirname(full_path)
-                    graph.nodes[item]['label'] = os.path.basename(full_path).split('.')[0]
-                    graph.nodes[item]['ID'] = utils.encode(full_path)
+                for idx, item in enumerate(successors):
+                    full_path = transform.replace("*", graph.nodes[item]["label"])
+                    graph.nodes[item]["name"] = full_path
+                    graph.nodes[item]["path"] = os.path.dirname(full_path)
+                    graph.nodes[item]["label"] = os.path.basename(full_path).split(".")[
+                        0
+                    ]
+                    graph.nodes[item]["ID"] = utils.encode(full_path)
 
-
-            neighbors = list(nx.all_neighbors(graph,node))
-            neighbors_name=[]
+            neighbors = list(nx.all_neighbors(graph, node))
+            full_task_description = []
             for n in neighbors:
-                neighbors_name.append(graph.nodes[n]['name'])
+                full_task_description.append(graph.nodes[n]["name"])
 
-            print('to_encode', ''.join(sorted(neighbors_name)))
-            graph.nodes[node]['ID'] = utils.encode(''.join(sorted(neighbors_name)))
-                
-                # mapping = {item:os.path.basename(full_path)}
-                # graph = nx.relabel_nodes(graph, mapping)
-            
+            command = graph.nodes[node]["cmd"]
+            full_task_description.append(command)
 
-        
+            graph.nodes[node]["ID"] = utils.encode(
+                ",".join(sorted(full_task_description))
+            )
+
+            # mapping = {item:os.path.basename(full_path)}
+            # graph = nx.relabel_nodes(graph, mapping)
+
         return graph
-    
-
 
     def _graph_export(self, filename):
         """This function will write the graph to the path specified
@@ -104,8 +104,6 @@ class graph_abstract:
         """
         nx.write_gml(self.graph, filename)
 
-
-
     def graph_object_plot(self):
         """This function will return a plot of the networkx graph that
           can be plotted with bokeh or plotly
@@ -114,8 +112,6 @@ class graph_abstract:
             plot: A plot of the networkx graph
         """
         return utils.graph_plot(self.graph)
-    
-
 
     def end_nodes(self):
         """This function return the last node(s) in a tree
@@ -129,8 +125,6 @@ class graph_abstract:
             if self.graph.out_degree(x) == 0 and self.graph.in_degree(x) == 1
         ]
         return end_nodes
-    
-
 
     def start_nodes(self):
         """This function return the first node(s) in a tree or in the

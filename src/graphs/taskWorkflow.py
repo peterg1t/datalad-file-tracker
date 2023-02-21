@@ -1,7 +1,6 @@
 import os
 import base64
 from graphs.nodeWorkflow import nodeWorkflow
-import utils
 
 
 class taskWorkflow(nodeWorkflow):
@@ -11,10 +10,11 @@ class taskWorkflow(nodeWorkflow):
         nodeWorkflow (_type_): _description_
     """
 
-    def __init__(self, dataset, name, commit):
-        super().__init__(commit, name, '', '', '')
+    def __init__(self, dataset, command, commit):
+        super().__init__(commit, command, "", "", "")
         self.dataset = dataset
-        self.transform = ''
+        self.cmd = command
+        self.transform = ""
         self.parentFiles = []
         self.childFiles = []
         self.type = "task"

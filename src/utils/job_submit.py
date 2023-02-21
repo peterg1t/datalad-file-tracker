@@ -38,10 +38,8 @@ def job_submit(dataset, inputs, outputs, message, command):
     else:
         os.mkdir(os.path.dirname(outputs[0]))
 
-
-    inputs_proc = ' -i '.join(inputs)
-    outputs_proc = ' -o '.join(outputs)
-
+    inputs_proc = " -i ".join(inputs)
+    outputs_proc = " -o ".join(outputs)
 
     # saving the dataset prior to processing
     dl.save(path=dataset, dataset=dataset)
