@@ -249,9 +249,15 @@ def workflow_diff(abstract, provenance):
 
 
 
-def match_graphs(provenance_graph_name, gdb):
-    if provenance_graph_name:
-        gdb_prov = graphs.graph_provenance(provenance_graph_name)
+def match_graphs(provenance_ds_path, gdb):
+    """! Function to match the graphs loaded with Streamlit interface
+
+    Args:
+        provenance_ds_path (str): The path to the provenance dataset
+        gdb (graph): An abstract graph
+    """
+    if provenance_ds_path:
+        gdb_prov = graphs.graph_provenance(provenance_ds_path)
         next_nodes_req = workflow_diff(gdb, gdb_prov)
         if "next_nodes_req" not in st.session_state:
             st.session_state["next_nodes_req"] = next_nodes_req
@@ -259,6 +265,11 @@ def match_graphs(provenance_graph_name, gdb):
 
 
 def run_pending_nodes(gdb):
+    """! Given a graph and the list of nodes (and requirements i.e. inputs) compute the task with APScheduler
+
+    Args:
+        gdb (graph): An abstract graph
+    """
     inputs_dict = {}
     outputs_dict = {}
         
@@ -331,70 +342,41 @@ if __name__ == "__main__":
     scheduler.start()  # We start the scheduler
 
     next_nodes_req = []
+    
+    node_list = None
+    edge_list = None
+    
     if args.agraph:
         node_list, edge_list = graph_components_generator_from_file(args.agraph)
-        gdb = graphs.graph_abstract(node_list, edge_list)
-        graph_plot = gdb.graph_object_plot()
-        plot_graph(graph_plot)
-
-        export_name = st.sidebar.text_input("Path for abstract graph export")
-        st.sidebar.button(
-            "Save",
-            on_click=export_graph,
-            kwargs={"graph": gdb, "filename": export_name},
-        )
-
-        # The provenance graph name is the path to any directory in a project where provenance is recorded.
-        # When the button is clicked a full provenance graph for all the project is generated and matched
-        # to the abstract graph
-        provenance_graph_name = st.sidebar.text_input(
-            "Path for concrete provenance graph"
-        )
-        match_button = st.sidebar.button("Match")
-
-        if match_button:
-            match_graphs(provenance_graph_name, gdb)
-            
-
-        
-        run_next_button = st.sidebar.button("Run pending nodes")
-
-        if run_next_button:
-            run_pending_nodes(gdb)
-
-            
-        
+          
 
     else:
         tasks_number = st.number_input("Please define a number of stages", min_value=1)
         # file_inputs, commands, file_outputs = graph_components_generator(tasks_number)
         node_list, edge_list = graph_components_generator(tasks_number)
 
-        gdb = graphs.graph_abstract(node_list, edge_list)
-        graph_plot = gdb.graph_object_plot()
-        plot_graph(graph_plot)
-
-        export_name = st.sidebar.text_input("Path for abstract graph export")
-        st.sidebar.button(
-            "Save",
-            on_click=export_graph,
-            kwargs={"graph": gdb, "filename": export_name},
-        )
-
-        # The provenance graph name is the path to any directory in a project where provenance is recorded.
-        # When the button is clicked a full provenance graph for all the project is generated and matched
-        # to the abstract graph
-        provenance_graph_name = st.sidebar.text_input(
-            "Path for concrete provenance graph"
-        )
-        match_button = st.sidebar.button("Match")
-
-        if match_button:
-            match_graphs(provenance_graph_name, gdb)
-            
-
+    gdb = graphs.graph_abstract(node_list, edge_list)
+    graph_plot = gdb.graph_object_plot()
+    plot_graph(graph_plot)
+    
+    
+    export_name = st.sidebar.text_input("Path for abstract graph export")
+    st.sidebar.button(
+        "Save",
+        on_click=export_graph,
+        kwargs={"graph": gdb, "filename": export_name},
+    )
+    # The provenance graph name is the path to any directory in a project where provenance is recorded.
+    # When the button is clicked a full provenance graph for all the project is generated and matched
+    # to the abstract graph
+    provenance_graph_path = st.sidebar.text_input(
+        "Path to the dataset with provenance"
+    )
+    match_button = st.sidebar.button("Match")
+    if match_button:
+        match_graphs(provenance_graph_path, gdb)
         
-        run_next_button = st.sidebar.button("Run pending nodes")
-
-        if run_next_button:
-            run_pending_nodes(gdb)
+    
+    run_next_button = st.sidebar.button("Run pending nodes")
+    if run_next_button:
+        run_pending_nodes(gdb)
