@@ -44,6 +44,8 @@ class graph_abstract:
         graph.add_nodes_from(self.node_list)
         graph.add_edges_from(self.edge_list)
 
+        # print('nodes',graph.nodes(data=True))
+
         # Once a graph is computed we need to apply the transforms of every task,
         # if there are any to the neighbours nodes and then recompute all IDs
         # in preparation for graph matching
@@ -136,6 +138,8 @@ class graph_abstract:
         start_nodes = [
             x
             for x in self.graph.nodes()
-            if self.graph.out_degree(x) == 1 and self.graph.in_degree(x) == 0
+            if int(self.graph.out_degree(x)) >= 1 and int(self.graph.in_degree(x)) == 0
         ]
+
+
         return start_nodes

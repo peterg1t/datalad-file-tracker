@@ -29,19 +29,64 @@ Welcome to the abstract graph builder!
 )
 
 
+
+
 def graph_components_generator_from_file(filename):
-    inputs = []
-    commands = []
-    outputs = []
+    nodes = []
+    edges = []    
     with open(filename, encoding="utf-8") as f:
         read_data = f.readlines()
         for item in read_data:
-            inputs.append(item.split("<>")[0].strip())
-            # commands.append(item.strip().split('<>')[1])
-            commands.append(item.split("<>")[1])
-            outputs.append(item.split("<>")[2].strip())
+            level_type = item.split("<>")[0].strip()
+            if level_type == 'T':
+                task, command, prec_nodes, transform = utils.line_process_task(item)
+                nodes.append(
+                    (
+                        task,
+                        {
+                            "name": task,
+                            "label": task,
+                            "path": "",
+                            "type": "task",
+                            "cmd": command,
+                            "status": "pending",
+                            "node_color": "grey",
+                            "transform": transform,
+                            "ID": "",
+                        },
+                    )
+                )
+                for node in prec_nodes:
+                    if node:
+                        edges.append((node, task))
 
-    return inputs, commands, outputs
+
+            elif level_type == 'F':
+                files, prec_nodes = utils.line_process_file(item)
+                for file in files:
+                    nodes.append(
+                        (
+                            os.path.basename(file).split(".")[0],
+                            {
+                                "name": file,
+                                "label": os.path.basename(file).split(".")[0],
+                                "path": os.path.dirname(file),
+                                "type": "file",
+                                "status": "pending",
+                                "node_color": "grey",
+                                "ID": utils.encode(file),
+                            },
+                        )
+                    )
+                    for node in prec_nodes:
+                        if node:
+                            edges.append((node, os.path.basename(file).split(".")[0]))
+
+
+
+            
+
+    return nodes, edges
 
 
 def graph_components_generator(tasks_number):
@@ -112,7 +157,7 @@ def graph_components_generator(tasks_number):
                     st.stop()
 
                 command = col3.text_input(
-                    f"Command for task {i}", key=f"cmd_{i}", placeholder="Command"
+                    f"Command for stage {i}", key=f"cmd_{i}", placeholder="Command"
                 )
                 transform = col5.text_input(
                     f"Data transform for task {i}", key=f"trf_{i}"
@@ -162,9 +207,20 @@ def export_graph(**kwargs):
 
 
 def workflow_diff(abstract, provenance):
+    """! Calculate the difference of the abstract and provenance graphs
+
+    Args:
+        abstract (_type_): _description_
+        provenance (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
     abs_graph_id = list(nx.get_node_attributes(abstract.graph, "ID").values())
     prov_graph_id = list(nx.get_node_attributes(provenance.graph, "ID").values())
     nodes_abs = list(abstract.graph.nodes())
+
+    print('ids',abs_graph_id, prov_graph_id, nodes_abs)
 
     nodes_update = [
         n for n, v in abstract.graph.nodes(data=True) if v["ID"] in prov_graph_id
@@ -185,8 +241,11 @@ def workflow_diff(abstract, provenance):
         n for n, v in abstract.graph.nodes(data=True) if v["status"] == "complete"
     )
 
+    print('diff graph', gdb_diff.graph.nodes())
+
     # In the difference graph the start_nodes is the list of nodes that can be started (these should usually be a task)
     next_nodes = gdb_diff.start_nodes()
+    print('next nodes', next_nodes)
 
     return next_nodes
 
@@ -202,7 +261,7 @@ if __name__ == "__main__":
         "--agraph",
         type=str,
         help="Path to graph txt file. \
-                        Content must have the {inputs}<>{task}<>{outputs} format per line",
+                        Content must have the {type}<>{name}<>{params} format per line",
     )
     parser.add_argument(
         "-p", "--pgraph", type=str, help="Path to project to extract provenance"
@@ -234,7 +293,66 @@ if __name__ == "__main__":
 
     next_nodes_req = []
     if args.agraph:
-        pass
+        node_list, edge_list = graph_components_generator_from_file(args.agraph)
+        gdb = graphs.graph_abstract(node_list, edge_list)
+        graph_plot = gdb.graph_object_plot()
+        plot_graph(graph_plot)
+
+        export_name = st.sidebar.text_input("Path for abstract graph export")
+        st.sidebar.button(
+            "Save",
+            on_click=export_graph,
+            kwargs={"graph": gdb, "filename": export_name},
+        )
+
+        # The provenance graph name is the path to any directory in a project where provenance is recorded.
+        # When the button is clicked a full provenance graph for all the project is generated and matched
+        # to the abstract graph
+        provenance_graph_name = st.sidebar.text_input(
+            "Path for concrete provenance graph"
+        )
+        match_button = st.sidebar.button("Match")
+
+        if match_button:
+            if provenance_graph_name:
+                gdb_prov = graphs.graph_provenance(provenance_graph_name)
+                next_nodes_req = workflow_diff(gdb, gdb_prov)
+                if "next_nodes_req" not in st.session_state:
+                    st.session_state["next_nodes_req"] = next_nodes_req
+
+        
+        run_next_button = st.sidebar.button("Run pending nodes")
+
+        if run_next_button:
+            inputs_dict = {}
+            outputs_dict = {}
+            
+            try:
+                next_nodes_req = st.session_state["next_nodes_req"]
+                for item in next_nodes_req:
+                    for predecessors in gdb.graph.predecessors(item):
+                        inputs_dict[predecessors] = gdb.graph.nodes[predecessors][
+                            "name"
+                        ]
+
+                    for successors in gdb.graph.successors(item):
+                        outputs_dict[successors] = gdb.graph.nodes[successors]["name"]
+
+                    inputs = list(inputs_dict.values())
+                    outputs = list(outputs_dict.values())
+
+                    dataset = utils.get_git_root(os.path.dirname(inputs[0]))
+                    command = gdb.graph.nodes[item]["cmd"]
+                    message = "test"
+
+                    print("submit_job", dataset, inputs, outputs, message, command)
+                    # scheduler.add_job(utils.job_submit, args=[dataset, inputs, outputs, message, command])
+
+            except Exception as e:
+                st.warning(
+                    "No provance graph has been matched to this abstract graph, match one first"
+                )
+        
 
     else:
         tasks_number = st.number_input("Please define a number of levels", min_value=1)
@@ -264,16 +382,21 @@ if __name__ == "__main__":
             if provenance_graph_name:
                 gdb_prov = graphs.graph_provenance(provenance_graph_name)
                 next_nodes_req = workflow_diff(gdb, gdb_prov)
+                print('next nodes after matching',next_nodes_req)
                 if "next_nodes_req" not in st.session_state:
                     st.session_state["next_nodes_req"] = next_nodes_req
 
+        
         run_next_button = st.sidebar.button("Run pending nodes")
 
         if run_next_button:
             inputs_dict = {}
             outputs_dict = {}
+            print('Running pending nodes')
             try:
+                print('Try')
                 next_nodes_req = st.session_state["next_nodes_req"]
+                print(next_nodes_req)
                 for item in next_nodes_req:
                     for predecessors in gdb.graph.predecessors(item):
                         inputs_dict[predecessors] = gdb.graph.nodes[predecessors][
