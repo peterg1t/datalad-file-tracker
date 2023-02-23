@@ -241,11 +241,9 @@ def workflow_diff(abstract, provenance):
         n for n, v in abstract.graph.nodes(data=True) if v["status"] == "complete"
     )
     # In the difference graph the start_nodes is the list of nodes that can be started (these should usually be a task)
-    next_nodes = gdb_diff.start_nodes()
 
 
-
-    return next_nodes
+    return gdb_diff
 
 
 
@@ -258,7 +256,9 @@ def match_graphs(provenance_ds_path, gdb):
     """
     if provenance_ds_path:
         gdb_prov = graphs.graph_provenance(provenance_ds_path)
-        next_nodes_req = workflow_diff(gdb, gdb_prov)
+        gdb_diff = workflow_diff(gdb, gdb_prov)
+        next_nodes_req = gdb_diff.next_nodes_run()
+
         if "next_nodes_req" not in st.session_state:
             st.session_state["next_nodes_req"] = next_nodes_req
 

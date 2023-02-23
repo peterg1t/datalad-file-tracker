@@ -128,18 +128,18 @@ class graph_abstract:
         ]
         return end_nodes
 
-    def start_nodes(self):
+    def next_nodes_run(self):
         """This function return the first node(s) in a tree or in the
         case of a diff graph the next node scheduled to run
 
         Returns:
             list: A list of starting nodes
         """
-        start_nodes = [
+        next_nodes_run = [
             x
             for x in self.graph.nodes()
             if int(self.graph.out_degree(x)) >= 1 and int(self.graph.in_degree(x)) == 0
         ]
 
 
-        return start_nodes
+        return next_nodes_run
