@@ -1,7 +1,13 @@
-#  PyUp Security Scans Template
+#  Security Scans Template
 
 #  This template allows you to run security scans on your Python dependencies.
 #  The workflow allows running tests on the default branch.
+
+job_name:
+ tags:
+   - streamlit
+   - provenance
+
 
 image: python:latest
 
