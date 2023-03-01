@@ -12,9 +12,9 @@ job_name:
 image: python:latest
 
 
-include:
-  - project: "dependabot-gitlab/dependabot-standalone"
-    file: ".gitlab-ci.yml"
+# include:
+#   - project: "dependabot-gitlab/dependabot-standalone"
+#     file: ".gitlab-ci.yml"
 
 
 # Change pip's cache directory to be inside the project directory since we can
