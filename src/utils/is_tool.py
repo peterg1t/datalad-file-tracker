@@ -1,5 +1,5 @@
-import shutil
-
+"""Module to check paths"""
+from shutil import which
 
 def is_tool(name):
     """! Check whether `name` is on PATH and marked as executable.
@@ -10,8 +10,4 @@ def is_tool(name):
     Returns:
         bool: True if the executable exists False otherwise
     """
-
-    # from whichcraft import which
-    from shutil import which
-
     return which(name) is not None

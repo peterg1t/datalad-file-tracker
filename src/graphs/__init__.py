@@ -1,4 +1,4 @@
-from graphs.graph_provenance import graph_provenance
-from graphs.graph_abstract import graph_abstract
-from graphs.fileWorkflow import fileWorkflow
-from graphs.taskWorkflow import taskWorkflow
+from graphs.graph_provenance import GraphProvenance # pylint: disable=import-error
+from graphs.graph_base import GraphBase # pylint: disable=import-error
+from graphs.file_workflow import FileWorkflow # pylint: disable=import-error
+from graphs.task_workflow import TaskWorkflow # pylint: disable=import-error

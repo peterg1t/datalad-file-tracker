@@ -36,7 +36,7 @@ class PlotNotes:  # pylint: disable=too-few-public-methods
         self._analysismode = analysis
         self._graph = None
 
-    def _loc_duplicate(self, value_list):
+    def _loc_duplicate(self, value_list): # pylint: disable = inconsistent-return-statements
         """! This function will find duplicates in our value list and mark where these exist
         Args:
             value_list (list): A list of values
@@ -44,7 +44,6 @@ class PlotNotes:  # pylint: disable=too-few-public-methods
         Returns:
             i: An index where there is a duplicate
         """
-        print(len(value_list))
         for i in range(1, len(value_list)):
             if value_list[i - 1] == value_list[i]:
                 return i
@@ -202,7 +201,7 @@ class PlotNotes:  # pylint: disable=too-few-public-methods
 
         # ploting the names of the files as labels
         plot.renderers.append(graph)  # pylint: disable=no-member
-        x, y = zip(
+        x_var, y_var = zip(
             *graph.layout_provider.graph_layout.values()
         )  # pylint: disable=invalid-name
         node_labels = nx.get_node_attributes(network_graph, "date")
@@ -211,7 +210,7 @@ class PlotNotes:  # pylint: disable=too-few-public-methods
 
         fn_mod = [os.path.basename(f) for f in func_node]
 
-        source = ColumnDataSource({"x": x, "y": y, "name": fn_mod})
+        source = ColumnDataSource({"x": x_var, "y": y_var, "name": fn_mod})
         labels = LabelSet(
             x="x",
             y="y",

@@ -7,7 +7,6 @@ import streamlit as st
 import graphs
 
 
-
 profiler = cProfile.Profile()
 
 st.set_page_config(layout="wide")
@@ -19,10 +18,11 @@ Welcome to the database provenance tracker!
 
 
 def export_graph(**kwargs):
+    """! This function will print an exception if"""
     try:
-        kwargs["graph"]._graph_export(kwargs["filename"])
-    except Exception as e:
-        st.sidebar.text(f"{e}")
+        kwargs["graph"].graph_export(kwargs["filename"])
+    except Exception as exept:
+        st.sidebar.text(f"{exept}")
 
 
 def git_log_parse(ds_name):
@@ -32,9 +32,9 @@ def git_log_parse(ds_name):
         a_option (str): An analysis mode for the node calculation
     """
     try:
-        gdb = graphs.graph_provenance(ds_name)
-    except Exception as e:
-        st.warning(f"{e}")
+        gdb = graphs.GraphProvenance(ds_name)
+    except Exception as exept:
+        st.warning(f"{exept}")
         st.stop()
 
     plot_db = gdb.graph_object_plot()

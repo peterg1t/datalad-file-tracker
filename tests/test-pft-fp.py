@@ -100,46 +100,46 @@ class GraphProvDB:
                 gI=1
                 aNI=2
                 cGID=3
-                task = taskWorkflow(dict_o['cmd'],gI, aNI, cGID, commit.hexsha, commit.hexsha) 
+                task = TaskWorkflow(dict_o['cmd'],gI, aNI, cGID, commit.hexsha, commit.hexsha) 
 
                 dict_task = copy.copy(task.__dict__)
-                dict_task.pop('childFiles')
-                dict_task.pop('parentFiles')
+                dict_task.pop('child_files')
+                dict_task.pop('parent_files')
                 self.node_list.append((task.taskID, task.__dict__))
 
 
                 for input in dict_o['inputs']:
-                    task.parentFiles.append(input)
+                    task.parent_files.append(input)
 
                     input_path = glob.glob(self.superdataset.path+f"/**/*{os.path.basename(input)}", recursive=True)[0]
                     ds_file = git.Repo(os.path.dirname(input_path))
                     file_status = dl.status(path=input_path, dataset=ds_file.working_tree_dir)[0]
 
-                    file = fileWorkflow(input_path,gI, aNI, cGID, commit.hexsha, file_status['gitshasum'])
-                    file.childTask=dict_o['cmd']
+                    file = file_workflow(input_path,gI, aNI, cGID, commit.hexsha, file_status['gitshasum'])
+                    file.child_task=dict_o['cmd']
 
                     dict_file = copy.copy(file.__dict__)
-                    dict_file.pop('childTask', None)
+                    dict_file.pop('child_task', None)
 
-                    self.node_list.append((file.fileBlob, dict_file))
-                    self.edge_list.append((file.fileBlob,task.taskID))
+                    self.node_list.append((file.file_blob, dict_file))
+                    self.edge_list.append((file.file_blob,task.taskID))
 
 
                 for output in dict_o['outputs']:
-                    task.childFiles.append(output)
+                    task.child_files.append(output)
 
                     output_path = glob.glob(self.superdataset.path+f"/**/*{os.path.basename(output)}", recursive=True)[0]
                     ds_file = git.Repo(os.path.dirname(output_path))
                     file_status = dl.status(path=output_path, dataset=ds_file.working_tree_dir)[0]
 
-                    file = fileWorkflow(output_path, gI, aNI, cGID, commit.hexsha, file_status['gitshasum'])
-                    file.parentTask=dict_o['cmd']
+                    file = file_workflow(output_path, gI, aNI, cGID, commit.hexsha, file_status['gitshasum'])
+                    file.parent_task=dict_o['cmd']
 
                     dict_file = copy.copy(file.__dict__)
-                    dict_file.pop('parentTask', None)
+                    dict_file.pop('parent_task', None)
 
-                    self.node_list.append((file.fileBlob, dict_file))
-                    self.edge_list.append((task.taskID,file.fileBlob))
+                    self.node_list.append((file.file_blob, dict_file))
+                    self.edge_list.append((task.taskID,file.file_blob))
 
 
         graph = nx.DiGraph()
@@ -194,7 +194,7 @@ class GraphProvDB:
 
 
 
-class nodeWorkflow:
+class node_workflow:
     """ Base class of a node in the provenance trail (can be task or file)
     """
     def __init__(self, graphInstanceID, abstractNodeIndex, concreteGraphID, commit):
@@ -213,36 +213,36 @@ class nodeWorkflow:
     
 
 
-class fileWorkflow(nodeWorkflow):
+class file_workflow(node_workflow):
     """_summary_
 
     Args:
-        nodeWorkflow (_type_): _description_
+        node_workflow (_type_): _description_
     """
-    def __init__(self, name, graphInstanceID, abstractNodeIndex, concreteGraphID, commit, fileBlob):
+    def __init__(self, name, graphInstanceID, abstractNodeIndex, concreteGraphID, commit, file_blob):
         super().__init__(graphInstanceID, abstractNodeIndex, concreteGraphID, commit)
         self.name = name
         self.basename = os.path.basename(name)
-        self.fileBlob = fileBlob
-        self.parentTask=[]
-        self.childTask=[]
+        self.file_blob = file_blob
+        self.parent_task=[]
+        self.child_task=[]
         self.node_color = 'red'
         
     
 
-class taskWorkflow(nodeWorkflow):
+class TaskWorkflow(NodeWorkflow):
     """_summary_
 
     Args:
-        nodeWorkflow (_type_): _description_
+        node_workflow (_type_): _description_
     """
     def __init__(self, name, graphInstanceID, abstractNodeIndex, concreteGraphID, commit, taskID):
         super().__init__(graphInstanceID, abstractNodeIndex, concreteGraphID, commit)
         self.name = name
         self.basename = name
         self.taskID = taskID
-        self.parentFiles=[]
-        self.childFiles=[]
+        self.parent_files=[]
+        self.child_files=[]
         self.node_color = 'green'
 
 

@@ -1,10 +1,19 @@
+"""Module for datalad operations"""
 import os
-import datalad.api as dl
-import utils
 import subprocess
+import datalad.api as dl
 
 
 def command_submit(command):
+    """! This function builds and run a command with subprocess
+
+    Args:
+        command (str): The command to run
+
+    Returns:
+        outlog: The output log
+        errlog: The error log
+    """
     command_run_output = subprocess.run(
         command, shell=True, capture_output=True, text=True, check=False
     )
@@ -44,15 +53,15 @@ def job_submit(dataset, inputs, outputs, message, command):
     # saving the dataset prior to processing
     dl.save(path=dataset, dataset=dataset)
 
-    containers_run_command = f"cd {dataset} && datalad run -m '{message}' -d '{dataset}' -i {inputs_proc} -o {outputs_proc} '{command}'"
-    print("full run command", containers_run_command)
+    containers_run_command = f"cd {dataset} && datalad run -m '{message}' \
+        -d '{dataset}' -i {inputs_proc} -o {outputs_proc} '{command}'"
     # containers_run_command = f"which datalad; datalad wtf -S extensions"
     outlog, errlog = command_submit(containers_run_command)
     outlogs.append(outlog)
     errlogs.append(errlog)
-    print("logs_job", outlogs, errlogs)
     for item in errlogs[0]:
         if "error" in item:
             raise Exception(
-                "Error found in the datalad containers run command, check the log for more information on this error."
+                "Error found in the datalad containers run command, \
+                check the log for more information on this error."
             )

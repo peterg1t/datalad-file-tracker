@@ -1,3 +1,6 @@
+"""This module will contain functions for string manipulation"""
+
+
 def remove_space(input):
     """! This function remove spaces in strings
 
