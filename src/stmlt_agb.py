@@ -2,6 +2,7 @@
 Docstring
 """
 import os
+import re
 import argparse
 import copy
 import cProfile
@@ -110,12 +111,26 @@ def graph_components_generator(number_of_tasks):
             stage_type = col1.selectbox(
                 "Select node type", ["file", "task"], key=f"stage_{i}"
             )
-            prec_nodes = utils.remove_space(
+            prec_nodes_grp = utils.remove_space(
                 col4.text_input(f"Preceding node(s) for stage{i}", key=f"node(s)_{i}")
             ).split(",")
 
+            print('prec_nodes_grp',prec_nodes_grp)
+            prec_nodes = []
+            for prec_nodes_item in prec_nodes_grp:
+                # for file definition lets check if we have defined multiple files with regex
+                nodes_expanded = utils.file_name_expansion(prec_nodes_item)
+                # if (
+                #     len(prec_nodes_item.rstrip()) == 0
+                # ):  # if there is no file (or there is an empty file) stop the execution
+                #     st.stop()
+
+                prec_nodes.extend(nodes_expanded)
+
+
+
             if stage_type == "file":
-                files = utils.remove_space(
+                file_grp = utils.remove_space(
                     col2.text_input(
                         f"File(s) for stage {i}",
                         key=f"name_{i}",
@@ -123,11 +138,18 @@ def graph_components_generator(number_of_tasks):
                     )
                 ).split(",")
 
-                for file in files:
+                files = []
+                for file_item in file_grp:
+                    # for file definition lets check if we have defined multiple files with regex
+                    files_expanded = utils.file_name_expansion(file_item)
+                    
                     if (
-                        len(file.rstrip()) == 0
+                        len(file_item.rstrip()) == 0
                     ):  # if there is no file (or there is an empty file) stop the execution
                         st.stop()
+
+                    files.extend(files_expanded)
+
 
                 for file in files:
                     nodes.append(
@@ -144,9 +166,12 @@ def graph_components_generator(number_of_tasks):
                             },
                         )
                     )
+
+
                     for node in prec_nodes:
                         if node:
                             edges.append((node, os.path.basename(file).split(".")[0]))
+
 
             elif stage_type == "task":
                 task = col2.text_input(
@@ -183,6 +208,8 @@ def graph_components_generator(number_of_tasks):
                         },
                     )
                 )
+
+
                 for node in prec_nodes:
                     if node:
                         edges.append((node, task))
@@ -359,27 +386,37 @@ if __name__ == "__main__":
         # file_inputs, commands, file_outputs = graph_components_generator(tasks_number)
         node_list, edge_list = graph_components_generator(tasks_number)
 
-    gdb = GraphBase(node_list, edge_list)
-    graph_plot_abstract = gdb.graph_object_plot()
-    plot_graph(graph_plot_abstract)
+    try:
+        gdb = GraphBase(node_list, edge_list)
+        graph_plot_abstract = gdb.graph_object_plot()
+        plot_graph(graph_plot_abstract)
+        export_name = st.sidebar.text_input("Path for abstract graph export")
+
+        st.sidebar.button(
+            "Save",
+            on_click=export_graph,
+            kwargs={"graph": gdb, "filename": export_name},
+        )
+        # The provenance graph name is the path to any
+        # directory in a project where provenance is recorded.
+        # When the button is clicked a full provenance graph
+        # for all the project is generated and matched
+        # to the abstract graph
+        provenance_graph_path = st.sidebar.text_input("Path to the dataset with provenance")
+        match_button = st.sidebar.button("Match")
+        if match_button:
+            match_graphs(provenance_graph_path, gdb)
+        run_next_button = st.sidebar.button("Run pending nodes")
+        if run_next_button:
+            run_pending_nodes(gdb)
+
+        st.success("Graph created")
     
-    export_name = st.sidebar.text_input("Path for abstract graph export")
-    st.sidebar.button(
-        "Save",
-        on_click=export_graph,
-        kwargs={"graph": gdb, "filename": export_name},
-    )
-    # The provenance graph name is the path to any
-    # directory in a project where provenance is recorded.
-    # When the button is clicked a full provenance graph
-    # for all the project is generated and matched
-    # to the abstract graph
+    except:
+        st.warning(f"There was a problem in the creation of the graph verify\
+                   that all node names match along the edges")
+        st.stop()
 
-    provenance_graph_path = st.sidebar.text_input("Path to the dataset with provenance")
-    match_button = st.sidebar.button("Match")
-    if match_button:
-        match_graphs(provenance_graph_path, gdb)
-
-    run_next_button = st.sidebar.button("Run pending nodes")
-    if run_next_button:
-        run_pending_nodes(gdb)
+    
+    
+    
