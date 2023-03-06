@@ -72,10 +72,10 @@ def graph_components_generator_from_file(filename):
                 for file in files:
                     nodes.append(
                         (
-                            os.path.basename(file).split(".")[0],
+                            os.path.basename(file),
                             {
                                 "name": file,
-                                "label": os.path.basename(file).split(".")[0],
+                                "label": os.path.basename(file),
                                 "path": os.path.dirname(file),
                                 "type": "file",
                                 "status": "pending",
@@ -86,7 +86,7 @@ def graph_components_generator_from_file(filename):
                     )
                     for node in prec_nodes:
                         if node:
-                            edges.append((node, os.path.basename(file).split(".")[0]))
+                            edges.append((node, os.path.basename(file)))
 
     return nodes, edges
 
@@ -154,10 +154,10 @@ def graph_components_generator(number_of_tasks):
                 for file in files:
                     nodes.append(
                         (
-                            os.path.basename(file).split(".")[0],
+                            os.path.basename(file),
                             {
                                 "name": file,
-                                "label": os.path.basename(file).split(".")[0],
+                                "label": os.path.basename(file),
                                 "path": os.path.dirname(file),
                                 "type": stage_type,
                                 "status": "pending",
@@ -170,7 +170,7 @@ def graph_components_generator(number_of_tasks):
 
                     for node in prec_nodes:
                         if node:
-                            edges.append((node, os.path.basename(file).split(".")[0]))
+                            edges.append((node, os.path.basename(file)))
 
 
             elif stage_type == "task":
@@ -388,34 +388,41 @@ if __name__ == "__main__":
 
     try:
         gdb = GraphBase(node_list, edge_list)
-        graph_plot_abstract = gdb.graph_object_plot()
-        plot_graph(graph_plot_abstract)
-        export_name = st.sidebar.text_input("Path for abstract graph export")
-
-        st.sidebar.button(
-            "Save",
-            on_click=export_graph,
-            kwargs={"graph": gdb, "filename": export_name},
-        )
-        # The provenance graph name is the path to any
-        # directory in a project where provenance is recorded.
-        # When the button is clicked a full provenance graph
-        # for all the project is generated and matched
-        # to the abstract graph
-        provenance_graph_path = st.sidebar.text_input("Path to the dataset with provenance")
-        match_button = st.sidebar.button("Match")
-        if match_button:
-            match_graphs(provenance_graph_path, gdb)
-        run_next_button = st.sidebar.button("Run pending nodes")
-        if run_next_button:
-            run_pending_nodes(gdb)
-
-        st.success("Graph created")
+        # st.success("Graph created")
     
     except:
         st.warning(f"There was a problem in the creation of the graph verify\
                    that all node names match along the edges")
         st.stop()
+    
+
+
+    graph_plot_abstract = gdb.graph_object_plot()
+    plot_graph(graph_plot_abstract)
+
+
+    export_name = st.sidebar.text_input("Path for abstract graph export")
+
+
+    st.sidebar.button(
+        "Save",
+        on_click=export_graph,
+        kwargs={"graph": gdb, "filename": export_name},
+    )
+    # The provenance graph name is the path to any
+    # directory in a project where provenance is recorded.
+    # When the button is clicked a full provenance graph
+    # for all the project is generated and matched
+    # to the abstract graph
+    provenance_graph_path = st.sidebar.text_input("Path to the dataset with provenance")
+    match_button = st.sidebar.button("Match")
+
+
+    if match_button:
+        match_graphs(provenance_graph_path, gdb)
+    run_next_button = st.sidebar.button("Run pending nodes")
+    if run_next_button:
+        run_pending_nodes(gdb)
 
     
     

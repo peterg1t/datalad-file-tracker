@@ -13,7 +13,7 @@ from bokeh.models import (
 )
 
 
-def graph_plot(graph_nx):
+def graph_plot(graph_nx, fc="node_color"):
     """! Utility to generate a plot for a networkx graph
 
     Args:
@@ -43,12 +43,13 @@ def graph_plot(graph_nx):
             ("name", "@name"),
             ("label", "@label"),
             ("status", "@status"),
+            ("author", "@author"),
             ("ID", "@ID"),
         ]
     )
     plot.add_tools(node_hover_tool, BoxZoomTool(), ResetTool())
 
-    graph.node_renderer.glyph = Circle(size=20, fill_color="node_color")
+    graph.node_renderer.glyph = Circle(size=20, fill_color=fc)
     plot.renderers.append(graph)
 
     print("graph layout values", graph.layout_provider.graph_layout.values())

@@ -80,6 +80,7 @@ class GraphProvenance(GraphBase): # pylint: disable = too-few-public-methods
                 )
                 task.parent_files = dict_o["inputs"]
                 task.child_files = dict_o["outputs"]
+                task.author = commit.author.name
 
 
                 for input_file in dict_o["inputs"]:
@@ -97,6 +98,7 @@ class GraphProvenance(GraphBase): # pylint: disable = too-few-public-methods
                     )
                     file.ID = utils.encode(file.name)
                     file.child_task = dict_o["cmd"]
+                    file.author = commit.author.name
 
                     # Creating a shallow copy of the object attribute dictionary
                     dict_file = copy.copy(file.__dict__)
@@ -120,6 +122,7 @@ class GraphProvenance(GraphBase): # pylint: disable = too-few-public-methods
                     )
                     file.ID = utils.encode(file.name)
                     file.parent_task = dict_o["cmd"]
+                    file.author = commit.author.name
 
                     dict_file = copy.copy(file.__dict__)
                     dict_file.pop("parent_task", None)
