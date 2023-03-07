@@ -44,13 +44,24 @@ def git_log_parse(ds_name):
     # plot_db = gdb.graph_object_plot()
     # st.bokeh_chart(plot_db, use_container_width=True)
 
-    # export_name = st.sidebar.text_input("Path for provenance graph export")
-    # st.sidebar.button(
-    #     "Save", on_click=export_graph, kwargs={"graph": gdb, "filename": export_name}
-    # )
+    export_name = st.sidebar.text_input("Path for provenance graph export")
+    st.sidebar.button(
+        "Save", on_click=export_graph, kwargs={"graph": gdb, "filename": export_name}
+    )
 
     return gdb
 
+
+def plot_attributes(prov_graph, node_attributes):
+    nx.set_node_attributes(prov_graph.graph, node_attributes, name="node_a")
+    attr_fill_col = linear_cmap(
+                "node_a",
+                "Spectral8",
+                min(list(node_attributes.values())),
+                max(list(node_attributes.values())),
+            )
+    graph_plot_abstract = prov_graph.graph_object_plot(attr_fill_col)
+    st.bokeh_chart(graph_plot_abstract, use_container_width=True)
 
 
 
@@ -65,29 +76,22 @@ def calculate_attribute(attr, dataset_name):
 
         elif attr == "Betweeness Centrality":
             node_attr = utils.calc_betw_centrl(provenance_graph.graph)
-            nx.set_node_attributes(provenance_graph.graph, node_attr, name="node_a")
-            fill_col = linear_cmap(
-                    "node_a",
-                    "Spectral8",
-                    min(list(node_attr.values())),
-                    max(list(node_attr.values())),
-                )
-            graph_plot_abstract = provenance_graph.graph_object_plot(fill_col)
-            st.bokeh_chart(graph_plot_abstract, use_container_width=True)
+            plot_attributes(provenance_graph, node_attr)
 
         elif attr == "Degree Centrality":
             node_attr = utils.deg_centrl(provenance_graph.graph)
-            nx.set_node_attributes(provenance_graph.graph, node_attr, name="node_a")
-            fill_col = linear_cmap(
-                    "node_a",
-                    "Spectral8",
-                    min(list(node_attr.values())),
-                    max(list(node_attr.values())),
-                )
-            graph_plot_abstract = provenance_graph.graph_object_plot(fill_col)
-            st.bokeh_chart(graph_plot_abstract, use_container_width=True)
-    
+            plot_attributes(provenance_graph, node_attr)
 
+        elif attr == "Bonacich Centrality":
+            node_attr = utils.eigen_centrl(provenance_graph.graph)
+            plot_attributes(provenance_graph, node_attr)
+        
+        elif attr == "Closeness Centrality":
+            node_attr = utils.close_centrl(provenance_graph.graph)
+            plot_attributes(provenance_graph, node_attr)
+
+
+        
 
 
 if __name__ == "__main__":
@@ -97,7 +101,7 @@ if __name__ == "__main__":
         "-a",
         "--analysis",
         help="Analysis to apply to nodes",
-        choices=["Centrality", "Betweeness"],
+        choices=["Centrality", "Betweeness", "Bonacich", "Closeness"],
     )
 
     args = parser.parse_args()  # pylint: disable = invalid-name
@@ -105,7 +109,17 @@ if __name__ == "__main__":
     if args.dspath and args.analysis:
         dataset_name = args.dspath
         analysis_type = args.analysis
+        calculate_attribute(analysis_type, dataset_name)
+
     else:
+        description = {
+            "None": "None",
+            "Degree Centrality": """Degree centrality, is the simplest measure of node connectivity. It assigns an importance score based simply on the number of links held by each node.""",
+            "Betweeness Centrality": """Betweenness centrality measures the number of times a node lies on the shortest path between other nodes. Betweenness centrality of a node v is the sum of the fraction of all-pairs shortest paths that pass through node v""",
+            "Bonacich Centrality": """EigenCentrality measures a node's influence based on the number of links it has to other nodes in the network. EigenCentrality then goes a step further by also taking into account how well connected a node is, and how many links their connections have, and so on through the network.""",
+            "Closeness Centrality": """In a connected graph, closeness centrality (or closeness) of a node is a measure of centrality in a network, calculated as the reciprocal of the sum of the length of the shortest paths between the node and all other nodes in the graph. Thus, the more central a node is, the closer it is to all other nodes."""
+        }
+
         print(
             "Not all command line arguments were used\
               as input, results might be wrong"
@@ -113,14 +127,13 @@ if __name__ == "__main__":
         dataset_name = st.text_input("Input the dataset to track")
         with st.sidebar:
             analysis_type = st.selectbox(
-                "Analysis mode", ["None", "Degree Centrality", "Betweeness Centrality"]
-            )
-            st.sidebar.button(
-            "Calculate attribute",
-            on_click=calculate_attribute,
-            args=(analysis_type, dataset_name,)
+                "Analysis mode", ["None", "Degree Centrality", "Betweeness Centrality", "Bonacich Centrality", "Closeness Centrality"]
             )
 
-    # # Sreamlit UI implementation
-    # if dataset_name:
-    #     git_log_parse(dataset_name)
+            description = st.text_area(
+                "Description", description[analysis_type], disabled=True
+            )
+
+        # # Sreamlit UI implementation
+        if dataset_name:
+            calculate_attribute(analysis_type, dataset_name)

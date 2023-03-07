@@ -1,6 +1,6 @@
 """Init module for utilities"""
 from utils.notes import (PlotNotes, FileNote) # pylint: disable=import-error
-from utils.graph_analysis import (calc_betw_centrl, deg_centrl) # pylint: disable=import-error
+from utils.graph_analysis import (calc_betw_centrl, deg_centrl, eigen_centrl, close_centrl) # pylint: disable=import-error
 from utils.graph_plot import graph_plot # pylint: disable=import-error
 from utils.encode import (encode, decode) # pylint: disable=import-error
 from utils.is_tool import is_tool # pylint: disable=import-error

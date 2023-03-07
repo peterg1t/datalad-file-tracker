@@ -28,3 +28,27 @@ def deg_centrl(graph):
         node attribute: degree centrality
     """
     return nx.degree_centrality(graph)
+
+
+def eigen_centrl(graph):
+    """! This function will return the eigen vector centrality
+
+    Args:
+        graph (graph (Networkx)): A netwrokx graph
+
+    Returns:
+        node attribute: degree centrality
+    """
+    return nx.eigenvector_centrality_numpy(graph)
+
+
+def close_centrl(graph):
+    """! This function will return the eigen vector centrality
+
+    Args:
+        graph (graph (Networkx)): A netwrokx graph
+
+    Returns:
+        node attribute: degree centrality
+    """
+    return nx.closeness_centrality(graph)
