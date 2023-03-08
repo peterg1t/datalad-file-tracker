@@ -13,9 +13,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
 
-from graphs.graph_base import GraphBase
-from graphs.graph_provenance import GraphProvenance
-
+import graphs
 import utils
 
 
@@ -284,7 +282,7 @@ def match_graphs(provenance_ds_path, gdb_abstract):
         gdb_abstract (graph): An abstract graph
     """
     if provenance_ds_path:
-        gdb_provenance = GraphProvenance(provenance_ds_path)
+        gdb_provenance = graphs.GraphProvenance(provenance_ds_path)
         gdb_difference = workflow_diff(gdb_abstract, gdb_provenance)
         next_nodes_requirements = gdb_difference.next_nodes_run()
 
@@ -387,7 +385,7 @@ if __name__ == "__main__":
         node_list, edge_list = graph_components_generator(tasks_number)
 
     try:
-        gdb = GraphBase(node_list, edge_list)
+        gdb = graphs.GraphBase(node_list, edge_list)
         # st.success("Graph created")
     
     except:
