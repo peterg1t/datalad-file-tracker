@@ -52,8 +52,6 @@ def graph_plot(graph_nx, fc="node_color"):
     graph.node_renderer.glyph = Circle(size=20, fill_color=fc)
     plot.renderers.append(graph)
 
-    print("graph layout values", graph.layout_provider.graph_layout.values())
-
     x_coord, y_coord = zip(*graph.layout_provider.graph_layout.values())
     node_labels = nx.get_node_attributes(graph_nx, "name")
 

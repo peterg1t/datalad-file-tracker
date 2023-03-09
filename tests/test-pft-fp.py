@@ -317,7 +317,5 @@ if __name__ == "__main__":
 
 
     # Sreamlit UI implementation
-    
-
     if dataset_name:
         git_log_parse(dataset_name, analysis_type)

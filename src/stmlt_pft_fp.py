@@ -1,7 +1,9 @@
 """
 Docstring
 """
+import os
 import argparse
+from pathlib import Path
 import cProfile
 import streamlit as st
 import graphs
@@ -37,9 +39,11 @@ def git_log_parse(ds_name):
     """
     try:
         gdb = graphs.GraphProvenance(ds_name)
-    except Exception as exept:
-        st.warning(f"{exept}")
+    except Exception as err:
+        st.warning(f"Error creating graph object. Please check that your dataset path contains a valid Datalad dataset")
         st.stop()
+
+
 
     # plot_db = gdb.graph_object_plot()
     # st.bokeh_chart(plot_db, use_container_width=True)
@@ -66,10 +70,9 @@ def plot_attributes(prov_graph, node_attributes):
 
 
 def calculate_attribute(attr, dataset_name):
-    print("calculating graph attribute", attr)
-    if dataset_name:
-        provenance_graph = git_log_parse(dataset_name)
-
+    provenance_graph = git_log_parse(dataset_name)
+    if len(provenance_graph.node_list) != 0:
+    
         if attr == "None":
             graph_plot_abstract = provenance_graph.graph_object_plot()
             st.bokeh_chart(graph_plot_abstract, use_container_width=True)
@@ -85,10 +88,13 @@ def calculate_attribute(attr, dataset_name):
         elif attr == "Bonacich Centrality":
             node_attr = utils.eigen_centrl(provenance_graph.graph)
             plot_attributes(provenance_graph, node_attr)
-        
+
         elif attr == "Closeness Centrality":
             node_attr = utils.close_centrl(provenance_graph.graph)
             plot_attributes(provenance_graph, node_attr)
+    
+    else:
+        st.warning('This dataset does not contains any Datalad run instances')
 
 
         
@@ -135,5 +141,5 @@ if __name__ == "__main__":
             )
 
         # # Sreamlit UI implementation
-        if dataset_name:
+        if utils.exists_case_sensitive(dataset_name):
             calculate_attribute(analysis_type, dataset_name)

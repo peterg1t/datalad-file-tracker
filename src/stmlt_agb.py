@@ -5,6 +5,7 @@ import os
 import re
 import argparse
 import copy
+from pathlib import Path
 import cProfile
 import streamlit as st
 import networkx as nx
@@ -113,7 +114,7 @@ def graph_components_generator(number_of_tasks):
                 col4.text_input(f"Preceding node(s) for stage{i}", key=f"node(s)_{i}")
             ).split(",")
 
-            print('prec_nodes_grp',prec_nodes_grp)
+
             prec_nodes = []
             for prec_nodes_item in prec_nodes_grp:
                 # for file definition lets check if we have defined multiple files with regex
@@ -248,8 +249,6 @@ def workflow_diff(abstract, provenance):
     prov_graph_id = list(nx.get_node_attributes(provenance.graph, "ID").values())
     nodes_abs = list(abstract.graph.nodes())
 
-    print("ids", abs_graph_id, prov_graph_id, nodes_abs)
-
     nodes_update = [
         n for n, v in abstract.graph.nodes(data=True) if v["ID"] in prov_graph_id
     ]
@@ -281,14 +280,23 @@ def match_graphs(provenance_ds_path, gdb_abstract):
         provenance_ds_path (str): The path to the provenance dataset
         gdb_abstract (graph): An abstract graph
     """
-    if provenance_ds_path:
-        gdb_provenance = graphs.GraphProvenance(provenance_ds_path)
+    
+    if utils.exists_case_sensitive(provenance_ds_path):
+        try:
+            gdb_provenance = graphs.GraphProvenance(provenance_ds_path)
+        except Exception as err:
+            st.warning(f"Error creating graph object. Please check that your dataset path contains a valid Datalad dataset")
+            st.stop()
+        
         gdb_difference = workflow_diff(gdb_abstract, gdb_provenance)
         next_nodes_requirements = gdb_difference.next_nodes_run()
 
         if "next_nodes_req" not in st.session_state:
             st.session_state["next_nodes_req"] = next_nodes_requirements
-
+    
+    else:
+        st.warning(f"Path {provenance_ds_path} does not exist.")
+        st.stop()
 
 def run_pending_nodes(gdb_difference):
     """! Given a graph and the list of nodes (and requirements i.e. inputs)
