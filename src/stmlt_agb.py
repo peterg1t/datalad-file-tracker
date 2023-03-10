@@ -119,11 +119,6 @@ def graph_components_generator(number_of_tasks):
             for prec_nodes_item in prec_nodes_grp:
                 # for file definition lets check if we have defined multiple files with regex
                 nodes_expanded = utils.file_name_expansion(prec_nodes_item)
-                # if (
-                #     len(prec_nodes_item.rstrip()) == 0
-                # ):  # if there is no file (or there is an empty file) stop the execution
-                #     st.stop()
-
                 prec_nodes.extend(nodes_expanded)
 
 
