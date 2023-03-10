@@ -2,20 +2,19 @@
 Docstring
 """
 import os
+import re
 import argparse
 import copy
+from pathlib import Path
 import cProfile
 import streamlit as st
 import networkx as nx
 
-
-import graphs
-
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-from apscheduler.executors.pool import ThreadPoolExecutor, ProcessPoolExecutor
+from apscheduler.executors.pool import ThreadPoolExecutor
 
-from multiprocessing import Pool
+import graphs
 import utils
 
 
@@ -29,16 +28,23 @@ Welcome to the abstract graph builder!
 )
 
 
-
-
 def graph_components_generator_from_file(filename):
+    """! This function generate a networkx graph from a file containing an abstract graph
+
+    Args:
+        filename (str): Path to the abstract graph
+
+    Returns:
+        nodes: A list of nodes
+        edges: A list of edges
+    """
     nodes = []
-    edges = []    
-    with open(filename, encoding="utf-8") as f:
-        read_data = f.readlines()
+    edges = []
+    with open(filename, encoding="utf-8") as file_abstract:
+        read_data = file_abstract.readlines()
         for item in read_data:
             stage_type = item.split("<>")[0].strip()
-            if stage_type == 'T':
+            if stage_type == "T":
                 task, command, prec_nodes, transform = utils.line_process_task(item)
                 nodes.append(
                     (
@@ -60,16 +66,15 @@ def graph_components_generator_from_file(filename):
                     if node:
                         edges.append((node, task))
 
-
-            elif stage_type == 'F':
+            elif stage_type == "F":
                 files, prec_nodes = utils.line_process_file(item)
                 for file in files:
                     nodes.append(
                         (
-                            os.path.basename(file).split(".")[0],
+                            os.path.basename(file),
                             {
                                 "name": file,
-                                "label": os.path.basename(file).split(".")[0],
+                                "label": os.path.basename(file),
                                 "path": os.path.dirname(file),
                                 "type": "file",
                                 "status": "pending",
@@ -80,42 +85,51 @@ def graph_components_generator_from_file(filename):
                     )
                     for node in prec_nodes:
                         if node:
-                            edges.append((node, os.path.basename(file).split(".")[0]))
-
-
-
-            
+                            edges.append((node, os.path.basename(file)))
 
     return nodes, edges
 
 
-def graph_components_generator(tasks_number):
-    """This function will generate the graph of the entire project
+def graph_components_generator(number_of_tasks):
+    """! This function will generate the graph of the entire project
 
     Args:
-        tasks_number (int): A number describing the number of tasks to be added
+        number_of_tasks (int): A number describing the number of tasks to be added
 
     Returns:
         inputs: A list of input files
         commands: A list of commands (ideally one per task)
         outputs: A list of output files
     """
-
     nodes = []
     edges = []
-    for i in range(tasks_number):
+    for i in range(number_of_tasks):
         container = st.container()
         with container:
             col1, col2, col3, col4, col5 = st.columns([1, 2, 2, 2, 2])
             stage_type = col1.selectbox(
                 "Select node type", ["file", "task"], key=f"stage_{i}"
             )
-            prec_nodes = utils.remove_space(
+            prec_nodes_grp = utils.remove_space(
                 col4.text_input(f"Preceding node(s) for stage{i}", key=f"node(s)_{i}")
             ).split(",")
 
+
+            prec_nodes = []
+            for prec_nodes_item in prec_nodes_grp:
+                # for file definition lets check if we have defined multiple files with regex
+                nodes_expanded = utils.file_name_expansion(prec_nodes_item)
+                # if (
+                #     len(prec_nodes_item.rstrip()) == 0
+                # ):  # if there is no file (or there is an empty file) stop the execution
+                #     st.stop()
+
+                prec_nodes.extend(nodes_expanded)
+
+
+
             if stage_type == "file":
-                files = utils.remove_space(
+                file_grp = utils.remove_space(
                     col2.text_input(
                         f"File(s) for stage {i}",
                         key=f"name_{i}",
@@ -123,19 +137,26 @@ def graph_components_generator(tasks_number):
                     )
                 ).split(",")
 
-                for file in files:
+                files = []
+                for file_item in file_grp:
+                    # for file definition lets check if we have defined multiple files with regex
+                    files_expanded = utils.file_name_expansion(file_item)
+                    
                     if (
-                        len(file.rstrip()) == 0
+                        len(file_item.rstrip()) == 0
                     ):  # if there is no file (or there is an empty file) stop the execution
                         st.stop()
+
+                    files.extend(files_expanded)
+
 
                 for file in files:
                     nodes.append(
                         (
-                            os.path.basename(file).split(".")[0],
+                            os.path.basename(file),
                             {
                                 "name": file,
-                                "label": os.path.basename(file).split(".")[0],
+                                "label": os.path.basename(file),
                                 "path": os.path.dirname(file),
                                 "type": stage_type,
                                 "status": "pending",
@@ -144,9 +165,12 @@ def graph_components_generator(tasks_number):
                             },
                         )
                     )
+
+
                     for node in prec_nodes:
                         if node:
-                            edges.append((node, os.path.basename(file).split(".")[0]))
+                            edges.append((node, os.path.basename(file)))
+
 
             elif stage_type == "task":
                 task = col2.text_input(
@@ -183,6 +207,8 @@ def graph_components_generator(tasks_number):
                         },
                     )
                 )
+
+
                 for node in prec_nodes:
                     if node:
                         edges.append((node, task))
@@ -191,7 +217,7 @@ def graph_components_generator(tasks_number):
 
 
 def plot_graph(plot):
-    """Function to generate a bokeh chart
+    """! Function to generate a bokeh chart
 
     Args:
         plot (plot): A networkx plot
@@ -200,10 +226,13 @@ def plot_graph(plot):
 
 
 def export_graph(**kwargs):
+    """! This function call the graph_export method of the graph object and
+    throws an exception to streamlit
+    """
     try:
-        kwargs["graph"]._graph_export(kwargs["filename"])
-    except Exception as e:
-        st.sidebar.text(f"{e}")
+        kwargs["graph"].graph_export(kwargs["filename"])
+    except Exception as exception_graph:
+        st.sidebar.text(f"{exception_graph}")
 
 
 def workflow_diff(abstract, provenance):
@@ -220,8 +249,6 @@ def workflow_diff(abstract, provenance):
     prov_graph_id = list(nx.get_node_attributes(provenance.graph, "ID").values())
     nodes_abs = list(abstract.graph.nodes())
 
-    print('ids',abs_graph_id, prov_graph_id, nodes_abs)
-
     nodes_update = [
         n for n, v in abstract.graph.nodes(data=True) if v["ID"] in prov_graph_id
     ]
@@ -233,75 +260,83 @@ def workflow_diff(abstract, provenance):
         elif abstract.graph.nodes()[node]["type"] == "file":
             nx.set_node_attributes(abstract.graph, {node: "red"}, "node_color")
 
-    graph_plot = abstract.graph_object_plot()
-    plot_graph(graph_plot)
+    graph_plot_diff = abstract.graph_object_plot()
+    plot_graph(graph_plot_diff)
 
-    gdb_diff = copy.deepcopy(gdb)
-    gdb_diff.graph.remove_nodes_from(
+    gdb_difference = copy.deepcopy(gdb)
+    gdb_difference.graph.remove_nodes_from(
         n for n, v in abstract.graph.nodes(data=True) if v["status"] == "complete"
     )
-    # In the difference graph the start_nodes is the list of nodes that can be started (these should usually be a task)
+    # In the difference graph the start_nodes is the list of nodes that can be
+    # started (these should usually be a task)
+
+    return gdb_difference
 
 
-    return gdb_diff
-
-
-
-def match_graphs(provenance_ds_path, gdb):
+def match_graphs(provenance_ds_path, gdb_abstract):
     """! Function to match the graphs loaded with Streamlit interface
 
     Args:
         provenance_ds_path (str): The path to the provenance dataset
-        gdb (graph): An abstract graph
+        gdb_abstract (graph): An abstract graph
     """
-    if provenance_ds_path:
-        gdb_prov = graphs.graph_provenance(provenance_ds_path)
-        gdb_diff = workflow_diff(gdb, gdb_prov)
-        next_nodes_req = gdb_diff.next_nodes_run()
+    
+    if utils.exists_case_sensitive(provenance_ds_path):
+        try:
+            gdb_provenance = graphs.GraphProvenance(provenance_ds_path)
+        except Exception as err:
+            st.warning(f"Error creating graph object. Please check that your dataset path contains a valid Datalad dataset")
+            st.stop()
+        
+        gdb_difference = workflow_diff(gdb_abstract, gdb_provenance)
+        next_nodes_requirements = gdb_difference.next_nodes_run()
 
         if "next_nodes_req" not in st.session_state:
-            st.session_state["next_nodes_req"] = next_nodes_req
+            st.session_state["next_nodes_req"] = next_nodes_requirements
+    
+    else:
+        st.warning(f"Path {provenance_ds_path} does not exist.")
+        st.stop()
 
-
-
-def run_pending_nodes(gdb):
-    """! Given a graph and the list of nodes (and requirements i.e. inputs) compute the task with APScheduler
+def run_pending_nodes(gdb_difference):
+    """! Given a graph and the list of nodes (and requirements i.e. inputs)
+    compute the task with APScheduler
 
     Args:
-        gdb (graph): An abstract graph
+        gdb_difference (graph): An abstract graph
     """
     inputs_dict = {}
     outputs_dict = {}
-        
+
     try:
         next_nodes_req = st.session_state["next_nodes_req"]
         for item in next_nodes_req:
-            for predecessors in gdb.graph.predecessors(item):
-                inputs_dict[predecessors] = gdb.graph.nodes[predecessors][
+            for predecessors in gdb_difference.graph.predecessors(item):
+                inputs_dict[predecessors] = gdb_difference.graph.nodes[predecessors][
                     "name"
                 ]
 
-            for successors in gdb.graph.successors(item):
-                outputs_dict[successors] = gdb.graph.nodes[successors]["name"]
+            for successors in gdb_difference.graph.successors(item):
+                outputs_dict[successors] = gdb_difference.graph.nodes[successors][
+                    "name"
+                ]
 
             inputs = list(inputs_dict.values())
             outputs = list(outputs_dict.values())
             dataset = utils.get_git_root(os.path.dirname(inputs[0]))
-            command = gdb.graph.nodes[item]["cmd"]
+            command = gdb_difference.graph.nodes[item]["cmd"]
             message = "test"
 
             print("submit_job", dataset, inputs, outputs, message, command)
             # scheduler.add_job(utils.job_submit, args=[dataset, inputs, outputs, message, command])
-    except Exception as e:
+
+    except: # pylint: disable = bare-except
         st.warning(
             "No provance graph has been matched to this abstract graph, match one first"
-            )
-
-
+        )
 
 
 if __name__ == "__main__":
-    """Sreamlit UI implementation"""
     parser = argparse.ArgumentParser()
     # Added argument parser to parse a file with a workflow from a text file, the text file
     # format will be the following format
@@ -324,9 +359,12 @@ if __name__ == "__main__":
 
     # We now start the background scheduler
     # scheduler = BackgroundScheduler()
-    # This will get you a BackgroundScheduler with a MemoryJobStore named “default” and a ThreadPoolExecutor named “default” with a default maximum thread count of 10.
+    # This will get you a BackgroundScheduler with a MemoryJobStore named
+    # “default” and a ThreadPoolExecutor named “default” with a default
+    # maximum thread count of 10.
 
-    # Lets cutomize the scheduler a little bit lets keep the default MemoryJobStore but define a ProcessPoolExecutor
+    # Lets cutomize the scheduler a little bit lets keep the default
+    # MemoryJobStore but define a ProcessPoolExecutor
     jobstores = {
         "default": SQLAlchemyJobStore(
             url="sqlite:////Users/pemartin/Projects/datalad-file-tracker/src/jobstore.sqlite"
@@ -342,41 +380,56 @@ if __name__ == "__main__":
     scheduler.start()  # We start the scheduler
 
     next_nodes_req = []
-    
-    node_list = None
-    edge_list = None
-    
+
+    node_list = None  # pylint: disable=invalid-name
+    edge_list = None  # pylint: disable=invalid-name
+
     if args.agraph:
         node_list, edge_list = graph_components_generator_from_file(args.agraph)
-          
 
     else:
         tasks_number = st.number_input("Please define a number of stages", min_value=1)
         # file_inputs, commands, file_outputs = graph_components_generator(tasks_number)
         node_list, edge_list = graph_components_generator(tasks_number)
 
-    gdb = graphs.graph_abstract(node_list, edge_list)
-    graph_plot = gdb.graph_object_plot()
-    plot_graph(graph_plot)
+    try:
+        gdb = graphs.GraphBase(node_list, edge_list)
+        # st.success("Graph created")
     
+    except:
+        st.warning(f"There was a problem in the creation of the graph verify\
+                   that all node names match along the edges")
+        st.stop()
     
+
+
+    graph_plot_abstract = gdb.graph_object_plot()
+    plot_graph(graph_plot_abstract)
+
+
     export_name = st.sidebar.text_input("Path for abstract graph export")
+
+
     st.sidebar.button(
         "Save",
         on_click=export_graph,
         kwargs={"graph": gdb, "filename": export_name},
     )
-    # The provenance graph name is the path to any directory in a project where provenance is recorded.
-    # When the button is clicked a full provenance graph for all the project is generated and matched
+    # The provenance graph name is the path to any
+    # directory in a project where provenance is recorded.
+    # When the button is clicked a full provenance graph
+    # for all the project is generated and matched
     # to the abstract graph
-    provenance_graph_path = st.sidebar.text_input(
-        "Path to the dataset with provenance"
-    )
+    provenance_graph_path = st.sidebar.text_input("Path to the dataset with provenance")
     match_button = st.sidebar.button("Match")
+
+
     if match_button:
         match_graphs(provenance_graph_path, gdb)
-        
-    
     run_next_button = st.sidebar.button("Run pending nodes")
     if run_next_button:
         run_pending_nodes(gdb)
+
+    
+    
+    

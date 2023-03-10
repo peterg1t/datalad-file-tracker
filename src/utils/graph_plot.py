@@ -1,3 +1,4 @@
+"""Module for graph plots"""
 import networkx as nx
 from networkx.drawing.nx_agraph import graphviz_layout
 from bokeh.plotting import from_networkx, figure
@@ -12,7 +13,7 @@ from bokeh.models import (
 )
 
 
-def graph_plot(graph_nx):
+def graph_plot(graph_nx, fc="node_color"):
     """! Utility to generate a plot for a networkx graph
 
     Args:
@@ -21,10 +22,10 @@ def graph_plot(graph_nx):
     Returns:
         plot: A graphviz figure to be plotted with bokeh
     """
-    gl = graphviz_layout(
+    graph_layout = graphviz_layout(
         graph_nx, prog="dot", root=None, args="-Gnodesep=1000 -Grankdir=TB"
     )
-    graph = from_networkx(graph_nx, gl)
+    graph = from_networkx(graph_nx, graph_layout)
 
     plot = figure(
         title="File provenance tracker",
@@ -42,21 +43,20 @@ def graph_plot(graph_nx):
             ("name", "@name"),
             ("label", "@label"),
             ("status", "@status"),
+            ("author", "@author"),
             ("ID", "@ID"),
         ]
     )
     plot.add_tools(node_hover_tool, BoxZoomTool(), ResetTool())
 
-    graph.node_renderer.glyph = Circle(size=20, fill_color="node_color")
+    graph.node_renderer.glyph = Circle(size=20, fill_color=fc)
     plot.renderers.append(graph)
 
-    print("graph layout values", graph.layout_provider.graph_layout.values())
-
-    x, y = zip(*graph.layout_provider.graph_layout.values())
+    x_coord, y_coord = zip(*graph.layout_provider.graph_layout.values())
     node_labels = nx.get_node_attributes(graph_nx, "name")
 
-    fn = list(node_labels.values())
-    source = ColumnDataSource({"x": x, "y": y, "name": fn})
+    node_names = list(node_labels.values())
+    source = ColumnDataSource({"x": x_coord, "y": y_coord, "name": node_names})
     labels = LabelSet(
         x="x",
         y="y",

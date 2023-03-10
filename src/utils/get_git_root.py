@@ -1,3 +1,4 @@
+"""This module will contain functions for git operations"""
 import git
 
 
