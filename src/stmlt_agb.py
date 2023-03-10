@@ -142,6 +142,7 @@ def graph_components_generator(number_of_tasks):
                     # for file definition lets check if we have defined multiple files with regex
                     files_expanded = utils.file_name_expansion(file_item)
                     
+                    
                     if (
                         len(file_item.rstrip()) == 0
                     ):  # if there is no file (or there is an empty file) stop the execution
