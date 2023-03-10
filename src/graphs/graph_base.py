@@ -119,15 +119,7 @@ class GraphBase:
         nx.write_gml(self.graph, filename)
 
 
-    # def graph_object_plot(self, attr_fill_color):
-    #     """This function will return a plot of the networkx graph that
-    #       can be plotted with bokeh or plotly
-
-    #     Returns:
-    #         plot: A plot of the networkx graph
-    #     """
-    #     return utils.graph_plot(self.graph, attr_fill_color)
-    
+   
 
 
     def graph_object_plot(self, fc="node_color"):
