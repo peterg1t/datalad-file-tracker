@@ -1,9 +1,9 @@
 import os
 import base64
-from graphs.nodeWorkflow import nodeWorkflow
+from graphs.node_workflow import NodeWorkflow
 
 
-class taskWorkflow(nodeWorkflow):
+class TaskWorkflow(NodeWorkflow):
     """_summary_
 
     Args:

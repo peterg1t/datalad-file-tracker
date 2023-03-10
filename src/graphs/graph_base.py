@@ -3,7 +3,7 @@ import networkx as nx
 import utils
 
 
-class graph_abstract:
+class GraphBase:
     """This class will represent a graph created from provenance
 
     Returns:

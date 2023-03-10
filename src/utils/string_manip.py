@@ -15,3 +15,16 @@ def line_process_task(line):
     return task, command, prec_nodes, transform
 
 
+def remove_space(input):
+    """! This function remove spaces in strings
+
+    Args:
+        input (str): A string
+
+    Returns:
+        str: The string without spaces
+    """
+    return "".join(input.split())
+
+def file_name_expansion():
+    pass
