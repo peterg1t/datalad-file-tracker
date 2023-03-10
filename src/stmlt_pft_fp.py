@@ -131,6 +131,7 @@ if __name__ == "__main__":
               as input, results might be wrong"
         )
         dataset_name = st.text_input("Input the dataset to track")
+
         with st.sidebar:
             analysis_type = st.selectbox(
                 "Analysis mode", ["None", "Degree Centrality", "Betweeness Centrality", "Bonacich Centrality", "Closeness Centrality"]
