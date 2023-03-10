@@ -131,6 +131,11 @@ if __name__ == "__main__":
               as input, results might be wrong"
         )
         dataset_name = st.text_input("Input the dataset to track")
+        
+        branches_project = utils.get_branches
+        branches_select = st.selectbox('Branches',['1','2'])
+
+
         run_info = st.text_input("Input the dataflow run information (Optional)")
 
         with st.sidebar:

@@ -1,5 +1,4 @@
 import re
-import glob
 
 
 def line_process_file(line):
@@ -8,6 +7,7 @@ def line_process_file(line):
     prec_nodes = list_line[1].split(',')
     
     return files, prec_nodes
+
 
 def line_process_task(line):
     list_line = line.split('<>')

@@ -13,3 +13,7 @@ def get_git_root(path_file):
     git_root = git_repo.git.rev_parse("--show-toplevel")
 
     return git_root
+
+
+def get_branches(path_dataset):
+    pass
