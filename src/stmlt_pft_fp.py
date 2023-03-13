@@ -31,7 +31,7 @@ def export_graph(**kwargs):
         st.sidebar.text(f"{expt}")
 
 
-def git_log_parse(ds_name, ds_branch, run_nodes):
+def git_log_parse(ds_name, ds_branch):
     """! This function will generate the graph of the entire project
     Args:
         ds_name (str): An absolute path to the dataset name
@@ -69,8 +69,8 @@ def plot_attributes(prov_graph, node_attributes):
 
 
 
-def calculate_attribute(attr, dataset_name, branch, run_cond):
-    provenance_graph = git_log_parse(dataset_name, branch, run_cond)
+def calculate_attribute(attr, dataset_name, branch):
+    provenance_graph = git_log_parse(dataset_name, branch)
     if len(provenance_graph.node_list) != 0:
     
         if attr == "None":
@@ -131,7 +131,6 @@ if __name__ == "__main__":
               as input, results might be wrong"
         )
         dataset_name = st.text_input("Input the dataset to track")
-        run_info = st.text_input("Input the dataflow run information (Optional)")
 
         with st.sidebar:
             analysis_type = st.selectbox(
@@ -148,7 +147,7 @@ if __name__ == "__main__":
             branch_select = st.selectbox('Branches',branches_project)
             print('list of branches',branches_project)
    
-            calculate_attribute(analysis_type, dataset_name, branch_select, run_info)
+            calculate_attribute(analysis_type, dataset_name, branch_select)
         else:
             st.warning('Invalid path to dataset')
             

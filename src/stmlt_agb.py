@@ -2,13 +2,14 @@
 Docstring
 """
 import os
-import re
+import sys
 import argparse
 import copy
 from pathlib import Path
 import cProfile
 import streamlit as st
 import networkx as nx
+from bokeh.io import export_png
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
@@ -26,6 +27,7 @@ st.write(
 Welcome to the abstract graph builder!
 """
 )
+
 
 
 def graph_components_generator_from_file(filename):
@@ -342,13 +344,17 @@ if __name__ == "__main__":
         "--agraph",
         type=str,
         help="Path to graph txt file. \
-                        Content must have the {type}<>{name}<>{params} format per line",
+                        Content must have the F<>{files}<>{prec_nodes} format per line\
+                        or  T<>{task}<>{command}<>{prec_nodes}<>{transformation}   ",
     )
     parser.add_argument(
         "-p", "--pgraph", type=str, help="Path to project to extract provenance"
     )
     parser.add_argument(
-        "-e", "--export", type=str, help="Flag to export abstract graph to GML format"
+        "-gml", "--gml_export", type=str, help="Flag to export abstract graph to GML format"
+    )
+    parser.add_argument(
+        "-png", "--png_export", type=str, help="Flag to export abstract graph to png format"
     )
 
     args = parser.parse_args()  # pylint: disable = invalid-name
@@ -382,7 +388,8 @@ if __name__ == "__main__":
 
     if args.agraph:
         node_list, edge_list = graph_components_generator_from_file(args.agraph)
-
+        print(node_list, edge_list)
+    
     else:
         tasks_number = st.number_input("Please define a number of stages", min_value=1)
         # file_inputs, commands, file_outputs = graph_components_generator(tasks_number)
@@ -401,6 +408,8 @@ if __name__ == "__main__":
 
     graph_plot_abstract = gdb.graph_object_plot()
     plot_graph(graph_plot_abstract)
+    if args.png_export:
+        export_png(graph_plot_abstract, filename=args.png_export)
 
 
     export_name = st.sidebar.text_input("Path for abstract graph export")
