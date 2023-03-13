@@ -31,16 +31,16 @@ def export_graph(**kwargs):
         st.sidebar.text(f"{expt}")
 
 
-def git_log_parse(ds_name, run_nodes):
+def git_log_parse(ds_name, ds_branch, run_nodes):
     """! This function will generate the graph of the entire project
     Args:
         ds_name (str): An absolute path to the dataset name
         a_option (str): An analysis mode for the node calculation
     """
     try:
-        gdb = graphs.GraphProvenance(ds_name)
+        gdb = graphs.GraphProvenance(ds_name, ds_branch)
     except Exception as err:
-        st.warning(f"Error creating graph object. Please check that your dataset path contains a valid Datalad dataset")
+        st.warning(f"Error creating graph object. Please check that your path contains a valid Datalad dataset")
         st.stop()
 
 
@@ -69,8 +69,8 @@ def plot_attributes(prov_graph, node_attributes):
 
 
 
-def calculate_attribute(attr, dataset_name, run_cond):
-    provenance_graph = git_log_parse(dataset_name, run_cond)
+def calculate_attribute(attr, dataset_name, branch, run_cond):
+    provenance_graph = git_log_parse(dataset_name, branch, run_cond)
     if len(provenance_graph.node_list) != 0:
     
         if attr == "None":
@@ -131,11 +131,6 @@ if __name__ == "__main__":
               as input, results might be wrong"
         )
         dataset_name = st.text_input("Input the dataset to track")
-        
-        branches_project = utils.get_branches
-        branches_select = st.selectbox('Branches',['1','2'])
-
-
         run_info = st.text_input("Input the dataflow run information (Optional)")
 
         with st.sidebar:
@@ -149,4 +144,11 @@ if __name__ == "__main__":
 
         # # Sreamlit UI implementation
         if utils.exists_case_sensitive(dataset_name):
-            calculate_attribute(analysis_type, dataset_name, run_info)
+            branches_project = utils.get_branches(dataset_name)
+            branch_select = st.selectbox('Branches',branches_project)
+            print('list of branches',branches_project)
+   
+            calculate_attribute(analysis_type, dataset_name, branch_select, run_info)
+        else:
+            st.warning('Invalid path to dataset')
+            

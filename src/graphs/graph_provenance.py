@@ -19,9 +19,10 @@ class GraphProvenance(GraphBase): # pylint: disable = too-few-public-methods
         obj: A provenance graph object
     """
 
-    def __init__(self, ds_name):
+    def __init__(self, ds_name, ds_branch):
         self.dataset = self._get_dataset(ds_name)
         self.superdataset = self._get_superdataset(ds_name)
+        self.ds_branch=ds_branch
         self.node_list, self.edge_list = self.prov_scan()
         super().__init__(self.node_list, self.edge_list)
 
@@ -40,6 +41,14 @@ class GraphProvenance(GraphBase): # pylint: disable = too-few-public-methods
 
 
     def _get_dataset(self, dataset):
+        """! This function will return a Datalad dataset for the given path
+
+        Args:
+            dataset (str): _description_
+
+        Returns:
+            dset (Dataset): A Datalad dataset
+        """
         dset = dl.Dataset(dataset)
         if dset is not None:
             return dset
@@ -48,7 +57,7 @@ class GraphProvenance(GraphBase): # pylint: disable = too-few-public-methods
     def _get_superdataset(self, dataset):
         """! This function will return the superdataset
         Returns:
-            sds: A datalad superdataset
+            sds/dset (Dataset): A datalad superdataset
         """
         
         dset = dl.Dataset(dataset)        
@@ -76,9 +85,9 @@ class GraphProvenance(GraphBase): # pylint: disable = too-few-public-methods
 
         for subdataset in subdatasets:
             repo = git.Repo(subdataset)
+            repo.heads[self.ds_branch].checkout()
             branch = repo.active_branch
             commits = list(repo.iter_commits(branch))
-            # _get_commit_list(commits, run_commits)
             dl_run_commits = self._get_commit_list(commits)
             
 
