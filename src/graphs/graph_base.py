@@ -14,7 +14,6 @@ from bokeh.models import (
 import utils
 
 
-
 class GraphBase:
     """This class will represent a graph created from provenance
 
@@ -118,10 +117,6 @@ class GraphBase:
         """
         nx.write_gml(self.graph, filename)
 
-
-   
-
-
     def graph_object_plot(self, fc="node_color"):
         """! Utility to generate a plot for a networkx graph
 
@@ -180,7 +175,6 @@ class GraphBase:
 
         return plot
 
-
     def end_nodes(self):
         """This function return the last node(s) in a tree
 
@@ -206,6 +200,5 @@ class GraphBase:
             for x in self.graph.nodes()
             if int(self.graph.out_degree(x)) >= 1 and int(self.graph.in_degree(x)) == 0
         ]
-
 
         return next_nodes_run

@@ -2,6 +2,8 @@ import re
 
 
 """This module will process line form the text file"""
+
+
 def line_process_task(line):
     """This function will process a line from the text file
 
@@ -23,12 +25,12 @@ def line_process_task(line):
         task_name = line.split("<>")[1]
         task_command = line.split("<>")[2]
         predecesors = line.split("<>")[3].split(",")
-    except: # pylint: disable = bare-except
+    except:  # pylint: disable = bare-except
         print("Incorrect file format, check the file and reload")
 
     try:
         transform = line.split("<>")[4]
-    except: # pylint: disable = bare-except
+    except:  # pylint: disable = bare-except
         print("No transform function has been defined")
         transform = ""
 
@@ -51,7 +53,7 @@ def line_process_file(line):
     try:
         file_list = line.split("<>")[1].split(",")
         predecesors = line.split("<>")[2].split(",")
-    except: # pylint: disable = bare-except
+    except:  # pylint: disable = bare-except
         print("Incorrect file format, check the file and reload")
 
     return file_list, predecesors
@@ -69,11 +71,8 @@ def remove_space(input):
     return "".join(input.split())
 
 
-
-
-
 def file_name_expansion(item):
-    """! This function will expand a file string in the form FILE{1..5} 
+    """! This function will expand a file string in the form FILE{1..5}
     creating FILE1, FILE2,...
 
     Args:
@@ -82,20 +81,20 @@ def file_name_expansion(item):
     Returns:
         files (list): A list of expanded files
     """
-    files=[]
+    files = []
     range_string = re.findall("(\d+\.\.\d+)", item)
-    
-    if range_string:
-        start_range = int(range_string[0].split('..')[0])
-        end_range = int(range_string[0].split('..')[1])
 
-        for i in range(start_range, end_range+1):
+    if range_string:
+        start_range = int(range_string[0].split("..")[0])
+        end_range = int(range_string[0].split("..")[1])
+
+        for i in range(start_range, end_range + 1):
             file_splitted = re.split("(\{.*?\})", item)
             files.append(f"{file_splitted[0]}{i}{file_splitted[2]}")
     else:
-        if len(item)==0:
+        if len(item) == 0:
             pass
         else:
             files.append(item)
-    
+
     return files

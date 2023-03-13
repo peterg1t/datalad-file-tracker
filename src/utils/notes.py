@@ -227,10 +227,6 @@ class PlotNotes:  # pylint: disable=too-few-public-methods
         return plot
 
 
-
-
-
-
 class FileNote:
     """A class for a file note"""
 

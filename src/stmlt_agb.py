@@ -29,7 +29,6 @@ Welcome to the abstract graph builder!
 )
 
 
-
 def graph_components_generator_from_file(filename):
     """! This function generate a networkx graph from a file containing an abstract graph
 
@@ -116,14 +115,11 @@ def graph_components_generator(number_of_tasks):
                 col4.text_input(f"Preceding node(s) for stage{i}", key=f"node(s)_{i}")
             ).split(",")
 
-
             prec_nodes = []
             for prec_nodes_item in prec_nodes_grp:
                 # for file definition lets check if we have defined multiple files with regex
                 nodes_expanded = utils.file_name_expansion(prec_nodes_item)
                 prec_nodes.extend(nodes_expanded)
-
-
 
             if stage_type == "file":
                 file_grp = utils.remove_space(
@@ -138,15 +134,13 @@ def graph_components_generator(number_of_tasks):
                 for file_item in file_grp:
                     # for file definition lets check if we have defined multiple files with regex
                     files_expanded = utils.file_name_expansion(file_item)
-                    
-                    
+
                     if (
                         len(file_item.rstrip()) == 0
                     ):  # if there is no file (or there is an empty file) stop the execution
                         st.stop()
 
                     files.extend(files_expanded)
-
 
                 for file in files:
                     nodes.append(
@@ -164,11 +158,9 @@ def graph_components_generator(number_of_tasks):
                         )
                     )
 
-
                     for node in prec_nodes:
                         if node:
                             edges.append((node, os.path.basename(file)))
-
 
             elif stage_type == "task":
                 task = col2.text_input(
@@ -205,7 +197,6 @@ def graph_components_generator(number_of_tasks):
                         },
                     )
                 )
-
 
                 for node in prec_nodes:
                     if node:
@@ -278,23 +269,26 @@ def match_graphs(provenance_ds_path, gdb_abstract):
         provenance_ds_path (str): The path to the provenance dataset
         gdb_abstract (graph): An abstract graph
     """
-    
+
     if utils.exists_case_sensitive(provenance_ds_path):
         try:
             gdb_provenance = graphs.GraphProvenance(provenance_ds_path)
         except Exception as err:
-            st.warning(f"Error creating graph object. Please check that your dataset path contains a valid Datalad dataset")
+            st.warning(
+                f"Error creating graph object. Please check that your dataset path contains a valid Datalad dataset"
+            )
             st.stop()
-        
+
         gdb_difference = workflow_diff(gdb_abstract, gdb_provenance)
         next_nodes_requirements = gdb_difference.next_nodes_run()
 
         if "next_nodes_req" not in st.session_state:
             st.session_state["next_nodes_req"] = next_nodes_requirements
-    
+
     else:
         st.warning(f"Path {provenance_ds_path} does not exist.")
         st.stop()
+
 
 def run_pending_nodes(gdb_difference):
     """! Given a graph and the list of nodes (and requirements i.e. inputs)
@@ -328,7 +322,7 @@ def run_pending_nodes(gdb_difference):
             print("submit_job", dataset, inputs, outputs, message, command)
             # scheduler.add_job(utils.job_submit, args=[dataset, inputs, outputs, message, command])
 
-    except: # pylint: disable = bare-except
+    except:  # pylint: disable = bare-except
         st.warning(
             "No provance graph has been matched to this abstract graph, match one first"
         )
@@ -351,10 +345,16 @@ if __name__ == "__main__":
         "-p", "--pgraph", type=str, help="Path to project to extract provenance"
     )
     parser.add_argument(
-        "-gml", "--gml_export", type=str, help="Flag to export abstract graph to GML format"
+        "-gml",
+        "--gml_export",
+        type=str,
+        help="Flag to export abstract graph to GML format",
     )
     parser.add_argument(
-        "-png", "--png_export", type=str, help="Flag to export abstract graph to png format"
+        "-png",
+        "--png_export",
+        type=str,
+        help="Flag to export abstract graph to png format",
     )
 
     args = parser.parse_args()  # pylint: disable = invalid-name
@@ -389,7 +389,7 @@ if __name__ == "__main__":
     if args.agraph:
         node_list, edge_list = graph_components_generator_from_file(args.agraph)
         print(node_list, edge_list)
-    
+
     else:
         tasks_number = st.number_input("Please define a number of stages", min_value=1)
         # file_inputs, commands, file_outputs = graph_components_generator(tasks_number)
@@ -398,22 +398,20 @@ if __name__ == "__main__":
     try:
         gdb = graphs.GraphBase(node_list, edge_list)
         # st.success("Graph created")
-    
-    except:
-        st.warning(f"There was a problem in the creation of the graph verify\
-                   that all node names match along the edges")
-        st.stop()
-    
 
+    except:
+        st.warning(
+            f"There was a problem in the creation of the graph verify\
+                   that all node names match along the edges"
+        )
+        st.stop()
 
     graph_plot_abstract = gdb.graph_object_plot()
     plot_graph(graph_plot_abstract)
     if args.png_export:
         export_png(graph_plot_abstract, filename=args.png_export)
 
-
     export_name = st.sidebar.text_input("Path for abstract graph export")
-
 
     st.sidebar.button(
         "Save",
@@ -428,13 +426,8 @@ if __name__ == "__main__":
     provenance_graph_path = st.sidebar.text_input("Path to the dataset with provenance")
     match_button = st.sidebar.button("Match")
 
-
     if match_button:
         match_graphs(provenance_graph_path, gdb)
     run_next_button = st.sidebar.button("Run pending nodes")
     if run_next_button:
         run_pending_nodes(gdb)
-
-    
-    
-    

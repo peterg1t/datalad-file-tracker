@@ -17,8 +17,8 @@ def get_git_root(path_file):
 
 def get_branches(path_dataset):
     r = git.Repo(path_dataset)
-    repo_heads = r.heads # or it's alias: r.branches
+    repo_heads = r.heads  # or it's alias: r.branches
     repo_heads_names = [h.name for h in repo_heads]
-    print('repo_head_names',repo_heads_names)
-    repo_heads_names.remove('git-annex')
+    print("repo_head_names", repo_heads_names)
+    repo_heads_names.remove("git-annex")
     return repo_heads_names
