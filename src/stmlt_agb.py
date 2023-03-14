@@ -180,8 +180,10 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
             st.stop()
 
         gdb_difference = utils.graph_diff(gdb_abstract, gdb_provenance)
+        
         graph_plot_diff = gdb_difference.graph_object_plot()
         plot_graph(graph_plot_diff)
+
         next_nodes_requirements = gdb_difference.next_nodes_run()
 
         if "next_nodes_req" not in st.session_state:

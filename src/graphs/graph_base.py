@@ -117,6 +117,8 @@ class GraphBase:
         """
         nx.write_gml(self.graph, filename)
 
+        
+
     def graph_object_plot(self, fc="node_color"):
         """! Utility to generate a plot for a networkx graph
 
