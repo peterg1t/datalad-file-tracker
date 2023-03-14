@@ -29,68 +29,6 @@ Welcome to the abstract graph builder!
 )
 
 
-def graph_components_generator_from_file(filename):
-    """! This function generate a networkx graph from a file containing an abstract graph
-
-    Args:
-        filename (str): Path to the abstract graph
-
-    Returns:
-        nodes: A list of nodes
-        edges: A list of edges
-    """
-    nodes = []
-    edges = []
-    with open(filename, encoding="utf-8") as file_abstract:
-        read_data = file_abstract.readlines()
-        for item in read_data:
-            stage_type = item.split("<>")[0].strip()
-            if stage_type == "T":
-                task, command, prec_nodes, transform = utils.line_process_task(item)
-                nodes.append(
-                    (
-                        task,
-                        {
-                            "name": task,
-                            "label": task,
-                            "path": "",
-                            "type": "task",
-                            "cmd": command,
-                            "status": "pending",
-                            "node_color": "grey",
-                            "transform": transform,
-                            "ID": "",
-                        },
-                    )
-                )
-                for node in prec_nodes:
-                    if node:
-                        edges.append((node, task))
-
-            elif stage_type == "F":
-                files, prec_nodes = utils.line_process_file(item)
-                for file in files:
-                    nodes.append(
-                        (
-                            os.path.basename(file),
-                            {
-                                "name": file,
-                                "label": os.path.basename(file),
-                                "path": os.path.dirname(file),
-                                "type": "file",
-                                "status": "pending",
-                                "node_color": "grey",
-                                "ID": utils.encode(file),
-                            },
-                        )
-                    )
-                    for node in prec_nodes:
-                        if node:
-                            edges.append((node, os.path.basename(file)))
-
-    return nodes, edges
-
-
 def graph_components_generator(number_of_tasks):
     """! This function will generate the graph of the entire project
 
@@ -387,7 +325,7 @@ if __name__ == "__main__":
     edge_list = None  # pylint: disable=invalid-name
 
     if args.agraph:
-        node_list, edge_list = graph_components_generator_from_file(args.agraph)
+        node_list, edge_list = utils.gcg_from_file(args.agraph)
         print(node_list, edge_list)
 
     else:

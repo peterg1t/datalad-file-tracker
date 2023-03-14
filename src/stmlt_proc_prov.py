@@ -3,13 +3,13 @@ Docstring
 """
 import os
 import argparse
-from pathlib import Path
-import asyncio
-from concurrent.futures import ThreadPoolExecutor as Executor
+import git
+from itertools import repeat
+from multiprocessing import Pool
+
 import cProfile
 
 import graphs
-import networkx as nx
 from bokeh.transform import linear_cmap
 
 import utils
@@ -18,9 +18,33 @@ import utils
 profiler = cProfile.Profile()
 
 
-def match_run(abstract, provenance, run):
-    print(abstract, provenance, run)
+def get_data(run):
     pass
+
+
+
+def match_run(abstract, provenance, runs):
+    print(abstract, provenance, runs)
+    node_abstract_list, edge_abstract_list = utils.gcg_processing(abstract)
+    
+    gdb_abs = graphs.GraphBase(node_abstract_list, edge_abstract_list)
+    # for one run
+    # gdb_prov = graphs.GraphProvenance(provenance, run)
+    # for several runs we are going to create a pool
+    for run in runs:
+        #checkout run and clone to /tmp
+        repo = git.Repo(provenance)
+        
+        repo.heads[run].clone(os.path.join("/tmp", run))
+        # cloned_repo = repo.clone(os.path.join("/tmp", run))
+        # assert cloned_repo.__class__ is git.Repo  # clone an existing repository
+        # assert git.Repo.init(os.path.join("/tmp", run)).__class__ is git.Repo
+        
+    #perform datalad get on all cloned repos
+    # with Pool(4) as p:
+    #     p.starmap(get_data, zip(repeat(gdb_abs), runs))
+
+
 
 
 if __name__ == "__main__":
@@ -54,5 +78,4 @@ if __name__ == "__main__":
     runs = args.runs
 
     # Match run
-    for run in runs:
-        match_run(abspath, provpath, run)
+    match_run(abspath, provpath, runs)

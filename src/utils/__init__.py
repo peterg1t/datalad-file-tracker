@@ -19,3 +19,4 @@ from utils.string_manip import (
     file_name_expansion,
     remove_space,
 )  # pylint: disable=import-error
+from utils.graph_gen import (gcg_from_file, gcg_processing)
