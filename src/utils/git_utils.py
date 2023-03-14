@@ -16,6 +16,14 @@ def get_git_root(path_file):
 
 
 def get_branches(path_dataset):
+    """This function will return all the branches of a datalad project except for git-annex which is not main nor an orphan branch
+
+    Args:
+        path_dataset (str): A path to the dataset
+
+    Returns:
+        list: A list of all branches
+    """
     r = git.Repo(path_dataset)
     repo_heads = r.heads  # or it's alias: r.branches
     repo_heads_names = [h.name for h in repo_heads]

@@ -162,45 +162,7 @@ def export_graph(**kwargs):
         st.sidebar.text(f"{exception_graph}")
 
 
-def workflow_diff(abstract, provenance):
-    """! Calculate the difference of the abstract and provenance graphs
-
-    Args:
-        abstract (_type_): _description_
-        provenance (_type_): _description_
-
-    Returns:
-        _type_: _description_
-    """
-    abs_graph_id = list(nx.get_node_attributes(abstract.graph, "ID").values())
-    prov_graph_id = list(nx.get_node_attributes(provenance.graph, "ID").values())
-    nodes_abs = list(abstract.graph.nodes())
-
-    nodes_update = [
-        n for n, v in abstract.graph.nodes(data=True) if v["ID"] in prov_graph_id
-    ]
-
-    for node in nodes_update:
-        nx.set_node_attributes(abstract.graph, {node: "complete"}, "status")
-        if abstract.graph.nodes()[node]["type"] == "task":
-            nx.set_node_attributes(abstract.graph, {node: "green"}, "node_color")
-        elif abstract.graph.nodes()[node]["type"] == "file":
-            nx.set_node_attributes(abstract.graph, {node: "red"}, "node_color")
-
-    graph_plot_diff = abstract.graph_object_plot()
-    plot_graph(graph_plot_diff)
-
-    gdb_difference = copy.deepcopy(gdb)
-    gdb_difference.graph.remove_nodes_from(
-        n for n, v in abstract.graph.nodes(data=True) if v["status"] == "complete"
-    )
-    # In the difference graph the start_nodes is the list of nodes that can be
-    # started (these should usually be a task)
-
-    return gdb_difference
-
-
-def match_graphs(provenance_ds_path, gdb_abstract):
+def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
     """! Function to match the graphs loaded with Streamlit interface
 
     Args:
@@ -210,14 +172,16 @@ def match_graphs(provenance_ds_path, gdb_abstract):
 
     if utils.exists_case_sensitive(provenance_ds_path):
         try:
-            gdb_provenance = graphs.GraphProvenance(provenance_ds_path)
+            gdb_provenance = graphs.GraphProvenance(provenance_ds_path, ds_branch)
         except Exception as err:
             st.warning(
                 f"Error creating graph object. Please check that your dataset path contains a valid Datalad dataset"
             )
             st.stop()
 
-        gdb_difference = workflow_diff(gdb_abstract, gdb_provenance)
+        gdb_difference = utils.graph_diff(gdb_abstract, gdb_provenance)
+        graph_plot_diff = gdb_difference.graph_object_plot()
+        plot_graph(graph_plot_diff)
         next_nodes_requirements = gdb_difference.next_nodes_run()
 
         if "next_nodes_req" not in st.session_state:
@@ -362,10 +326,13 @@ if __name__ == "__main__":
     # for all the project is generated and matched
     # to the abstract graph
     provenance_graph_path = st.sidebar.text_input("Path to the dataset with provenance")
-    match_button = st.sidebar.button("Match")
+    if utils.exists_case_sensitive(provenance_graph_path):
+        branches_project = utils.get_branches(provenance_graph_path)
+        branch_select = st.sidebar.selectbox("Branches", branches_project)
+        match_button = st.sidebar.button("Match")
 
-    if match_button:
-        match_graphs(provenance_graph_path, gdb)
-    run_next_button = st.sidebar.button("Run pending nodes")
-    if run_next_button:
-        run_pending_nodes(gdb)
+        if match_button:
+            match_graphs(provenance_graph_path, gdb, branch_select)
+        run_next_button = st.sidebar.button("Run pending nodes")
+        if run_next_button:
+            run_pending_nodes(gdb)

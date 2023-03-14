@@ -148,7 +148,8 @@ class GraphBase:
                 ("label", "@label"),
                 ("status", "@status"),
                 ("author", "@author"),
-                ("ID", "@ID"),
+                ("date", "@date"),
+                # ("ID", "@ID"),
             ]
         )
         plot.add_tools(node_hover_tool, BoxZoomTool(), ResetTool())

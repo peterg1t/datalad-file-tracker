@@ -73,6 +73,7 @@ def calculate_attribute(attr, dataset_name, branch):
     if len(provenance_graph.node_list) != 0:
         if attr == "None":
             graph_plot_abstract = provenance_graph.graph_object_plot()
+            print("about to plot", provenance_graph.graph.nodes())
             st.bokeh_chart(graph_plot_abstract, use_container_width=True)
 
         elif attr == "Betweeness Centrality":
@@ -147,7 +148,6 @@ if __name__ == "__main__":
         if utils.exists_case_sensitive(dataset_name):
             branches_project = utils.get_branches(dataset_name)
             branch_select = st.selectbox("Branches", branches_project)
-            print("list of branches", branches_project)
 
             calculate_attribute(analysis_type, dataset_name, branch_select)
         else:

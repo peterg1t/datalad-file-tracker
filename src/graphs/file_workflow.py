@@ -10,10 +10,12 @@ class FileWorkflow(NodeWorkflow):
         nodeWorkflow (_type_): _description_
     """
 
-    def __init__(self, dataset, name, commit, fileBlob):
+    def __init__(self, dataset, name, commit, author, date, fileBlob):
         super().__init__(
             commit,
+            author,
             name,
+            date,
             os.path.dirname(name),
             os.path.basename(name).split(".")[0],
             "",

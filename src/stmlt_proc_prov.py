@@ -6,6 +6,8 @@ import argparse
 import git
 from itertools import repeat
 from multiprocessing import Pool
+import datalad.api as dl
+from bokeh.io import export_png
 
 import cProfile
 
@@ -18,33 +20,23 @@ import utils
 profiler = cProfile.Profile()
 
 
-def get_data(run):
-    pass
-
+def graph_diff_calc(gdb_abs, ds, run):
+    gdb_conc = graphs.GraphProvenance(ds, run)
+    gplot_concrete = gdb_conc.graph_object_plot()
+    export_png(gplot_concrete, filename=f"/tmp/graph_concrete_{run}.png")
+    gdb_difference = utils.graph_diff(gdb_abs, gdb_conc)
+    print(run, gdb_difference.graph.nodes())
 
 
 def match_run(abstract, provenance, runs):
     print(abstract, provenance, runs)
     node_abstract_list, edge_abstract_list = utils.gcg_processing(abstract)
-    
+
     gdb_abs = graphs.GraphBase(node_abstract_list, edge_abstract_list)
-    # for one run
-    # gdb_prov = graphs.GraphProvenance(provenance, run)
     # for several runs we are going to create a pool
-    for run in runs:
-        #checkout run and clone to /tmp
-        repo = git.Repo(provenance)
-        
-        repo.heads[run].clone(os.path.join("/tmp", run))
-        # cloned_repo = repo.clone(os.path.join("/tmp", run))
-        # assert cloned_repo.__class__ is git.Repo  # clone an existing repository
-        # assert git.Repo.init(os.path.join("/tmp", run)).__class__ is git.Repo
-        
-    #perform datalad get on all cloned repos
-    # with Pool(4) as p:
-    #     p.starmap(get_data, zip(repeat(gdb_abs), runs))
 
-
+    with Pool(4) as p:
+        p.starmap(graph_diff_calc, zip(repeat(gdb_abs), repeat(provenance), runs))
 
 
 if __name__ == "__main__":

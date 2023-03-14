@@ -76,27 +76,23 @@ class GraphProvenance(GraphBase):  # pylint: disable = too-few-public-methods
 
         for subdataset in subdatasets:
             repo = git.Repo(subdataset)
-            repo.heads[self.ds_branch].checkout()
-            branch = repo.active_branch
-            commits = list(repo.iter_commits(branch))
+            commits = list(repo.iter_commits(repo.heads[self.ds_branch]))
             dl_run_commits = self._get_commit_list(commits)
 
             for commit in dl_run_commits:
                 dict_o = self._commit_message_node_extract(commit)
 
                 task = graphs.TaskWorkflow(
-                    self.superdataset.path, dict_o["cmd"], commit.hexsha
+                    self.superdataset.path,
+                    dict_o["cmd"],
+                    commit.hexsha,
+                    commit.author.name,
+                    commit.authored_date,
                 )
 
                 if dict_o["inputs"]:
                     task.parent_files = dict_o["inputs"]
                     for input_file in task.parent_files:
-                        print(
-                            "task.parent_files",
-                            task.parent_files,
-                            self.superdataset.path,
-                        )
-                        print(f"/**/*{os.path.basename(input_file)}")
                         input_path = glob.glob(
                             self.superdataset.path
                             + f"/**/*{os.path.basename(input_file)}",
@@ -111,6 +107,8 @@ class GraphProvenance(GraphBase):  # pylint: disable = too-few-public-methods
                             subdataset,
                             input_path,
                             commit.hexsha,
+                            commit.author.name,
+                            commit.authored_date,
                             file_status["gitshasum"],
                         )
                         file.ID = utils.encode(file.name)
@@ -139,6 +137,8 @@ class GraphProvenance(GraphBase):  # pylint: disable = too-few-public-methods
                             subdataset,
                             output_path,
                             commit.hexsha,
+                            commit.author.name,
+                            commit.authored_date,
                             file_status["gitshasum"],
                         )
                         file.ID = utils.encode(file.name)

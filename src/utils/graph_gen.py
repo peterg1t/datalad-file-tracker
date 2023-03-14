@@ -1,6 +1,7 @@
 import os
 import utils
 
+
 def gcg_from_file(filename):
     """! This function generate a networkx graph from a file containing an abstract graph
 
@@ -61,8 +62,6 @@ def gcg_from_file(filename):
                             edges.append((node, os.path.basename(file)))
 
     return nodes, edges
-
-
 
 
 def gcg_processing(filename):

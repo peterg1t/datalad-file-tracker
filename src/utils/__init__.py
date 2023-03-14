@@ -5,6 +5,7 @@ from utils.graph_analysis import (
     deg_centrl,
     eigen_centrl,
     close_centrl,
+    graph_diff,
 )  # pylint: disable=import-error
 from utils.encode import encode, decode  # pylint: disable=import-error
 from utils.paths_check import (
@@ -19,4 +20,4 @@ from utils.string_manip import (
     file_name_expansion,
     remove_space,
 )  # pylint: disable=import-error
-from utils.graph_gen import (gcg_from_file, gcg_processing)
+from utils.graph_gen import gcg_from_file, gcg_processing
