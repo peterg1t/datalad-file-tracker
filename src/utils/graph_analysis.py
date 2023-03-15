@@ -63,34 +63,29 @@ def graph_diff(abstract, provenance):
         provenance (graph): A concrete or provenance graph
 
     Returns:
-        graph: A graph containing the difference between the nodes. (abstract-concrete)
+        graphs: An updated abstract graph with completed nodes for plotting and a graph containing the difference between the nodes. (abstract-concrete)
     """
-    # abs_graph_id = list(nx.get_node_attributes(abstract.graph, "ID").values())
-    print('abstract', abstract, type(abstract))
+    abs_graph_id = list(nx.get_node_attributes(abstract.graph, "ID").values())    
     prov_graph_id = list(nx.get_node_attributes(provenance.graph, "ID").values())
-    # nodes_abs = list(abstract.graph.nodes())
 
-    gdb_difference = copy.deepcopy(abstract)
-
-    print('prov_graph_id->', prov_graph_id)
-
+    difference = copy.deepcopy(abstract)
     nodes_update = [
         n for n, v in abstract.graph.nodes(data=True) if v["ID"] in prov_graph_id
     ]
 
     for node in nodes_update:
-        nx.set_node_attributes(gdb_difference.graph, {node: "complete"}, "status")
+        nx.set_node_attributes(abstract.graph, {node: "complete"}, "status")
         if abstract.graph.nodes()[node]["type"] == "task":
-            nx.set_node_attributes(gdb_difference.graph, {node: "green"}, "node_color")
+            nx.set_node_attributes(abstract.graph, {node: "green"}, "node_color")
         elif abstract.graph.nodes()[node]["type"] == "file":
-            nx.set_node_attributes(gdb_difference.graph, {node: "red"}, "node_color")
+            nx.set_node_attributes(abstract.graph, {node: "red"}, "node_color")
 
     
-    # gdb_difference.graph.remove_nodes_from(
-    #     n for n, v in abstract.graph.nodes(data=True) if v["status"] == "complete"
-    # )
+    difference.graph.remove_nodes_from(
+        n for n, v in abstract.graph.nodes(data=True) if v["status"] == "complete"
+    )
 
     # In the difference graph the start_nodes is the list of nodes that can be
     # started (these should usually be a task)
 
-    return gdb_difference
+    return abstract, difference

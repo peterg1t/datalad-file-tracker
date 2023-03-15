@@ -44,7 +44,6 @@ class PlotNotes:  # pylint: disable=too-few-public-methods
         Returns:
             i: An index where there is a duplicate
         """
-        print(len(value_list))
         for i in range(1, len(value_list)):
             if value_list[i - 1] == value_list[i]:
                 return i

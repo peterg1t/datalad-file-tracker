@@ -179,10 +179,13 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
             )
             st.stop()
 
-        gdb_difference = utils.graph_diff(gdb_abstract, gdb_provenance)
+        gdb_abstract, gdb_difference = utils.graph_diff(gdb_abstract, gdb_provenance) 
         
-        graph_plot_diff = gdb_difference.graph_object_plot()
-        plot_graph(graph_plot_diff)
+        graph_plot_abs = gdb_abstract.graph_object_plot()
+        plot_graph(graph_plot_abs)
+        
+        # graph_plot_diff = gdb_difference.graph_object_plot()
+        # plot_graph(graph_plot_diff)
 
         next_nodes_requirements = gdb_difference.next_nodes_run()
 
@@ -292,16 +295,14 @@ if __name__ == "__main__":
 
     if args.agraph:
         node_list, edge_list = utils.gcg_from_file(args.agraph)
-        print(node_list, edge_list)
 
     else:
         tasks_number = st.number_input("Please define a number of stages", min_value=1)
-        # file_inputs, commands, file_outputs = graph_components_generator(tasks_number)
         node_list, edge_list = graph_components_generator(tasks_number)
 
     try:
         gdb = graphs.GraphBase(node_list, edge_list)
-        # st.success("Graph created")
+        st.success("Graph created")
 
     except:
         st.warning(

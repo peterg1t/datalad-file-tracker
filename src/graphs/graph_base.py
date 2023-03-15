@@ -102,6 +102,7 @@ class GraphBase:
             graph.nodes[node]["ID"] = utils.encode(
                 ",".join(sorted(full_task_description))
             )
+            
 
             # mapping = {item:os.path.basename(full_path)}
             # graph = nx.relabel_nodes(graph, mapping)

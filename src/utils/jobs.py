@@ -45,12 +45,10 @@ def job_submit(dataset, inputs, outputs, message, command):
     dl.save(path=dataset, dataset=dataset)
 
     containers_run_command = f"cd {dataset} && datalad run -m '{message}' -d '{dataset}' -i {inputs_proc} -o {outputs_proc} '{command}'"
-    print("full run command", containers_run_command)
     # containers_run_command = f"which datalad; datalad wtf -S extensions"
     outlog, errlog = command_submit(containers_run_command)
     outlogs.append(outlog)
     errlogs.append(errlog)
-    print("logs_job", outlogs, errlogs)
     for item in errlogs[0]:
         if "error" in item:
             raise Exception(

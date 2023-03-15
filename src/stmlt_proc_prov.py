@@ -24,12 +24,11 @@ def graph_diff_calc(gdb_abs, ds, run):
     gdb_conc = graphs.GraphProvenance(ds, run)
     gplot_concrete = gdb_conc.graph_object_plot()
     export_png(gplot_concrete, filename=f"/tmp/graph_concrete_{run}.png")
-    gdb_difference = utils.graph_diff(gdb_abs, gdb_conc)
+    dgb_abstract, gdb_difference = utils.graph_diff(gdb_abs, gdb_conc)
     print(run, gdb_difference.graph.nodes())
 
 
 def match_run(abstract, provenance, runs):
-    print(abstract, provenance, runs)
     node_abstract_list, edge_abstract_list = utils.gcg_processing(abstract)
 
     gdb_abs = graphs.GraphBase(node_abstract_list, edge_abstract_list)
