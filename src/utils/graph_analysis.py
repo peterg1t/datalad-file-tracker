@@ -67,6 +67,9 @@ def graph_diff(abstract, provenance):
     """
     abs_graph_id = list(nx.get_node_attributes(abstract.graph, "ID").values())    
     prov_graph_id = list(nx.get_node_attributes(provenance.graph, "ID").values())
+    
+    print('abs',abs_graph_id)
+    print('prov',prov_graph_id)
 
     difference = copy.deepcopy(abstract)
     nodes_update = [

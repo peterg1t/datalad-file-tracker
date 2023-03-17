@@ -8,6 +8,7 @@ import copy
 from pathlib import Path
 import cProfile
 import streamlit as st
+import csv
 import networkx as nx
 from bokeh.io import export_png
 
@@ -169,10 +170,41 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
         provenance_ds_path (str): The path to the provenance dataset
         gdb_abstract (graph): An abstract graph
     """
+    node_mapping = {}
+    with open(f"{provenance_graph_path}/tf.csv",'r') as translation_file:
+        reader = csv.reader(translation_file)
+        for row in reader:
+            node_mapping[row[0]] = f"{provenance_graph_path}/{row[1]}"
+
 
     if utils.exists_case_sensitive(provenance_ds_path):
         try:
+            print('nodes_b4',gdb_abstract.graph.nodes,node_mapping)
             gdb_provenance = graphs.GraphProvenance(provenance_ds_path, ds_branch)
+            gdb_abstract.graph = nx.relabel_nodes(gdb_abstract.graph, node_mapping)
+            #after relabeling we need to recompute the ID
+            for node in gdb_abstract.graph.nodes:
+                if gdb_abstract.graph.nodes[node]["type"]=='file':
+                    gdb_abstract.graph.nodes[node]["ID"] = utils.encode(node)
+
+            for node in gdb_abstract.graph.nodes:
+                if gdb_abstract.graph.nodes[node]["type"]=='task':
+                    neighbors = list(nx.all_neighbors(gdb_abstract.graph, node))
+                    print('neighbors',neighbors)
+                    full_task_description = []
+                    for n in neighbors:
+                        full_task_description.append(n)
+
+                    command = gdb_abstract.graph.nodes[node]["cmd"]
+                    full_task_description.append(command)
+                    print('full_task_description', full_task_description)
+
+                    gdb_abstract.graph.nodes[node]["ID"] = utils.encode(
+                        ",".join(sorted(full_task_description))
+                    )
+                    
+                    print('attributes nodes',gdb_abstract.graph.nodes.data(True))
+            
         except Exception as err:
             st.warning(
                 f"Error creating graph object. Please check that your dataset path contains a valid Datalad dataset"
@@ -181,6 +213,8 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
 
         gdb_abstract, gdb_difference = utils.graph_diff(gdb_abstract, gdb_provenance) 
         
+        print('diff', gdb_difference.graph.nodes)
+
         graph_plot_abs = gdb_abstract.graph_object_plot()
         plot_graph(graph_plot_abs)
         
