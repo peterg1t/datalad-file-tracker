@@ -10,6 +10,7 @@ import cProfile
 import streamlit as st
 import csv
 import networkx as nx
+import git
 from bokeh.io import export_png
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -167,10 +168,13 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
     """! Function to match the graphs loaded with Streamlit interface
 
     Args:
-        provenance_ds_path (str): The path to the provenance dataset
+        provenance_ds_path (str)`: The path to the provenance dataset
         gdb_abstract (graph): An abstract graph
     """
     node_mapping = {}
+    repo = git.Repo(provenance_ds_path)
+    branch = repo.heads[ds_branch]
+    branch.checkout()
     with open(f"{provenance_graph_path}/tf.csv",'r') as translation_file:
         reader = csv.reader(translation_file)
         for row in reader:
@@ -178,38 +182,17 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
 
 
     if utils.exists_case_sensitive(provenance_ds_path):
-        try:
-            print('nodes_b4',gdb_abstract.graph.nodes,node_mapping)
-            gdb_provenance = graphs.GraphProvenance(provenance_ds_path, ds_branch)
-            gdb_abstract.graph = nx.relabel_nodes(gdb_abstract.graph, node_mapping)
-            #after relabeling we need to recompute the ID
-            for node in gdb_abstract.graph.nodes:
-                if gdb_abstract.graph.nodes[node]["type"]=='file':
-                    gdb_abstract.graph.nodes[node]["ID"] = utils.encode(node)
+        # try:
+        gdb_provenance = graphs.GraphProvenance(provenance_ds_path, ds_branch)
+        print('b4',gdb_provenance.graph.nodes)
+        gdb_abstract = utils.graph_relabel(gdb_abstract, node_mapping)            
+        print('aft', gdb_provenance.graph.nodes)
 
-            for node in gdb_abstract.graph.nodes:
-                if gdb_abstract.graph.nodes[node]["type"]=='task':
-                    neighbors = list(nx.all_neighbors(gdb_abstract.graph, node))
-                    print('neighbors',neighbors)
-                    full_task_description = []
-                    for n in neighbors:
-                        full_task_description.append(n)
-
-                    command = gdb_abstract.graph.nodes[node]["cmd"]
-                    full_task_description.append(command)
-                    print('full_task_description', full_task_description)
-
-                    gdb_abstract.graph.nodes[node]["ID"] = utils.encode(
-                        ",".join(sorted(full_task_description))
-                    )
-                    
-                    print('attributes nodes',gdb_abstract.graph.nodes.data(True))
-            
-        except Exception as err:
-            st.warning(
-                f"Error creating graph object. Please check that your dataset path contains a valid Datalad dataset"
-            )
-            st.stop()
+        # except Exception as err:
+        #     st.warning(
+        #         f"Error creating graph object. Please check that your dataset path contains a valid Datalad dataset"
+        #     )
+        #     st.stop()
 
         gdb_abstract, gdb_difference = utils.graph_diff(gdb_abstract, gdb_provenance) 
         

@@ -4,6 +4,7 @@ This module allows the user to print the different network attributes as well as
 
 import copy
 import networkx as nx
+import utils
 
 
 def calc_betw_centrl(graph):
@@ -68,9 +69,6 @@ def graph_diff(abstract, provenance):
     abs_graph_id = list(nx.get_node_attributes(abstract.graph, "ID").values())    
     prov_graph_id = list(nx.get_node_attributes(provenance.graph, "ID").values())
     
-    print('abs',abs_graph_id)
-    print('prov',prov_graph_id)
-
     difference = copy.deepcopy(abstract)
     nodes_update = [
         n for n, v in abstract.graph.nodes(data=True) if v["ID"] in prov_graph_id
@@ -90,5 +88,27 @@ def graph_diff(abstract, provenance):
 
     # In the difference graph the start_nodes is the list of nodes that can be
     # started (these should usually be a task)
-
     return abstract, difference
+
+
+def graph_relabel(graph2remap, nmap):
+    """This function will relabel the ID on the graphs
+
+    Args:
+        graph (graph): A base graph object
+        nmap (dict): Node remapping
+    """
+    graph2remap.graph = nx.relabel_nodes(graph2remap.graph, nmap)
+    for node, attrs in graph2remap.graph.nodes(data=True):
+        if attrs["type"] == "file":
+            attrs["ID"] = utils.encode(node)
+    
+    for node, attrs in graph2remap.graph.nodes(data=True):
+        if attrs["type"]=='task':
+            full_task_description = list(nx.all_neighbors(graph2remap.graph, node))
+            full_task_description.append(attrs["cmd"])
+            attrs["ID"] = utils.encode(
+                ",".join(sorted(full_task_description))
+            )
+
+    return graph2remap

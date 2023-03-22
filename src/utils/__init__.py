@@ -6,6 +6,7 @@ from utils.graph_analysis import (
     eigen_centrl,
     close_centrl,
     graph_diff,
+    graph_relabel,
 )  # pylint: disable=import-error
 from utils.encode import encode, decode  # pylint: disable=import-error
 from utils.paths_check import (
