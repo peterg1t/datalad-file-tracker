@@ -25,8 +25,7 @@ def graph_diff_calc(gdb_abs, ds, run):
     
     node_mapping = {}
     repo = git.Repo(ds)
-    branch = repo.heads[run]
-
+    
     tree = repo.heads[run].commit.tree
     
     for blob in tree.blobs:
@@ -40,10 +39,14 @@ def graph_diff_calc(gdb_abs, ds, run):
             gdb_abs = utils.graph_relabel(gdb_abs,node_mapping)
 
             gdb_conc = graphs.GraphProvenance(ds, run)
-            gplot_concrete = gdb_conc.graph_object_plot()
-            export_png(gplot_concrete, filename=f"/tmp/graph_concrete_{run}.png")
-            dgb_abstract, gdb_difference = utils.graph_diff(gdb_abs, gdb_conc)
-            print('run->', run, gdb_difference.graph.nodes)
+            # gplot_concrete = gdb_conc.graph_object_plot()
+            # export_png(gplot_concrete, filename=f"/tmp/graph_concrete_{run}.png")
+            gdb_abstract, gdb_difference = utils.graph_diff(gdb_abs, gdb_conc)
+            print('run->', run, gdb_difference.graph.nodes, gdb_abstract.graph.nodes)
+            utils.run_pending_nodes(gdb_abstract, gdb_difference)
+
+
+
 
 
 def match_run(abstract, provenance_path, runs):

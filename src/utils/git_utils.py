@@ -1,6 +1,33 @@
 """This module will contain functions for git operations"""
 import git
+import datalad.api as dl
 
+def get_dataset(dataset):
+    """! This function will return a Datalad dataset for the given path
+    Args:
+        dataset (str): _description_
+    Returns:
+        dset (Dataset): A Datalad dataset
+    """
+    dset = dl.Dataset(dataset)
+    if dset is not None:
+        return dset
+    
+    
+
+def get_superdataset(dataset):
+    """! This function will return the superdataset
+    Returns:
+        sds/dset (Dataset): A datalad superdataset
+    """
+    dset = dl.Dataset(dataset)
+    sds = dset.get_superdataset()
+
+    if sds is not None:  # pylint: disable = no-else-return
+        return sds
+    else:
+        return dset
+    
 
 def get_git_root(path_file):
     """! This function will get the git repo of a file
