@@ -1,5 +1,7 @@
 """This module will contain functions for git operations"""
+import os
 import git
+import subprocess
 import datalad.api as dl
 
 def get_dataset(dataset):
@@ -56,3 +58,25 @@ def get_branches(path_dataset):
     repo_heads_names = [h.name for h in repo_heads]
     repo_heads_names.remove("git-annex")
     return repo_heads_names
+
+
+
+def sub_clone_flock(source_dataset, path_dataset):
+    """ This function will clone a subdataset in a location specified by path_dataset in the case path_superdataset is specified the 
+    subdataset is nested under the superdataset. The difference with the function that uses the API call is that this funciton
+    also uses a lock to prevent conurrency issues
+        @param source_dataset (str): A path to the original dataset
+        @param path_dataset (str): A path to the target dataset location
+    """
+    outlogs=[]
+    errlogs=[]
+    clone_command = f"cd {os.path.dirname(path_dataset)} && flock --verbose {source_dataset}/.git/datalad_lock datalad clone {source_dataset} {os.path.basename(path_dataset)}"
+    clone_command_output = subprocess.run(clone_command, shell=True, capture_output=True, text=True, check=False)
+    outlog = clone_command_output.stdout.split('\n')
+    errlog = clone_command_output.stderr.split('\n')
+    outlog.pop() # drop the empty last element
+    errlog.pop() # drop the empty last element
+    outlogs.append(outlog)
+    errlogs.append(errlog)
+    print('outlogs=',outlogs)
+    print('errlogs=',errlogs)
