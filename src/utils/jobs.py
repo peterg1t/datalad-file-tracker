@@ -67,6 +67,8 @@ def run_pending_nodes(dataset, gdb_abstract, gdb_difference, branch):
     """
     inputs =[] 
     outputs=[]
+    input_datasets =[]
+    output_datasets =[]
     # try:
     next_nodes_req = gdb_difference.next_nodes_run()
     print('next_nodes_req', next_nodes_req)
@@ -74,18 +76,24 @@ def run_pending_nodes(dataset, gdb_abstract, gdb_difference, branch):
     for item in next_nodes_req:
         inputs.extend([p for p in gdb_abstract.graph.predecessors(item)])
         outputs.extend([s for s in gdb_abstract.graph.successors(item)])
-    if inputs:
-        if (not all( [os.path.isabs(f) for f in outputs] ) or not all( [os.path.isabs(f) for f in inputs] )) == False:
-            # try:
-            #     dataset = utils.get_git_root(os.path.dirname(inputs[0]))
-            #     superdataset = utils.get_superdataset(dataset)
-            # except Exception as e:
-            #     print(f"There are no inputs -> {e}")
+    
+        input_datasets.extend([utils.get_git_root(i) for i in inputs])
+        output_datasets.extend([utils.get_git_root(o) for o in outputs])
 
-            command = gdb_difference.graph.nodes[item]["cmd"]
-            message = "test"
+    print('data', inputs, outputs, input_datasets, output_datasets)
 
-            job_submit(dataset, branch, inputs, outputs, message, command)
+    # if inputs:
+    #     if (not all( [os.path.isabs(f) for f in outputs] ) or not all( [os.path.isabs(f) for f in inputs] )) == False:
+    #         # try:
+    #         #     dataset = utils.get_git_root(os.path.dirname(inputs[0]))
+    #         #     superdataset = utils.get_superdataset(dataset)
+    #         # except Exception as e:
+    #         #     print(f"There are no inputs -> {e}")
+
+    #         command = gdb_difference.graph.nodes[item]["cmd"]
+    #         message = "test"
+
+    #         job_submit(dataset, branch, inputs, outputs, message, command)
             
         
 

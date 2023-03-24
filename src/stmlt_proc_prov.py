@@ -49,12 +49,13 @@ def graph_diff_calc(gdb_abs, ds, run):
                 node_mapping[row_splitted[0]] = f"{ds}/{row_splitted[1]}"
             
             gdb_abs_proc = utils.graph_relabel(gdb_abs,node_mapping)
+            print('node_mapping', node_mapping)
 
             gdb_conc = graphs.GraphProvenance(ds, run)
             # gplot_concrete = gdb_conc.graph_object_plot()
             # export_png(gplot_concrete, filename=f"/tmp/graph_concrete_{run}.png")
             gdb_abstract, gdb_difference = utils.graph_diff(gdb_abs_proc, gdb_conc)
-            print('run->', run, gdb_difference.graph.nodes, gdb_abstract.graph.nodes)
+            # print('run->', run, gdb_difference.graph.nodes, gdb_abstract.graph.nodes(data=True))
 
             #We now need to get the input file/files for this job so it can be passed to the pending nodes job
             job_dataset = f"/tmp/test_{run}"
