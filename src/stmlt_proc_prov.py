@@ -4,6 +4,7 @@ Docstring
 import os
 import argparse
 import git
+import asyncio
 from itertools import repeat
 from multiprocessing import Pool
 import datalad.api as dl
@@ -21,12 +22,24 @@ import utils
 profiler = cProfile.Profile()
 
 
+
+def run_preparation_worktree(ds, run):
+    utils.job_prepare(ds, run)
+
+
+def run_cleaning_worktree(ds):
+    utils.job_clean(ds)
+
+
 def graph_diff_calc(gdb_abs, ds, run):
     
     node_mapping = {}
     repo = git.Repo(ds)
-    
     tree = repo.heads[run].commit.tree
+    
+    if os.path.isfile(f"{ds}/.git/index.lock"):
+        os.remove(f"{ds}/.git/index.lock")
+    repo.heads[run].checkout()
     
     for blob in tree.blobs:
         if blob.name == 'tf.csv':
@@ -35,31 +48,50 @@ def graph_diff_calc(gdb_abs, ds, run):
             for row in translation_file_data[:-1]:
                 row_splitted = row.split(',')
                 node_mapping[row_splitted[0]] = f"{ds}/{row_splitted[1]}"
-
-            gdb_abs = utils.graph_relabel(gdb_abs,node_mapping)
+            
+            gdb_abs_proc = utils.graph_relabel(gdb_abs,node_mapping)
 
             gdb_conc = graphs.GraphProvenance(ds, run)
             # gplot_concrete = gdb_conc.graph_object_plot()
             # export_png(gplot_concrete, filename=f"/tmp/graph_concrete_{run}.png")
-            gdb_abstract, gdb_difference = utils.graph_diff(gdb_abs, gdb_conc)
+            gdb_abstract, gdb_difference = utils.graph_diff(gdb_abs_proc, gdb_conc)
             print('run->', run, gdb_difference.graph.nodes, gdb_abstract.graph.nodes)
-            utils.run_pending_nodes(gdb_abstract, gdb_difference)
+            utils.run_pending_nodes(gdb_abstract, gdb_difference, run)
+            
+
+
+
 
 
 
 
 
 def match_run(abstract, provenance_path, runs):
-    
+    """This function will match and run pending nodes
 
+    Args:
+        abstract (graph): Abstract graph
+        provenance_path (graph): Concrete graph
+        runs (str): branch
+    """
     node_abstract_list, edge_abstract_list = utils.gcg_processing(abstract)
-
     gdb_abs = graphs.GraphBase(node_abstract_list, edge_abstract_list)
+
     # for several runs we are going to create a pool
-    with Pool(4) as p:
-        p.starmap(graph_diff_calc, zip(repeat(gdb_abs), repeat(provenance_path), runs))
-    # for run in runs:
-        # graph_diff_calc(gdb_abs, provenance_path, run)
+    
+    #for worktrees only
+    # with Pool(4) as p:
+        # p.starmap(run_preparation_worktree, zip(repeat(provenance_path), runs))
+
+    # with Pool(4) as p:
+    #     p.starmap(graph_diff_calc, zip(repeat(gdb_abs), repeat(provenance_path), runs))
+
+    for run in runs:
+        graph_diff_calc(gdb_abs, provenance_path, run)
+
+    
+    #for worktrees only
+    # run_cleaning_worktree(provenance_path)
 
 
 if __name__ == "__main__":

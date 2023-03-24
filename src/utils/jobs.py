@@ -1,6 +1,8 @@
 import os
 import datalad.api as dl
 import utils
+import asyncio
+import git
 import subprocess
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -20,8 +22,43 @@ def command_submit(command):
     return outlog, errlog
 
 
+def job_prepare(dataset,branch):
+    outlogs = []
+    errlogs = []
 
-def run_pending_nodes(gdb_abstract, gdb_difference):
+    print(dataset)
+    worktree_command = f"cd {dataset}; git worktree add .wt/{branch}_wt {branch}"
+    outlog, errlog = command_submit(worktree_command)
+
+    outlogs.append(('dataset->', dataset))
+    outlogs.append(outlog)
+    errlogs.append(errlog)
+
+    print('logs',outlogs, errlogs)
+
+
+
+
+
+def job_clean(dataset):
+    outlogs = []
+    errlogs = []
+
+    worktree_rm_command = f"cd {dataset}; rm -rf .wt/"
+    outlog, errlog = command_submit(worktree_rm_command)
+    outlogs.append(outlog)
+    errlogs.append(errlog)
+
+    worktree_prune_command = f"cd {dataset}; git worktree prune"
+    outlog, errlog = command_submit(worktree_prune_command)
+    outlogs.append(outlog)
+    errlogs.append(errlog)
+
+    print('logs',outlogs, errlogs)
+
+
+
+def run_pending_nodes(gdb_abstract, gdb_difference, branch):
     """! Given a graph and the list of nodes (and requirements i.e. inputs)
     compute the task with APScheduler
 
@@ -30,38 +67,26 @@ def run_pending_nodes(gdb_abstract, gdb_difference):
     """
     inputs =[] 
     outputs=[]
-
     # try:
     next_nodes_req = gdb_difference.next_nodes_run()
     print('next_nodes_req', next_nodes_req)
-    
+   
     for item in next_nodes_req:
         inputs.extend([p for p in gdb_abstract.graph.predecessors(item)])
         outputs.extend([s for s in gdb_abstract.graph.successors(item)])
+    if inputs:
+        if (not all( [os.path.isabs(f) for f in outputs] ) or not all( [os.path.isabs(f) for f in inputs] )) == False:
+            try:
+                dataset = utils.get_git_root(os.path.dirname(inputs[0]))
+                superdataset = utils.get_superdataset(dataset)
+            except Exception as e:
+                print(f"There are no inputs -> {e}")
 
+            command = gdb_difference.graph.nodes[item]["cmd"]
+            message = "test"
 
-    if (not all( [os.path.isabs(f) for f in outputs] ) or not all( [os.path.isabs(f) for f in inputs] )) == False:
-        dataset = utils.get_git_root(os.path.dirname(inputs[0]))
-        superdataset = utils.get_superdataset(dataset)
-        command = gdb_difference.graph.nodes[item]["cmd"]
-        message = "test"
-
-        # jobstores = {
-        # "default": SQLAlchemyJobStore(
-            # url="sqlite:////Users/pemartin/Projects/datalad-file-tracker/src/jobstore.sqlite"
-        # )
-        # }
-        # executors = {
-            # "default": ThreadPoolExecutor(8),
-        # }
-        # job_defaults = {"coalesce": False, "max_instances": 3}
-        # scheduler = BackgroundScheduler(
-            # jobstores=jobstores, executors=executors, job_defaults=job_defaults
-        # )
-        # scheduler.start()  # We start the scheduler
-
-        print("submit_job", superdataset, dataset, inputs, outputs, message, command)
-        job_submit(superdataset.path, inputs, outputs, message, command)
+            job_submit(superdataset.path, branch, inputs, outputs, message, command)
+            
         # scheduler.add_job(job_submit, args=[superdataset, inputs, outputs, message, command])
 
 
@@ -73,7 +98,12 @@ def run_pending_nodes(gdb_abstract, gdb_difference):
 
 
 
-def job_submit(dataset, inputs, outputs, message, command):
+
+    
+
+
+
+def job_submit(superdataset, branch, inputs, outputs, message, command):
     """! This function will execute the datalad run command
 
     Args:
@@ -89,6 +119,10 @@ def job_submit(dataset, inputs, outputs, message, command):
     outlogs = []
     errlogs = []
 
+    #for worktrees
+    # ds = utils.get_git_root(os.path.dirname(outputs[0]))
+    # rel_path_outputs = os.path.relpath(ds, superdataset)
+    # outputs_worktree = [f"{superdataset}/.wt/{branch}_wt/{os.path.join(rel_path_outputs, os.path.basename(o))}" for o in outputs]
 
     # making the output stage folder
     if os.path.exists(os.path.dirname(outputs[0])):
@@ -98,12 +132,12 @@ def job_submit(dataset, inputs, outputs, message, command):
 
     inputs_proc = " -i ".join(inputs)
     outputs_proc = " -o ".join(outputs)
-
     # saving the dataset prior to processing
-    dl.save(path=dataset, dataset=dataset)
+    dl.save(path=superdataset, dataset=superdataset)
 
-    containers_run_command = f"cd {dataset} && datalad run -m '{message}' -d '{dataset}' -i {inputs_proc} -o {outputs_proc} '{command}'"
-    # containers_run_command = f"which datalad; datalad wtf -S extensions"
+    containers_run_command = f"cd {superdataset}; datalad run -m '{message}' -d '{superdataset}' -i {inputs_proc} -o {outputs_proc} '{command}'"
+    # containers_run_command = f"cd {superdataset}/.wt/{branch}_wt; datalad run -m '{message}' -d '{superdataset}' -i {inputs_proc} -o {outputs_proc} '{command}'"
+    
     outlog, errlog = command_submit(containers_run_command)
     outlogs.append(outlog)
     errlogs.append(errlog)

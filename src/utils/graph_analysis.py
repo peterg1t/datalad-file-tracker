@@ -91,13 +91,14 @@ def graph_diff(abstract, provenance):
     return abstract, difference
 
 
-def graph_relabel(graph2remap, nmap):
+def graph_relabel(graph, nmap):
     """This function will relabel the ID on the graphs
 
     Args:
         graph (graph): A base graph object
         nmap (dict): Node remapping
     """
+    graph2remap = copy.deepcopy(graph)
     graph2remap.graph = nx.relabel_nodes(graph2remap.graph, nmap)
     for node, attrs in graph2remap.graph.nodes(data=True):
         if attrs["type"] == "file":
