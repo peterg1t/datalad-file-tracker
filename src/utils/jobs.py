@@ -58,7 +58,7 @@ def job_clean(dataset):
 
 
 
-def run_pending_nodes(gdb_abstract, gdb_difference, branch):
+def run_pending_nodes(dataset, gdb_abstract, gdb_difference, branch):
     """! Given a graph and the list of nodes (and requirements i.e. inputs)
     compute the task with APScheduler
 
@@ -76,18 +76,18 @@ def run_pending_nodes(gdb_abstract, gdb_difference, branch):
         outputs.extend([s for s in gdb_abstract.graph.successors(item)])
     if inputs:
         if (not all( [os.path.isabs(f) for f in outputs] ) or not all( [os.path.isabs(f) for f in inputs] )) == False:
-            try:
-                dataset = utils.get_git_root(os.path.dirname(inputs[0]))
-                superdataset = utils.get_superdataset(dataset)
-            except Exception as e:
-                print(f"There are no inputs -> {e}")
+            # try:
+            #     dataset = utils.get_git_root(os.path.dirname(inputs[0]))
+            #     superdataset = utils.get_superdataset(dataset)
+            # except Exception as e:
+            #     print(f"There are no inputs -> {e}")
 
             command = gdb_difference.graph.nodes[item]["cmd"]
             message = "test"
 
-            job_submit(superdataset.path, branch, inputs, outputs, message, command)
+            job_submit(dataset, branch, inputs, outputs, message, command)
             
-        # scheduler.add_job(job_submit, args=[superdataset, inputs, outputs, message, command])
+        
 
 
     # except Exception as e:  # pylint: disable = bare-except
@@ -103,7 +103,7 @@ def run_pending_nodes(gdb_abstract, gdb_difference, branch):
 
 
 
-def job_submit(superdataset, branch, inputs, outputs, message, command):
+def job_submit(dataset, branch, inputs, outputs, message, command):
     """! This function will execute the datalad run command
 
     Args:
@@ -133,9 +133,9 @@ def job_submit(superdataset, branch, inputs, outputs, message, command):
     inputs_proc = " -i ".join(inputs)
     outputs_proc = " -o ".join(outputs)
     # saving the dataset prior to processing
-    dl.save(path=superdataset, dataset=superdataset)
+    dl.save(path=dataset, dataset=dataset)
 
-    containers_run_command = f"cd {superdataset}; datalad run -m '{message}' -d '{superdataset}' -i {inputs_proc} -o {outputs_proc} '{command}'"
+    containers_run_command = f"cd {dataset}; datalad run -m '{message}' -d '{dataset}' -i {inputs_proc} -o {outputs_proc} '{command}'"
     # containers_run_command = f"cd {superdataset}/.wt/{branch}_wt; datalad run -m '{message}' -d '{superdataset}' -i {inputs_proc} -o {outputs_proc} '{command}'"
     
     outlog, errlog = command_submit(containers_run_command)

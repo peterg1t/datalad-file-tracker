@@ -38,29 +38,33 @@ def graph_diff_calc(gdb_abs, ds, run):
     repo = git.Repo(ds)
     tree = repo.heads[run].commit.tree
     
-    # if os.path.isfile(f"{ds}/.git/index.lock"):
-    #     os.remove(f"{ds}/.git/index.lock")
-    # repo.heads[run].checkout()
-    print('cloning')
-    utils.sub_clone_flock(ds,f"/tmp/test_{run}", run)
-    time.sleep(20)
-    
-    # for blob in tree.blobs:
-    #     if blob.name == 'tf.csv':
-    #         translation_file_data = blob.data_stream.read().decode('utf-8').split('\n')
  
-    #         for row in translation_file_data[:-1]:
-    #             row_splitted = row.split(',')
-    #             node_mapping[row_splitted[0]] = f"{ds}/{row_splitted[1]}"
+    
+    for blob in tree.blobs:
+        if blob.name == 'tf.csv':
+            translation_file_data = blob.data_stream.read().decode('utf-8').split('\n')
+ 
+            for row in translation_file_data[:-1]:
+                row_splitted = row.split(',')
+                node_mapping[row_splitted[0]] = f"{ds}/{row_splitted[1]}"
             
-    #         gdb_abs_proc = utils.graph_relabel(gdb_abs,node_mapping)
+            gdb_abs_proc = utils.graph_relabel(gdb_abs,node_mapping)
 
-    #         gdb_conc = graphs.GraphProvenance(ds, run)
-    #         # gplot_concrete = gdb_conc.graph_object_plot()
-    #         # export_png(gplot_concrete, filename=f"/tmp/graph_concrete_{run}.png")
-    #         gdb_abstract, gdb_difference = utils.graph_diff(gdb_abs_proc, gdb_conc)
-    #         print('run->', run, gdb_difference.graph.nodes, gdb_abstract.graph.nodes)
-    #         utils.run_pending_nodes(gdb_abstract, gdb_difference, run)
+            gdb_conc = graphs.GraphProvenance(ds, run)
+            # gplot_concrete = gdb_conc.graph_object_plot()
+            # export_png(gplot_concrete, filename=f"/tmp/graph_concrete_{run}.png")
+            gdb_abstract, gdb_difference = utils.graph_diff(gdb_abs_proc, gdb_conc)
+            print('run->', run, gdb_difference.graph.nodes, gdb_abstract.graph.nodes)
+
+            #We now need to get the input file/files for this job so it can be passed to the pending nodes job
+            job_dataset = f"/tmp/test_{run}"
+
+            utils.sub_clone_flock(ds, job_dataset, run)
+            utils.sub_get(job_dataset, True)
+            utils.sub_dead_here(job_dataset)
+
+            utils.run_pending_nodes(job_dataset, gdb_abstract, gdb_difference, run)
+            # utils.sub_push_flock(job_dataset, 'origin')
             
 
 
@@ -84,14 +88,14 @@ def match_run(abstract, provenance_path, runs):
     # for several runs we are going to create a pool
 
     # with Pool(4) as p:
-    #     p.starmap(graph_diff_calc, zip(repeat(gdb_abs), repeat(provenance_path), runs))
+        # p.starmap(graph_diff_calc, zip(repeat(gdb_abs), repeat(provenance_path), runs))
 
     
     with futures.ThreadPoolExecutor(max_workers=4) as executor:
         fs = [executor.submit(graph_diff_calc, gdb_abs, provenance_path, run) for run in runs]
         
-        # for future in futures.as_completed(fs):
-            # print(f"result: {future.result()}")
+        for future in futures.as_completed(fs):
+            print(f"result: {future.result()}")
 
     # for run in runs:
         # graph_diff_calc(gdb_abs, provenance_path, run)
