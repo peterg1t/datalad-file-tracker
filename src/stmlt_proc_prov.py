@@ -9,6 +9,7 @@ from multiprocessing import Pool
 from concurrent import futures
 import datalad.api as dl
 from bokeh.io import export_png
+import uuid
 import csv
 import time
 
@@ -24,18 +25,18 @@ profiler = cProfile.Profile()
 
 
 
-def run_preparation_worktree(ds, run):
-    utils.job_prepare(ds, run)
+def run_preparation_worktree(super_ds, run):
+    utils.job_prepare(super_ds, run)
 
 
-def run_cleaning_worktree(ds):
-    utils.job_clean(ds)
+def run_cleaning_worktree(super_ds):
+    utils.job_clean(super_ds)
 
 
-def graph_diff_calc(gdb_abs, ds, run):
+def graph_diff_calc(gdb_abs, super_ds, run):
     
     node_mapping = {}
-    repo = git.Repo(ds)
+    repo = git.Repo(super_ds)
     tree = repo.heads[run].commit.tree
     
  
@@ -46,26 +47,43 @@ def graph_diff_calc(gdb_abs, ds, run):
  
             for row in translation_file_data[:-1]:
                 row_splitted = row.split(',')
-                node_mapping[row_splitted[0]] = f"{ds}/{row_splitted[1]}"
+                node_mapping[row_splitted[0]] = f"{super_ds}/{row_splitted[1]}"
             
             gdb_abs_proc = utils.graph_relabel(gdb_abs,node_mapping)
             print('node_mapping', node_mapping)
 
-            gdb_conc = graphs.GraphProvenance(ds, run)
+            gdb_conc = graphs.GraphProvenance(super_ds, run)
             # gplot_concrete = gdb_conc.graph_object_plot()
             # export_png(gplot_concrete, filename=f"/tmp/graph_concrete_{run}.png")
             gdb_abstract, gdb_difference = utils.graph_diff(gdb_abs_proc, gdb_conc)
             # print('run->', run, gdb_difference.graph.nodes, gdb_abstract.graph.nodes(data=True))
 
             #We now need to get the input file/files for this job so it can be passed to the pending nodes job
-            job_dataset = f"/tmp/test_{run}"
+            clone_dataset = f"/tmp/test_{run}"
 
-            utils.sub_clone_flock(ds, job_dataset, run)
-            utils.sub_get(job_dataset, True)
-            utils.sub_dead_here(job_dataset)
+            # clone the repo
+            utils.sub_clone_flock(super_ds, clone_dataset, run)
 
-            utils.run_pending_nodes(job_dataset, gdb_abstract, gdb_difference, run)
-            # utils.sub_push_flock(job_dataset, 'origin')
+            
+            utils.sub_get(clone_dataset, True)
+            utils.sub_dead_here(clone_dataset)
+
+            next_nodes = gdb_difference.next_nodes_run()
+            for item in next_nodes:
+                output_datasets = [os.path.dirname(os.path.join(clone_dataset,os.path.relpath(s, super_ds))) for s in gdb_abstract.graph.successors(item) if os.path.exists(os.path.dirname(os.path.join(clone_dataset,os.path.relpath(s, super_ds))))]
+                print('path exists->',clone_dataset,output_datasets)
+                        
+            for item in output_datasets:
+                utils.job_checkout(clone_dataset, item)
+
+
+            # status = utils.run_pending_nodes(super_ds, clone_dataset, gdb_abstract, gdb_difference, run)
+            # print('status', run, status)
+
+            # if status is not None:
+            #     return utils.sub_push_flock(job_dataset, 'origin')
+            # else:
+            #     return None
             
 
 

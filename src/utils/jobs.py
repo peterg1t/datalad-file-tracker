@@ -58,12 +58,18 @@ def job_clean(dataset):
 
 
 
-def run_pending_nodes(dataset, gdb_abstract, gdb_difference, branch):
-    """! Given a graph and the list of nodes (and requirements i.e. inputs)
-    compute the task with APScheduler
+def run_pending_nodes(original_ds, dataset, gdb_abstract, gdb_difference, branch):
+    """_summary_
 
     Args:
-        gdb_difference (graph): An abstract graph
+        original_ds (str): The original dataset
+        dataset (str): A path to the dataset
+        gdb_abstract (graph): An abstract graph
+        gdb_difference (graph): A graph for the difference
+        branch (str): The branch that is running
+
+    Returns:
+        _type_: _description_
     """
     inputs =[] 
     outputs=[]
@@ -71,29 +77,28 @@ def run_pending_nodes(dataset, gdb_abstract, gdb_difference, branch):
     output_datasets =[]
     # try:
     next_nodes_req = gdb_difference.next_nodes_run()
+    print('Inputs')
+    print(original_ds)
+    print(dataset)
+    print(branch)
+
     print('next_nodes_req', next_nodes_req)
    
     for item in next_nodes_req:
-        inputs.extend([p for p in gdb_abstract.graph.predecessors(item)])
-        outputs.extend([s for s in gdb_abstract.graph.successors(item)])
+        inputs.extend([os.path.join(dataset,os.path.relpath(p, original_ds)) for p in gdb_abstract.graph.predecessors(item)])
+        outputs.extend([os.path.join(dataset,os.path.relpath(s, original_ds)) for s in gdb_abstract.graph.successors(item)])
+        
     
-        input_datasets.extend([utils.get_git_root(i) for i in inputs])
-        output_datasets.extend([utils.get_git_root(o) for o in outputs])
+    if inputs:
+        if ( (all( [os.path.exists(os.path.dirname(f)) for f in outputs] ) and all( [os.path.exists(os.path.dirname(f)) for f in inputs] ))):
+            command = gdb_difference.graph.nodes[item]["cmd"]
+            message = "test"
 
-    print('data', inputs, outputs, input_datasets, output_datasets)
+            return job_submit(dataset, branch, inputs, outputs, message, command)
+            # output_datasets = [(os.path.dirname(f)) for f in outputs]
 
-    # if inputs:
-    #     if (not all( [os.path.isabs(f) for f in outputs] ) or not all( [os.path.isabs(f) for f in inputs] )) == False:
-    #         # try:
-    #         #     dataset = utils.get_git_root(os.path.dirname(inputs[0]))
-    #         #     superdataset = utils.get_superdataset(dataset)
-    #         # except Exception as e:
-    #         #     print(f"There are no inputs -> {e}")
-
-    #         command = gdb_difference.graph.nodes[item]["cmd"]
-    #         message = "test"
-
-    #         job_submit(dataset, branch, inputs, outputs, message, command)
+        else:
+            return None
             
         
 
@@ -143,10 +148,11 @@ def job_submit(dataset, branch, inputs, outputs, message, command):
     # saving the dataset prior to processing
     dl.save(path=dataset, dataset=dataset)
 
-    containers_run_command = f"cd {dataset}; datalad run -m '{message}' -d '{dataset}' -i {inputs_proc} -o {outputs_proc} '{command}'"
-    # containers_run_command = f"cd {superdataset}/.wt/{branch}_wt; datalad run -m '{message}' -d '{superdataset}' -i {inputs_proc} -o {outputs_proc} '{command}'"
+    datalad_run_command = f"cd {dataset}; datalad run -m '{message}' -d '{dataset}' -i {inputs_proc} -o {outputs_proc} '{command}'"
+    print('command->', datalad_run_command)
+    # datalad_run_command = f"cd {superdataset}/.wt/{branch}_wt; datalad run -m '{message}' -d '{superdataset}' -i {inputs_proc} -o {outputs_proc} '{command}'"
     
-    outlog, errlog = command_submit(containers_run_command)
+    outlog, errlog = command_submit(datalad_run_command)
     outlogs.append(outlog)
     errlogs.append(errlog)
     for item in errlogs[0]:
@@ -156,3 +162,4 @@ def job_submit(dataset, branch, inputs, outputs, message, command):
             )
     
     print('logs',outlogs, errlogs)
+    return outlogs

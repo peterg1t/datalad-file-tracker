@@ -3,6 +3,7 @@ import os
 import git
 import subprocess
 import datalad.api as dl
+import uuid
 
 def get_dataset(dataset):
     """! This function will return a Datalad dataset for the given path
@@ -98,6 +99,8 @@ def sub_get(source_dataset, recursive=False):
     print('errlogs=',errlogs)
 
 
+
+
 def sub_dead_here(source_dataset):
     outlogs=[]
     errlogs=[]
@@ -121,7 +124,8 @@ def sub_push_flock(source_dataset, sibling):
     """
     outlogs=[]
     errlogs=[]
-    push_command = f"flock --verbose {source_dataset}/.git/datalad_lock datalad push -d {source_dataset} --to {sibling} --force all"
+    push_command = f"flock --verbose {source_dataset}/.git/datalad_lock datalad update --merge && datalad push -d {source_dataset} --to {sibling} -r --force all"
+    print('push->',push_command)
     push_command_output = subprocess.run(push_command, shell=True, capture_output=True, text=True, check=False)
     outlog = push_command_output.stdout.split('\n')
     errlog = push_command_output.stderr.split('\n')
@@ -129,6 +133,32 @@ def sub_push_flock(source_dataset, sibling):
     errlog.pop() # drop the empty last element
     outlogs.append(outlog)
     errlogs.append(errlog)
-    print('outlogs=',outlogs)
-    print('errlogs=',errlogs)
+    print('outlogs_push=',outlogs)
+    print('errlogs_push=',errlogs)
+
+
+
+
+
+
+
+
+def job_checkout(job_dataset, ds_output):
+    """ This task will perform a branch checkout
+        @param source_dataset (str): The source dataset to push
+        @param sibling (str): The name of the sibling to push to
+    """
+    outlogs=[]
+    errlogs=[]
+    checkout_command = f"git -C {ds_output} checkout -b 'job-${uuid.uuid1().hex}'"
+    checkout_command_output = subprocess.run(checkout_command, shell=True, capture_output=True, text=True, check=False)
+    outlog = checkout_command_output.stdout.split('\n')
+    errlog = checkout_command_output.stderr.split('\n')
+    outlog.pop() # drop the empty last element
+    errlog.pop() # drop the empty last element
+    outlogs.append(outlog)
+    errlogs.append(errlog)
+    print('outlogs_push=',outlogs)
+    print('errlogs_push=',errlogs)
+    
 
