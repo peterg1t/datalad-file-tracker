@@ -79,15 +79,15 @@ def sub_clone_flock(source_dataset, path_dataset, branch):
     errlog.pop() # drop the empty last element
     outlogs.append(outlog)
     errlogs.append(errlog)
-    print('outlogs=',outlogs)
-    print('errlogs=',errlogs)
+    # print('outlogs=',outlogs)
+    # print('errlogs=',errlogs)
 
 
 
 def sub_get(source_dataset, recursive=False):
     outlogs=[]
     errlogs=[]
-    get_command = f"cd {source_dataset} && datalad get -n -d^"
+    get_command = f"cd {source_dataset} && datalad get -n -r ."
     get_command_output = subprocess.run(get_command, shell=True, capture_output=True, text=True, check=False)
     outlog = get_command_output.stdout.split('\n')
     errlog = get_command_output.stderr.split('\n')
@@ -95,8 +95,8 @@ def sub_get(source_dataset, recursive=False):
     errlog.pop() # drop the empty last element
     outlogs.append(outlog)
     errlogs.append(errlog)
-    print('outlogs=',outlogs)
-    print('errlogs=',errlogs)
+    # print('outlogs=',outlogs)
+    # print('errlogs=',errlogs)
 
 
 
@@ -112,19 +112,20 @@ def sub_dead_here(source_dataset):
     errlog.pop() # drop the empty last element
     outlogs.append(outlog)
     errlogs.append(errlog)
-    print('outlogs=',outlogs)
-    print('errlogs=',errlogs)
+    # print('outlogs=',outlogs)
+    # print('errlogs=',errlogs)
 
 
 
-def sub_push_flock(source_dataset, sibling):
+def sub_push_flock(clone_dataset, ds_output, sibling):
     """ This task will perform a push of a dataset with a file lock to prevent concurrency issues
         @param source_dataset (str): The source dataset to push
         @param sibling (str): The name of the sibling to push to
     """
     outlogs=[]
     errlogs=[]
-    push_command = f"flock --verbose {source_dataset}/.git/datalad_lock datalad update --merge && datalad push -d {source_dataset} --to {sibling} -r --force all"
+    
+    push_command = f"cd {clone_dataset} && flock --verbose {clone_dataset}/.git/datalad_lock datalad push -d {clone_dataset} --to {sibling} --data anything -f all -r"
     print('push->',push_command)
     push_command_output = subprocess.run(push_command, shell=True, capture_output=True, text=True, check=False)
     outlog = push_command_output.stdout.split('\n')
@@ -133,8 +134,8 @@ def sub_push_flock(source_dataset, sibling):
     errlog.pop() # drop the empty last element
     outlogs.append(outlog)
     errlogs.append(errlog)
-    print('outlogs_push=',outlogs)
-    print('errlogs_push=',errlogs)
+    # print('outlogs_push=',outlogs)
+    # print('errlogs_push=',errlogs)
 
 
 
@@ -143,14 +144,17 @@ def sub_push_flock(source_dataset, sibling):
 
 
 
-def job_checkout(job_dataset, ds_output):
+def job_checkout(clone_dataset, ds_output, branch):
     """ This task will perform a branch checkout
         @param source_dataset (str): The source dataset to push
         @param sibling (str): The name of the sibling to push to
     """
     outlogs=[]
     errlogs=[]
-    checkout_command = f"git -C {ds_output} checkout -b 'job-${uuid.uuid1().hex}'"
+    dataset = os.path.join(clone_dataset, ds_output)
+    print('dataset to checkout', dataset)
+    checkout_command = f"cd {dataset} && git -C {dataset} checkout --recurse-submodules -b 'job-{branch}'"
+    # print('checkout_command->', checkout_command)
     checkout_command_output = subprocess.run(checkout_command, shell=True, capture_output=True, text=True, check=False)
     outlog = checkout_command_output.stdout.split('\n')
     errlog = checkout_command_output.stderr.split('\n')
@@ -158,7 +162,47 @@ def job_checkout(job_dataset, ds_output):
     errlog.pop() # drop the empty last element
     outlogs.append(outlog)
     errlogs.append(errlog)
-    print('outlogs_push=',outlogs)
-    print('errlogs_push=',errlogs)
+    # print('outlogs_checkout=',outlogs)
+    # print('errlogs_checkout=',errlogs)
     
 
+def git_merge(superdataset, ds_output):
+    """ This task will perform a push of a dataset with a file lock to prevent concurrency issues
+        @param source_dataset (str): The source dataset to push
+        @param sibling (str): The name of the sibling to push to
+    """
+    outlogs=[]
+    errlogs=[]
+    dataset = f"{superdataset}/{ds_output}"
+    merge_command = f"cd {dataset} && git merge -m  'Octopus merge' $(git branch -l | grep 'job-' | tr -d ' ')"
+    print('merge->',merge_command)
+    merge_command_output = subprocess.run(merge_command, shell=True, capture_output=True, text=True, check=False)
+    outlog = merge_command_output.stdout.split('\n')
+    errlog = merge_command_output.stderr.split('\n')
+    outlog.pop() # drop the empty last element
+    errlog.pop() # drop the empty last element
+    outlogs.append(outlog)
+    errlogs.append(errlog)
+    print('outlogs_merge=',outlogs)
+    print('errlogs_merge=',errlogs)
+
+
+def branch_save(dataset, run):
+    """ This task will perform a push of a dataset with a file lock to prevent concurrency issues
+        @param source_dataset (str): The source dataset to push
+        @param sibling (str): The name of the sibling to push to
+    """
+    outlogs=[]
+    errlogs=[]
+
+    branch_save_command = f"cd {dataset} && git checkout {run} && datalad save -d^ {dataset} -m 'Updating status for branch {run}' -r"
+    print('merge->',branch_save_command)
+    branch_save_command_output = subprocess.run(branch_save_command, shell=True, capture_output=True, text=True, check=False)
+    outlog = branch_save_command_output.stdout.split('\n')
+    errlog = branch_save_command_output.stderr.split('\n')
+    outlog.pop() # drop the empty last element
+    errlog.pop() # drop the empty last element
+    outlogs.append(outlog)
+    errlogs.append(errlog)
+#     print('outlogs_merge=',outlogs)
+#     print('errlogs_merge=',errlogs)

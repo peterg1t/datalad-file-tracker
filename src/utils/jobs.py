@@ -82,7 +82,7 @@ def run_pending_nodes(original_ds, dataset, gdb_abstract, gdb_difference, branch
     print(dataset)
     print(branch)
 
-    print('next_nodes_req', next_nodes_req)
+    print('next_nodes_req', next_nodes_req, 'branch->', branch)
    
     for item in next_nodes_req:
         inputs.extend([os.path.join(dataset,os.path.relpath(p, original_ds)) for p in gdb_abstract.graph.predecessors(item)])
@@ -95,19 +95,9 @@ def run_pending_nodes(original_ds, dataset, gdb_abstract, gdb_difference, branch
             message = "test"
 
             return job_submit(dataset, branch, inputs, outputs, message, command)
-            # output_datasets = [(os.path.dirname(f)) for f in outputs]
 
-        else:
-            return None
             
-        
-
-
-    # except Exception as e:  # pylint: disable = bare-except
-    #     print(
-    #         f"No provance graph has been matched to this abstract graph, match one first {e}" 
-    #     )
-
+ 
 
 
 
@@ -132,11 +122,6 @@ def job_submit(dataset, branch, inputs, outputs, message, command):
     outlogs = []
     errlogs = []
 
-    #for worktrees
-    # ds = utils.get_git_root(os.path.dirname(outputs[0]))
-    # rel_path_outputs = os.path.relpath(ds, superdataset)
-    # outputs_worktree = [f"{superdataset}/.wt/{branch}_wt/{os.path.join(rel_path_outputs, os.path.basename(o))}" for o in outputs]
-
     # making the output stage folder
     if os.path.exists(os.path.dirname(outputs[0])):
         pass
@@ -149,8 +134,7 @@ def job_submit(dataset, branch, inputs, outputs, message, command):
     dl.save(path=dataset, dataset=dataset)
 
     datalad_run_command = f"cd {dataset}; datalad run -m '{message}' -d '{dataset}' -i {inputs_proc} -o {outputs_proc} '{command}'"
-    print('command->', datalad_run_command)
-    # datalad_run_command = f"cd {superdataset}/.wt/{branch}_wt; datalad run -m '{message}' -d '{superdataset}' -i {inputs_proc} -o {outputs_proc} '{command}'"
+    print('command->', datalad_run_command, 'branch->', branch)
     
     outlog, errlog = command_submit(datalad_run_command)
     outlogs.append(outlog)
