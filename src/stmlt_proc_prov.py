@@ -142,6 +142,9 @@ def match_run(abstract, provenance_path, runs):
     for run in runs:
         utils.branch_save(provenance_path, run)
 
+    #Remove job branches
+    # $ for file in `git branch|grep job*`; do git branch -D $file ; done
+
         
 
     

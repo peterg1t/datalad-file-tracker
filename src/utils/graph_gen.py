@@ -31,6 +31,7 @@ def gcg_from_file(filename):
                             "cmd": command,
                             "status": "pending",
                             "node_color": "grey",
+                            "predecesor": prec_nodes,
                             "transform": transform,
                             "ID": "",
                         },
@@ -53,6 +54,7 @@ def gcg_from_file(filename):
                                 "type": "file",
                                 "status": "pending",
                                 "node_color": "grey",
+                                "predecesor": prec_nodes,
                                 "ID": utils.encode(file),
                             },
                         )
@@ -93,6 +95,7 @@ def gcg_processing(filename):
                             "cmd": command,
                             "status": "pending",
                             "node_color": "grey",
+                            "predecesor": prec_nodes,
                             "transform": transform,
                             "ID": "",
                         },
@@ -115,6 +118,7 @@ def gcg_processing(filename):
                                 "type": "file",
                                 "status": "pending",
                                 "node_color": "grey",
+                                "predecesor": prec_nodes,
                                 "ID": utils.encode(file),
                             },
                         )

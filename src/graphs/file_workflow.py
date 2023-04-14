@@ -19,6 +19,7 @@ class FileWorkflow(NodeWorkflow):
             os.path.dirname(name),
             os.path.basename(name).split(".")[0],
             "",
+            "",
         )
         self.dataset = dataset
         self.fileBlob = fileBlob

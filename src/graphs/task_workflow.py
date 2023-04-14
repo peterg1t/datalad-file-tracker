@@ -11,7 +11,7 @@ class TaskWorkflow(NodeWorkflow):
     """
 
     def __init__(self, dataset, command, commit, author, date):
-        super().__init__(commit, author, command, date, "", "", "")
+        super().__init__(commit, author, command, date, "", "", "", "")
         self.dataset = dataset
         self.cmd = command
         self.transform = ""

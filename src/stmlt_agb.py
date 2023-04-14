@@ -60,7 +60,7 @@ def graph_components_generator(number_of_tasks):
                 # for file definition lets check if we have defined multiple files with regex
                 nodes_expanded = utils.file_name_expansion(prec_nodes_item)
                 prec_nodes.extend(nodes_expanded)
-
+                
             if stage_type == "file":
                 file_grp = utils.remove_space(
                     col2.text_input(
@@ -93,6 +93,7 @@ def graph_components_generator(number_of_tasks):
                                 "type": stage_type,
                                 "status": "pending",
                                 "node_color": "grey",
+                                "predecesor": prec_nodes,
                                 "ID": utils.encode(file),
                             },
                         )
@@ -133,6 +134,7 @@ def graph_components_generator(number_of_tasks):
                             "status": "pending",
                             "node_color": "grey",
                             "transform": transform,
+                            "predecesor": prec_nodes,
                             "ID": "",
                         },
                     )
@@ -155,11 +157,18 @@ def plot_graph(plot):
 
 
 def export_graph(**kwargs):
-    """! This function call the graph_export method of the graph object and
-    throws an exception to streamlit
+    """! This function will export the graph to Pedro's notation and
+    throws an exception to streamlit if there is some error
     """
     try:
-        kwargs["graph"].graph_export(kwargs["filename"])
+        nodes = kwargs["graph"].graph.nodes(data=True)
+        with open(kwargs["filename"], "w") as file_abs:
+            for node in nodes:
+                if 'cmd' in node[1]:
+                    file_abs.writelines(f"{node[1]['type'][0].upper()}<>{node[0]}<>{node[1]['cmd']}<>{','.join(node[1]['predecesor'])}<>{node[1]['transform']}\n")
+                else:
+                    file_abs.writelines(f"{node[1]['type'][0].upper()}<>{node[0]}<>{','.join(node[1]['predecesor'])}\n")
+        # kwargs["graph"].graph_export(kwargs["filename"])
     except Exception as exception_graph:
         st.sidebar.text(f"{exception_graph}")
 
