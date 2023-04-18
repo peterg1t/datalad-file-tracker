@@ -54,11 +54,8 @@ def graph_diff_calc(gdb_abs, super_ds, run):
             print(gdb_abs_proc.graph.nodes())
 
             gdb_conc = graphs.GraphProvenance(super_ds, run)
-            # gplot_concrete = gdb_conc.graph_object_plot()
-            # export_png(gplot_concrete, filename=f"/tmp/graph_concrete_{run}.png")
             gdb_abstract, gdb_difference = utils.graph_diff(gdb_abs_proc, gdb_conc)
-            # print('run->', run, gdb_difference.graph.nodes, gdb_abstract.graph.nodes(data=True))
-
+            
             #We now need to get the input file/files for this job so it can be passed to the pending nodes job
             clone_dataset = f"/tmp/test_{run}"
 
@@ -73,11 +70,9 @@ def graph_diff_calc(gdb_abs, super_ds, run):
             
 
             next_nodes = gdb_difference.next_nodes_run()
-            # print('next task->',next_nodes)
             for item in next_nodes:
                 output_datasets.extend([os.path.dirname(os.path.relpath(s, super_ds)) for s in gdb_abstract.graph.successors(item) if os.path.exists(os.path.dirname(os.path.join(clone_dataset,os.path.relpath(s, super_ds))))])
 
-            # print('output_datasets->', output_datasets, run)
             for item in output_datasets:
                 utils.job_checkout(clone_dataset, item, run)
 
@@ -111,20 +106,15 @@ def match_run(abstract, provenance_path, runs):
     node_abstract_list, edge_abstract_list = utils.gcg_processing(abstract)
     gdb_abs = graphs.GraphBase(node_abstract_list, edge_abstract_list)
 
-    # for several runs we are going to create a pool
-
-    # with Pool(4) as p:
-        # p.starmap(graph_diff_calc, zip(repeat(gdb_abs), repeat(provenance_path), runs))
-    
+        
     outputs=[]
     with futures.ThreadPoolExecutor(max_workers=4) as executor:
         fs = {executor.submit(graph_diff_calc, gdb_abs, provenance_path, run) for run in runs}
         
         
         for future in futures.as_completed(fs):
-            # outputs.extend([x for x in future.result() if x not in outputs])
             outputs.extend(future.result())
-            print(f"result: {outputs}")
+    
 
     # now we perform a git merge and branch delete on origin
     outputs = list(set(outputs))
@@ -142,9 +132,7 @@ def match_run(abstract, provenance_path, runs):
     for run in runs:
         utils.branch_save(provenance_path, run)
 
-    #Remove job branches
-    # $ for file in `git branch|grep job*`; do git branch -D $file ; done
-
+    
         
 
     
