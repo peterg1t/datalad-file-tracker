@@ -101,7 +101,7 @@ def match_run(abstract, provenance_path, runs):
     Args:
         abstract (graph): Abstract graph
         provenance_path (graph): Concrete graph
-        runs (str): branch
+        runs (lst): A list of branches (could also contain just one branch)
     """
     node_abstract_list, edge_abstract_list = utils.gcg_processing(abstract)
     gdb_abs = graphs.GraphBase(node_abstract_list, edge_abstract_list)
