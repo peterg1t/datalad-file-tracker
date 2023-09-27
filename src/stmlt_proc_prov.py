@@ -108,7 +108,7 @@ def match_run(abstract, provenance_path, runs):
 
         
     outputs=[]
-    with futures.ThreadPoolExecutor(max_workers=4) as executor:
+    with futures.ProcessPoolExecutor(max_workers=4) as executor:
         fs = {executor.submit(graph_diff_calc, gdb_abs, provenance_path, run) for run in runs}
         
         
@@ -118,6 +118,7 @@ def match_run(abstract, provenance_path, runs):
 
     # now we perform a git merge and branch delete on origin
     outputs = list(set(outputs))
+    print('b4 merging',provenance_path, outputs)
     for output in outputs:
         print('to_merge',provenance_path, output)
         utils.git_merge(provenance_path, output)

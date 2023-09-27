@@ -234,7 +234,7 @@ def run_pending_nodes(gdb_difference, branch):
     outputs_dict = {}
     inputs=[]
 
-
+    # we need to use the translation file so the nodes in the difference tree have the file names instead of the abstract names. From the nodes we can extract the list of inputs and outputs for the job that is going to run
     node_mapping = {}
     with open(f"{provenance_graph_path}/tf.csv",'r') as translation_file:
         reader = csv.reader(translation_file)
