@@ -151,6 +151,7 @@ class GraphBase:
                 ("label", "@label"),
                 ("status", "@status"),
                 ("author", "@author"),
+                ("cmd", "@cmd"),
                 ("date", "@date"),
                 # ("ID", "@ID"),
             ]

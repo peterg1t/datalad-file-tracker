@@ -121,6 +121,7 @@ def job_submit(dataset, branch, inputs, outputs, message, command):
     """
     outlogs = []
     errlogs = []
+    print('submitting job', inputs, outputs, branch, message, command)
 
     # making the output stage folder
     if os.path.exists(os.path.dirname(outputs[0])):

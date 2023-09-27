@@ -193,9 +193,9 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
     if utils.exists_case_sensitive(provenance_ds_path):
         # try:
         gdb_provenance = graphs.GraphProvenance(provenance_ds_path, ds_branch)
-        print('b4',gdb_provenance.graph.nodes)
+        print('b4',gdb_abstract.graph.nodes)
         gdb_abstract = utils.graph_relabel(gdb_abstract, node_mapping)            
-        print('aft', gdb_provenance.graph.nodes)
+        print('aft', gdb_abstract.graph.nodes)
 
         # except Exception as err:
         #     st.warning(
@@ -204,8 +204,6 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
         #     st.stop()
 
         gdb_abstract, gdb_difference = utils.graph_diff(gdb_abstract, gdb_provenance) 
-        
-        print('diff', gdb_difference.graph.nodes)
 
         graph_plot_abs = gdb_abstract.graph_object_plot()
         plot_graph(graph_plot_abs)
@@ -222,8 +220,10 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
         st.warning(f"Path {provenance_ds_path} does not exist.")
         st.stop()
 
+    return gdb_difference
 
-def run_pending_nodes(gdb_difference):
+
+def run_pending_nodes(gdb_difference, branch):
     """! Given a graph and the list of nodes (and requirements i.e. inputs)
     compute the task with APScheduler
 
@@ -233,31 +233,47 @@ def run_pending_nodes(gdb_difference):
     inputs_dict = {}
     outputs_dict = {}
 
+    node_mapping = {}
+    with open(f"{provenance_graph_path}/tf.csv",'r') as translation_file:
+        reader = csv.reader(translation_file)
+        for row in reader:
+            node_mapping[row[0]] = f"{provenance_graph_path}/{row[1]}"
+    
+    print("b4 diff", gdb_difference.graph.nodes)
+    gdb_difference = utils.graph_relabel(gdb_difference, node_mapping) 
+    print("aft diff", gdb_difference.graph.nodes)
+
+    
+
     try:
         next_nodes_req = st.session_state["next_nodes_req"]
         for item in next_nodes_req:
             for predecessors in gdb_difference.graph.predecessors(item):
+                print("predecessors",predecessors)
                 inputs_dict[predecessors] = gdb_difference.graph.nodes[predecessors][
-                    "name"
-                ]
+                        "name"
+                    ]
 
             for successors in gdb_difference.graph.successors(item):
                 outputs_dict[successors] = gdb_difference.graph.nodes[successors][
                     "name"
                 ]
 
+            print("inputs_dict", inputs_dict)
             inputs = list(inputs_dict.values())
+            print("inputs_dict2", inputs)
+
             outputs = list(outputs_dict.values())
             dataset = utils.get_git_root(os.path.dirname(inputs[0]))
             command = gdb_difference.graph.nodes[item]["cmd"]
             message = "test"
 
-            print("submit_job", dataset, inputs, outputs, message, command)
-            # scheduler.add_job(utils.job_submit, args=[dataset, inputs, outputs, message, command])
+            print("submit_job", dataset, inputs, outputs, message, "command=",command)
+            scheduler.add_job(utils.job_submit, args=[dataset, branch, inputs, outputs,message,     command])
 
-    except:  # pylint: disable = bare-except
+    except Exception as err:  # pylint: disable = bare-except
         st.warning(
-            "No provance graph has been matched to this abstract graph, match one first"
+            f"No provance graph has been matched to this abstract graph, match one first {err}"
         )
 
 
@@ -364,4 +380,4 @@ if __name__ == "__main__":
             match_graphs(provenance_graph_path, gdb, branch_select)
         run_next_button = st.sidebar.button("Run pending nodes")
         if run_next_button:
-            run_pending_nodes(gdb)
+            run_pending_nodes(gdb, branch_select)
