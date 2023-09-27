@@ -195,7 +195,7 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
         gdb_provenance = graphs.GraphProvenance(provenance_ds_path, ds_branch)
         print('b4',gdb_abstract.graph.nodes)
         gdb_abstract = utils.graph_relabel(gdb_abstract, node_mapping)            
-        print('aft', gdb_abstract.graph.nodes)
+        print('aft', gdb_abstract.graph.nodes(data=True))
 
         # except Exception as err:
         #     st.warning(
@@ -232,38 +232,33 @@ def run_pending_nodes(gdb_difference, branch):
     """
     inputs_dict = {}
     outputs_dict = {}
+    inputs=[]
+
 
     node_mapping = {}
     with open(f"{provenance_graph_path}/tf.csv",'r') as translation_file:
         reader = csv.reader(translation_file)
         for row in reader:
             node_mapping[row[0]] = f"{provenance_graph_path}/{row[1]}"
-    
-    print("b4 diff", gdb_difference.graph.nodes)
-    gdb_difference = utils.graph_relabel(gdb_difference, node_mapping) 
-    print("aft diff", gdb_difference.graph.nodes)
 
-    
+    gdb_difference = utils.graph_relabel(gdb_difference, node_mapping)
 
     try:
         next_nodes_req = st.session_state["next_nodes_req"]
         for item in next_nodes_req:
             for predecessors in gdb_difference.graph.predecessors(item):
                 print("predecessors",predecessors)
-                inputs_dict[predecessors] = gdb_difference.graph.nodes[predecessors][
-                        "name"
-                    ]
+                inputs_dict[predecessors] = gdb_difference.graph.nodes[predecessors]
+                inputs.append(gdb_difference.graph.nodes[predecessors])
 
             for successors in gdb_difference.graph.successors(item):
-                outputs_dict[successors] = gdb_difference.graph.nodes[successors][
-                    "name"
-                ]
+                outputs_dict[successors] = gdb_difference.graph.nodes[successors]
 
             print("inputs_dict", inputs_dict)
-            inputs = list(inputs_dict.values())
+            inputs = list(inputs_dict.keys())
             print("inputs_dict2", inputs)
 
-            outputs = list(outputs_dict.values())
+            outputs = list(outputs_dict.keys())
             dataset = utils.get_git_root(os.path.dirname(inputs[0]))
             command = gdb_difference.graph.nodes[item]["cmd"]
             message = "test"
