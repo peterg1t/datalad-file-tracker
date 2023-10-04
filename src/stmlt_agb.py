@@ -114,13 +114,10 @@ def graph_components_generator(number_of_tasks):
                 command = col3.text_input(
                     f"Command for stage {i}", key=f"cmd_{i}", placeholder="Command"
                 )
-                transform = col5.text_input(
-                    f"Data transform for task {i}", key=f"trf_{i}"
+                workflow = col5.text_input(
+                    f"Workflow for task {i}", key=f"wrkf_{i}", placeholder="Subworkflow"
                 )
 
-                if "*" not in transform:
-                    st.text("Special character * not in Data transform string")
-                    # st.stop()
 
                 nodes.append(
                     (
@@ -133,7 +130,7 @@ def graph_components_generator(number_of_tasks):
                             "cmd": command,
                             "status": "pending",
                             "node_color": "grey",
-                            "transform": transform,
+                            "workflow": workflow,
                             "predecesor": prec_nodes,
                             "ID": "",
                         },
@@ -165,7 +162,7 @@ def export_graph(**kwargs):
         with open(kwargs["filename"], "w") as file_abs:
             for node in nodes:
                 if 'cmd' in node[1]:
-                    file_abs.writelines(f"{node[1]['type'][0].upper()}<>{node[0]}<>{node[1]['cmd']}<>{','.join(node[1]['predecesor'])}<>{node[1]['transform']}\n")
+                    file_abs.writelines(f"{node[1]['type'][0].upper()}<>{node[0]}<>{node[1]['cmd']}<>{','.join(node[1]['predecesor'])}<>{node[1]['workflow']}\n")
                 else:
                     file_abs.writelines(f"{node[1]['type'][0].upper()}<>{node[0]}<>{','.join(node[1]['predecesor'])}\n")
         # kwargs["graph"].graph_export(kwargs["filename"])
@@ -283,7 +280,7 @@ if __name__ == "__main__":
         type=str,
         help="Path to graph txt file. \
                         Content must have the F<>{files}<>{prec_nodes} format per line\
-                        or  T<>{task}<>{command}<>{prec_nodes}<>{transformation}   ",
+                        or  T<>{task}<>{command}<>{prec_nodes}<>{workflow}   ",
     )
     parser.add_argument(
         "-p", "--pgraph", type=str, help="Path to project to extract provenance"

@@ -57,40 +57,12 @@ class GraphBase:
 
         # print('nodes',graph.nodes(data=True))
 
-        # Once a graph is computed we need to apply the transforms of every task,
-        # if there are any to the neighbours nodes and then recompute all IDs
+        # If there are any to the neighbours nodes and then recompute all IDs
         # in preparation for graph matching
 
         task_nodes = [n for n, v in graph.nodes(data=True) if v["type"] == "task"]
 
         for node in task_nodes:
-            transform = graph.nodes[node]["transform"]
-
-            predecesors = list(graph.predecessors(node))
-            successors = list(graph.successors(node))
-
-            if (len(predecesors) == len(successors)) and len(transform.rstrip()) != 0:
-                for idx, item in enumerate(successors):
-                    full_path = transform.replace(
-                        "*", graph.nodes[(predecesors[idx])]["label"]
-                    )
-                    graph.nodes[item]["name"] = full_path
-                    graph.nodes[item]["path"] = os.path.dirname(full_path)
-                    graph.nodes[item]["label"] = os.path.basename(full_path).split(".")[
-                        0
-                    ]
-                    graph.nodes[item]["ID"] = utils.encode(full_path)
-
-            elif len(transform.rstrip()) != 0:
-                for idx, item in enumerate(successors):
-                    full_path = transform.replace("*", graph.nodes[item]["label"])
-                    graph.nodes[item]["name"] = full_path
-                    graph.nodes[item]["path"] = os.path.dirname(full_path)
-                    graph.nodes[item]["label"] = os.path.basename(full_path).split(".")[
-                        0
-                    ]
-                    graph.nodes[item]["ID"] = utils.encode(full_path)
-
             neighbors = list(nx.all_neighbors(graph, node))
             full_task_description = []
             for n in neighbors:
@@ -103,9 +75,6 @@ class GraphBase:
                 ",".join(sorted(full_task_description))
             )
             
-
-            # mapping = {item:os.path.basename(full_path)}
-            # graph = nx.relabel_nodes(graph, mapping)
 
         return graph
 
