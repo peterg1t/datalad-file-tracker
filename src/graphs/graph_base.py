@@ -119,6 +119,7 @@ class GraphBase:
                 ("name", "@name"),
                 ("label", "@label"),
                 ("status", "@status"),
+                ("workflow", "@workflow"),
                 ("author", "@author"),
                 ("cmd", "@cmd"),
                 ("date", "@date"),

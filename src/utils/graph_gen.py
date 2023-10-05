@@ -19,7 +19,7 @@ def gcg_from_file(filename):
         for item in read_data:
             stage_type = item.split("<>")[0].strip()
             if stage_type == "T":
-                task, command, prec_nodes, transform = utils.line_process_task(item)
+                task, command, prec_nodes, workflow = utils.line_process_task(item)
                 nodes.append(
                     (
                         task,
@@ -32,7 +32,7 @@ def gcg_from_file(filename):
                             "status": "pending",
                             "node_color": "grey",
                             "predecesor": prec_nodes,
-                            "transform": transform,
+                            "workflow": workflow,
                             "ID": "",
                         },
                     )
@@ -83,7 +83,7 @@ def gcg_processing(filename):
         for item in read_data:
             stage_type = item.split("<>")[0].strip()
             if stage_type == "T":
-                task, command, prec_nodes, transform = utils.line_process_task(item)
+                task, command, prec_nodes, workflow = utils.line_process_task(item)
                 nodes.append(
                     (
                         task,
@@ -96,7 +96,7 @@ def gcg_processing(filename):
                             "status": "pending",
                             "node_color": "grey",
                             "predecesor": prec_nodes,
-                            "transform": transform,
+                            "workflow": workflow,
                             "ID": "",
                         },
                     )

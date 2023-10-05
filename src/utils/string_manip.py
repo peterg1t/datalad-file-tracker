@@ -14,7 +14,7 @@ def line_process_task(line):
         task_name: A task command
         task_command: A task command
         predecesors: A list of node predecesors
-        transform: A transform for the task
+        workflow: The workflow to which the task belongs, if void workflow="main"
     """
     line = line.rstrip()
 
@@ -25,16 +25,16 @@ def line_process_task(line):
         task_name = line.split("<>")[1]
         task_command = line.split("<>")[2]
         predecesors = line.split("<>")[3].split(",")
+        workflow = line.split("<>")[4]
     except:  # pylint: disable = bare-except
         print("Incorrect file format, check the file and reload")
 
-    try:
-        transform = line.split("<>")[4]
-    except:  # pylint: disable = bare-except
-        print("No transform function has been defined")
-        transform = ""
+    if not workflow:
+        workflow = "main"
 
-    return task_name, task_command, predecesors, transform
+    print(f"processing node {task_name}, workflow is {workflow}")
+
+    return task_name, task_command, predecesors, workflow
 
 
 def line_process_file(line):

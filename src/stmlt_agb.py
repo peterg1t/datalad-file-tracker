@@ -117,6 +117,8 @@ def graph_components_generator(number_of_tasks):
                 workflow = col5.text_input(
                     f"Workflow for task {i}", key=f"wrkf_{i}", placeholder="Subworkflow"
                 )
+                if not workflow:
+                    workflow="main"
 
 
                 nodes.append(
