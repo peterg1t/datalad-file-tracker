@@ -146,7 +146,7 @@ if __name__ == "__main__":
         type=str,
         help="Path to graph txt file. \
                         Content must have the F<>{files}<>{prec_nodes} format per line\
-                        or  T<>{task}<>{command}<>{prec_nodes}<>{transformation}   ",
+                        or  T<>{task}<>{prec_nodes}<>{command}<>{transformation}   ",
         required=True,
     )
 

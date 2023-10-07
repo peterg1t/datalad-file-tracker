@@ -23,8 +23,8 @@ def line_process_task(line):
     predecesors = None
     try:
         task_name = line.split("<>")[1]
-        task_command = line.split("<>")[2]
-        predecesors = line.split("<>")[3].split(",")
+        predecesors = line.split("<>")[2].split(",")
+        task_command = line.split("<>")[3]
         workflow = line.split("<>")[4]
     except:  # pylint: disable = bare-except
         print("Incorrect file format, check the file and reload")
@@ -34,7 +34,7 @@ def line_process_task(line):
 
     print(f"processing node {task_name}, workflow is {workflow}")
 
-    return task_name, task_command, predecesors, workflow
+    return task_name, predecesors, task_command, workflow
 
 
 def line_process_file(line):

@@ -19,7 +19,7 @@ def gcg_from_file(filename):
         for item in read_data:
             stage_type = item.split("<>")[0].strip()
             if stage_type == "T":
-                task, command, prec_nodes, workflow = utils.line_process_task(item)
+                task, prec_nodes, command, workflow = utils.line_process_task(item)
                 nodes.append(
                     (
                         task,
@@ -83,7 +83,7 @@ def gcg_processing(filename):
         for item in read_data:
             stage_type = item.split("<>")[0].strip()
             if stage_type == "T":
-                task, command, prec_nodes, workflow = utils.line_process_task(item)
+                task, prec_nodes, command, workflow = utils.line_process_task(item)
                 nodes.append(
                     (
                         task,

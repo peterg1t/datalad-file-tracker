@@ -52,7 +52,7 @@ def graph_components_generator(number_of_tasks):
                 "Select node type", ["file", "task"], key=f"stage_{i}"
             )
             prec_nodes_grp = utils.remove_space(
-                col4.text_input(f"Preceding node(s) for stage{i}", key=f"node(s)_{i}")
+                col3.text_input(f"Preceding node(s) for stage{i}", key=f"node(s)_{i}")
             ).split(",")
 
             prec_nodes = []
@@ -111,7 +111,7 @@ def graph_components_generator(number_of_tasks):
                 if not task:  # if there is no task stop the execution
                     st.stop()
 
-                command = col3.text_input(
+                command = col4.text_input(
                     f"Command for stage {i}", key=f"cmd_{i}", placeholder="Command"
                 )
                 workflow = col5.text_input(
@@ -164,7 +164,7 @@ def export_graph(**kwargs):
         with open(kwargs["filename"], "w") as file_abs:
             for node in nodes:
                 if 'cmd' in node[1]:
-                    file_abs.writelines(f"{node[1]['type'][0].upper()}<>{node[0]}<>{node[1]['cmd']}<>{','.join(node[1]['predecesor'])}<>{node[1]['workflow']}\n")
+                    file_abs.writelines(f"{node[1]['type'][0].upper()}<>{node[0]}<>{','.join(node[1]['predecesor'])}<>{node[1]['cmd']}<>{node[1]['workflow']}\n")
                 else:
                     file_abs.writelines(f"{node[1]['type'][0].upper()}<>{node[0]}<>{','.join(node[1]['predecesor'])}\n")
         # kwargs["graph"].graph_export(kwargs["filename"])
@@ -282,7 +282,7 @@ if __name__ == "__main__":
         type=str,
         help="Path to graph txt file. \
                         Content must have the F<>{files}<>{prec_nodes} format per line\
-                        or  T<>{task}<>{command}<>{prec_nodes}<>{workflow}   ",
+                        or  T<>{task}<>{prec_nodes}<>{command}<>{workflow}   ",
     )
     parser.add_argument(
         "-p", "--pgraph", type=str, help="Path to project to extract provenance"
