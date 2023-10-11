@@ -32,7 +32,7 @@ def line_process_task(line):
     if not workflow:
         workflow = "main"
 
-    print(f"processing node {task_name}, workflow is {workflow}")
+    # print(f"processing node {task_name}, workflow is {workflow}")
 
     return task_name, predecesors, task_command, workflow
 
