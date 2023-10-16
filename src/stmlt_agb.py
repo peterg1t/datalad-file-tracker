@@ -116,7 +116,7 @@ def graph_components_generator(number_of_tasks):
                     f"Command for stage {i}", key=f"cmd_{i}", placeholder="Command"
                 )
                 workflow = col5.text_input(
-                    f"Workflow for task {i}", key=f"wrkf_{i}", placeholder="Subworkflow"
+                    f"Workflow for stage {i}", key=f"wrkf_{i}", placeholder="Subworkflow"
                 )
                 if not workflow:
                     workflow="main"

@@ -54,25 +54,25 @@ def graph_components_generator(number_of_tasks):
             )
                             
             task = col2.text_input(
-                f"Task for stage {i}", key=f"name_{i}", placeholder="Task Name"
+                f"Task {i}", key=f"name_{i}", placeholder="Task Name"
             )
 
             if not task:  # if there is no task stop the execution
                 st.stop()
             inputs = col4.text_input(
-                f"Inputs for stage {i}", key=f"inps_{i}", placeholder="Inputs"
+                f"Inputs for task {i}", key=f"inps_{i}", placeholder="Inputs"
             )
 
             outputs = col5.text_input(
-                f"Outputs for stage {i}", key=f"outps_{i}", placeholder="Outputs"
+                f"Outputs for task {i}", key=f"outps_{i}", placeholder="Outputs"
             )
 
             command = col6.text_input(
-                f"Command for stage {i}", key=f"cmd_{i}", placeholder="Command"
+                f"Command for task {i}", key=f"cmd_{i}", placeholder="Command"
             )
 
             pce = col7.number_input(
-                f"PCE for task {i}", key=f"pce_{i}", step=1
+                f"PCE for task {i}", key=f"pce_{i}", value=None, placeholder="Enter a number"
             )
             
             workflow = col8.text_input(
