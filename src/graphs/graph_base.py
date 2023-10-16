@@ -101,6 +101,7 @@ class GraphBase:
         graph_layout = graphviz_layout(
             self.graph, prog="dot", root=None, args="-Gnodesep=1000 -Grankdir=TB"
         )
+        print('checking type', type(self.graph), self.graph.nodes)
         graph = from_networkx(self.graph, graph_layout)
 
         plot = figure(
