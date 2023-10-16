@@ -259,7 +259,7 @@ def export_graph(**kwargs):
         with open(kwargs["filename"], "w") as file_abs:
             for node in nodes:
                 if 'cmd' in node[1]:
-                    file_abs.writelines(f"{node[1]['type'][0].upper()}<>{node[0]}<>{','.join(node[1]['predecesor'])}<>{node[1]['cmd']}<>{node[1]['workflow']}\n")
+                    file_abs.writelines(f"{node[1]['type'][0].upper()}<>{node[0]}<>{','.join(node[1]['predecesor'])}<>{node[1]['inputs']}<>{node[1]['outputs']}<>{node[1]['cmd']}<>{node[1]['workflow']}\n")
                 else:
                     file_abs.writelines(f"{node[1]['type'][0].upper()}<>{node[0]}<>{','.join(node[1]['predecesor'])}\n")
         # kwargs["graph"].graph_export(kwargs["filename"])
