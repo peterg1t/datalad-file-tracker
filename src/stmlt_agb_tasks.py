@@ -48,119 +48,64 @@ def graph_components_generator(number_of_tasks):
     for i in range(number_of_tasks):
         container = st.container()
         with container:
-            col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([1, 2, 2, 2, 2, 2, 2, 2])
+            col1, col2, col4, col5, col6, col7, col8 = st.columns([1, 2, 2, 2, 2, 2, 2])
             stage_type = col1.selectbox(
-                "Select node type", ["file", "task"], key=f"stage_{i}"
+                "Select node type", ["task"], key=f"stage_{i}"
             )
-            prec_nodes_grp = utils.remove_space(
-                col3.text_input(f"Preceding node(s) for stage{i}", key=f"node(s)_{i}")
-            ).split(",")
+                            
+            task = col2.text_input(
+                f"Task for stage {i}", key=f"name_{i}", placeholder="Task Name"
+            )
 
-            prec_nodes = []
-            for prec_nodes_item in prec_nodes_grp:
-                # for file definition lets check if we have defined multiple files with regex
-                nodes_expanded = utils.file_name_expansion(prec_nodes_item)
-                prec_nodes.extend(nodes_expanded)
-                
-            if stage_type == "file":
-                file_grp = utils.remove_space(
-                    col2.text_input(
-                        f"File(s) for stage {i}",
-                        key=f"name_{i}",
-                        placeholder="File(s) Name (comma sepparated)",
-                    )
-                ).split(",")
+            if not task:  # if there is no task stop the execution
+                st.stop()
+            inputs = col4.text_input(
+                f"Inputs for stage {i}", key=f"inps_{i}", placeholder="Inputs"
+            )
 
-                files = []
-                for file_item in file_grp:
-                    # for file definition lets check if we have defined multiple files with regex
-                    files_expanded = utils.file_name_expansion(file_item)
+            outputs = col5.text_input(
+                f"Outputs for stage {i}", key=f"outps_{i}", placeholder="Outputs"
+            )
 
-                    if (
-                        len(file_item.rstrip()) == 0
-                    ):  # if there is no file (or there is an empty file) stop the execution
-                        st.stop()
+            command = col6.text_input(
+                f"Command for stage {i}", key=f"cmd_{i}", placeholder="Command"
+            )
 
-                    files.extend(files_expanded)
+            pce = col7.number_input(
+                f"PCE for task {i}", key=f"pce_{i}", step=1
+            )
+            
+            workflow = col8.text_input(
+                f"Workflow for task {i}", key=f"wrkf_{i}", placeholder="Subworkflow"
+            )
 
-                for file in files:
-                    nodes.append(
-                        (
-                            os.path.basename(file),
-                            {
-                                "name": file,
-                                "label": os.path.basename(file),
-                                "path": os.path.dirname(file),
-                                "type": stage_type,
-                                "status": "pending",
-                                "node_color": "grey",
-                                "predecesor": prec_nodes,
-                                "ID": utils.encode(file),
-                            },
-                        )
-                    )
-
-                    for node in prec_nodes:
-                        if node:
-                            edges.append((node, os.path.basename(file)))
-
-            elif stage_type == "task":
-                task = col2.text_input(
-                    f"Task for stage {i}", key=f"name_{i}", placeholder="Task Name"
+            if not workflow:
+                workflow="main"
+            nodes.append(
+                (
+                    task,
+                    {
+                        "name": task,
+                        "label": task,
+                        "path": "",
+                        "type": stage_type,
+                        "cmd": command,
+                        "inputs": inputs,
+                        "outputs": outputs,
+                        "status": "pending",
+                        "node_color": "grey",
+                        "pce": pce,
+                        "workflow": workflow,
+                        "ID": "",
+                    },
                 )
-
-                if not task:  # if there is no task stop the execution
-                    st.stop()
-
-                inputs = col4.text_input(
-                    f"Inputs for stage {i}", key=f"inps_{i}", placeholder="Inputs"
-                )
-
-                outputs = col5.text_input(
-                    f"Outputs for stage {i}", key=f"outps_{i}", placeholder="Outputs"
-                )
-
-                command = col6.text_input(
-                    f"Command for stage {i}", key=f"cmd_{i}", placeholder="Command"
-                )
-
-                pce = col7.number_input(
-                    f"PCE for task {i}", key=f"pce_{i}", step=1
-                )
-                
-                workflow = col8.text_input(
-                    f"Workflow for task {i}", key=f"wrkf_{i}", placeholder="Subworkflow"
-                )
-
-
-                if not workflow:
-                    workflow="main"
-
-
-                nodes.append(
-                    (
-                        task,
-                        {
-                            "name": task,
-                            "label": task,
-                            "path": "",
-                            "type": stage_type,
-                            "cmd": command,
-                            "inputs": inputs,
-                            "outputs": outputs,
-                            "status": "pending",
-                            "node_color": "grey",
-                            "pce": pce,
-                            "workflow": workflow,
-                            "predecesor": prec_nodes,
-                            "ID": "",
-                        },
-                    )
-                )
-
-                for node in prec_nodes:
-                    if node:
-                        edges.append((node, task))
+            )
+            
+            for node1 in nodes:
+                for node2 in nodes:
+                    diff_set = set(node1[1]["outputs"]).intersection(set(node2[1]["inputs"]))
+                    if diff_set:
+                        edges.append((node1[0], node2[0]))
 
     return nodes, edges
 
@@ -265,6 +210,23 @@ def export_graph(**kwargs):
         # kwargs["graph"].graph_export(kwargs["filename"])
     except Exception as exception_graph:
         st.sidebar.text(f"{exception_graph}")
+
+
+def export_graph_tasks(**kwargs):
+    """! This function will export the graph to Pedro's notation and
+    throws an exception to streamlit if there is some error
+    """
+    try:
+        nodes = kwargs["graph"].graph.nodes(data=True)
+        with open(kwargs["filename"], "w") as file_abs:
+            for node in nodes:
+                if 'cmd' in node[1]:
+                    file_abs.writelines(f"{node[1]['type'][0].upper()}<>{node[0]}<>{node[1]['inputs']}<>{node[1]['outputs']}<>{node[1]['cmd']}<>{node[1]['workflow']}\n")
+                else:
+                    file_abs.writelines(f"{node[1]['type'][0].upper()}<>{node[0]}<>{','.join(node[1]['predecesor'])}\n")
+        # kwargs["graph"].graph_export(kwargs["filename"])
+    except Exception as exception_graph:
+        st.sidebar.text(f"{exception_graph}")        
 
 
 def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
@@ -452,7 +414,7 @@ if __name__ == "__main__":
 
     st.sidebar.button(
         "Save",
-        on_click=export_graph,
+        on_click=export_graph_tasks,
         kwargs={"graph": gdb, "filename": export_name},
     )
 
