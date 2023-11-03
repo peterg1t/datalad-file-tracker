@@ -14,7 +14,7 @@ from bokeh.models import (
 import utils
 
 
-class GraphBase:
+class GraphBaseTasks:
     """This class will represent a graph created from provenance
 
     Returns:
@@ -54,27 +54,6 @@ class GraphBase:
         graph = nx.DiGraph()
         graph.add_nodes_from(self.node_list)
         graph.add_edges_from(self.edge_list)
-
-        # print('nodes',graph.nodes(data=True))
-
-        # If there are any to the neighbours nodes and then recompute all IDs
-        # in preparation for graph matching
-
-        task_nodes = [n for n, v in graph.nodes(data=True) if v["type"] == "task"]
-
-        for node in task_nodes:
-            neighbors = list(nx.all_neighbors(graph, node))
-            full_task_description = []
-            for n in neighbors:
-                full_task_description.append(graph.nodes[n]["name"])
-
-            command = graph.nodes[node]["cmd"]
-            full_task_description.append(command)
-
-            graph.nodes[node]["ID"] = utils.encode(
-                ",".join(sorted(full_task_description))
-            )
-            
 
         return graph
 
@@ -117,17 +96,13 @@ class GraphBase:
         node_hover_tool = HoverTool(
             tooltips=[
                 ("index", "@index"),
-                ("name", "@name"),
-                ("label", "@label"),
-                ("status", "@status"),
+                ("description", "@description"),
                 ("workflow", "@workflow"),
-                ("author", "@author"),
                 ("inputs", "@inputs"),
                 ("outputs", "@outputs"),
-                ("cmd", "@cmd"),
-                ("pce", "@pce"),
-                ("date", "@date"),
-                # ("ID", "@ID"),
+                ("command", "@command"),
+                ("message", "@message"),
+                ("PCE", "@PCE")
             ]
         )
         plot.add_tools(node_hover_tool, BoxZoomTool(), ResetTool())
@@ -136,14 +111,14 @@ class GraphBase:
         plot.renderers.append(graph)
 
         x_coord, y_coord = zip(*graph.layout_provider.graph_layout.values())
-        node_labels = nx.get_node_attributes(self.graph, "name")
+        node_labels = nx.get_node_attributes(self.graph, "description")
 
         node_names = list(node_labels.values())
-        source = ColumnDataSource({"x": x_coord, "y": y_coord, "name": node_names})
+        source = ColumnDataSource({"x": x_coord, "y": y_coord, "description": node_names})
         labels = LabelSet(
             x="x",
             y="y",
-            text="name",
+            text="description",
             source=source,
             background_fill_color="white",
             text_align="center",

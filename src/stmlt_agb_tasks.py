@@ -48,7 +48,7 @@ def graph_components_generator(number_of_tasks):
     for i in range(number_of_tasks):
         container = st.container()
         with container:
-            col1, col2, col4, col5, col6, col7, col8 = st.columns([1, 2, 2, 2, 2, 2, 2])
+            col1, col2, col4, col5, col6, col7, col8, col9 = st.columns([1, 2, 2, 2, 2, 2, 2, 2])
             stage_type = col1.selectbox(
                 "Select node type", ["task"], key=f"stage_{i}"
             )
@@ -59,11 +59,11 @@ def graph_components_generator(number_of_tasks):
 
             if not task:  # if there is no task stop the execution
                 st.stop()
-            inputs = col4.text_input(
+            inputs_grp = col4.text_input(
                 f"Inputs for task {i}", key=f"inps_{i}", placeholder="Inputs"
             )
 
-            outputs = col5.text_input(
+            outputs_grp = col5.text_input(
                 f"Outputs for task {i}", key=f"outps_{i}", placeholder="Outputs"
             )
 
@@ -71,42 +71,66 @@ def graph_components_generator(number_of_tasks):
                 f"Command for task {i}", key=f"cmd_{i}", placeholder="Command"
             )
 
-            pce = col7.number_input(
-                f"PCE for task {i}", key=f"pce_{i}", value=None, placeholder="Enter a number"
+            message = col7.text_input(
+                f"Message for task {i}", key=f"msg_{i}", placeholder="Message"
+            )
+
+            pce = col8.number_input(
+                f"PCE for task {i}", key=f"pce_{i}", value=0, min_value=0, step=1, placeholder="Enter a number"
             )
             
-            workflow = col8.text_input(
+            workflow = col9.text_input(
                 f"Workflow for task {i}", key=f"wrkf_{i}", placeholder="Subworkflow"
             )
 
+            inputs = []
+            outputs = []
+            for item in inputs_grp.split(","):
+                inps_expanded = utils.file_name_expansion(item)
+
+                if (
+                    len(item.rstrip()) == 0
+                ):  # if there is no file (or there is an empty file) stop the execution
+                    st.stop()
+
+                inputs.extend(inps_expanded)
+            
+            for item in outputs_grp.split(","):
+                outps_expanded = utils.file_name_expansion(item)
+
+                if (
+                    len(item.rstrip()) == 0
+                ):  # if there is no file (or there is an empty file) stop the execution
+                    st.stop()
+
+                outputs.extend(outps_expanded)
+
             if not workflow:
-                workflow="main"
+                workflow = "main"
             nodes.append(
                 (
                     task,
                     {
-                        "name": task,
-                        "label": task,
-                        "path": "",
-                        "type": stage_type,
-                        "cmd": command,
+                        "description": task,
+                        "command": command,
                         "inputs": inputs,
                         "outputs": outputs,
-                        "status": "pending",
-                        "node_color": "grey",
-                        "pce": pce,
+                        "message": message,
+                        "PCE": pce,
                         "workflow": workflow,
-                        "ID": "",
                     },
                 )
             )
             
-            for node1 in nodes:
-                for node2 in nodes:
-                    diff_set = set(node1[1]["outputs"]).intersection(set(node2[1]["inputs"]))
-                    if diff_set:
-                        edges.append((node1[0], node2[0]))
+    for node1 in nodes:
+        for node2 in nodes:
+            print(set(node1[1]["outputs"]), set(node2[1]["inputs"]), "nodes->", nodes)
+            diff_set = set(node1[1]["outputs"]).intersection(set(node2[1]["inputs"]))
+            print(diff_set)
+            if diff_set:
+                edges.append((node1[0], node2[0]))
 
+    print("results",nodes, edges)
     return nodes, edges
 
 
@@ -143,9 +167,7 @@ def generate_code(gdb):
             # inputs  = gdb.graph.predecessors(task)
             # outputs = gdb.graph.successors(task)
             inputs = gdb.graph.nodes[task]['inputs'].split(",")
-            print('inputs->', inputs, type(inputs))
             outputs = gdb.graph.nodes[task]['outputs'].split(",")
-            print('outputs->', outputs, type(outputs))
             command = gdb.graph.nodes[task]['cmd']
 
             body_list.append(
@@ -221,7 +243,7 @@ def export_graph_tasks(**kwargs):
         with open(kwargs["filename"], "w") as file_abs:
             for node in nodes:
                 if 'cmd' in node[1]:
-                    file_abs.writelines(f"{node[1]['type'][0].upper()}<>{node[0]}<>{node[1]['inputs']}<>{node[1]['outputs']}<>{node[1]['cmd']}<>{node[1]['workflow']}\n")
+                    file_abs.writelines(f"{node[1]['type'][0].upper()}<>{node[0]}<>{','.join(node[1]['inputs'])}<>{','.join(node[1]['outputs'])}<>{node[1]['cmd']}<>{node[1]['pce']}<>{node[1]['workflow']}\n")
                 else:
                     file_abs.writelines(f"{node[1]['type'][0].upper()}<>{node[0]}<>{','.join(node[1]['predecesor'])}\n")
         # kwargs["graph"].graph_export(kwargs["filename"])
@@ -249,9 +271,7 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
     if utils.exists_case_sensitive(provenance_ds_path):
         # try:
         gdb_provenance = graphs.GraphProvenance(provenance_ds_path, ds_branch)
-        print('b4',gdb_abstract.graph.nodes)
         gdb_abstract = utils.graph_relabel(gdb_abstract, node_mapping)            
-        print('aft', gdb_abstract.graph.nodes(data=True))
 
         # except Exception as err:
         #     st.warning(
@@ -303,17 +323,13 @@ def run_pending_nodes(gdb_difference, branch):
         next_nodes_req = st.session_state["next_nodes_req"]
         for item in next_nodes_req:
             for predecessors in gdb_difference.graph.predecessors(item):
-                print("predecessors",predecessors)
                 inputs_dict[predecessors] = gdb_difference.graph.nodes[predecessors]
                 inputs.append(gdb_difference.graph.nodes[predecessors])
 
             for successors in gdb_difference.graph.successors(item):
                 outputs_dict[successors] = gdb_difference.graph.nodes[successors]
 
-            print("inputs_dict", inputs_dict)
             inputs = list(inputs_dict.keys())
-            print("inputs_dict2", inputs)
-
             outputs = list(outputs_dict.keys())
             dataset = utils.get_git_root(os.path.dirname(inputs[0]))
             command = gdb_difference.graph.nodes[item]["cmd"]
@@ -395,13 +411,13 @@ if __name__ == "__main__":
         node_list, edge_list = graph_components_generator(tasks_number)
 
     try:
-        gdb = graphs.GraphBase(node_list, edge_list)
+        gdb = graphs.GraphBaseTasks(node_list, edge_list)
         st.success("Graph created")
 
-    except:
+    except ValueError as e:
         st.warning(
             f"There was a problem in the creation of the graph verify\
-                   that all node names match along the edges"
+                   that all node names match along the edges {e}"
         )
         st.stop()
 
