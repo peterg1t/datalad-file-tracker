@@ -79,8 +79,8 @@ def graph_components_generator(number_of_tasks):
                 f"PCE for task {i}", key=f"pce_{i}", value=0, min_value=0, step=1, placeholder="Enter a number"
             )
             
-            workflow = col9.text_input(
-                f"Workflow for task {i}", key=f"wrkf_{i}", placeholder="Subworkflow"
+            subworkflow = col9.text_input(
+                f"Subworkflow for task {i}", key=f"wrkf_{i}", placeholder="Subworkflow"
             )
 
             inputs = []
@@ -105,8 +105,8 @@ def graph_components_generator(number_of_tasks):
 
                 outputs.extend(outps_expanded)
 
-            if not workflow:
-                workflow = "main"
+            if not subworkflow:
+                subworkflow = "main"
             nodes.append(
                 (
                     task,
@@ -117,7 +117,7 @@ def graph_components_generator(number_of_tasks):
                         "outputs": outputs,
                         "message": message,
                         "PCE": pce,
-                        "workflow": workflow,
+                        "subworkflow": subworkflow,
                     },
                 )
             )

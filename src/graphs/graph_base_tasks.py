@@ -77,11 +77,15 @@ class GraphBaseTasks:
         Returns:
             plot: A graphviz figure to be plotted with bokeh
         """
+        # The next two lines are to fix an issue with bokeh 3.3.0 if using bokeh 2.4.3 these can be removed
+        mapping = dict((n, i) for i, n in enumerate(self.graph.nodes))
+        H = nx.relabel_nodes(self.graph, mapping=mapping)
+        nx.set_node_attributes(H, "grey", name=fc)   # adding grey color at initialization
+
         graph_layout = graphviz_layout(
-            self.graph, prog="dot", root=None, args="-Gnodesep=1000 -Grankdir=TB"
+            H, prog="dot", root=None, args="-Gnodesep=1000 -Grankdir=TB"
         )
-        print('checking type', type(self.graph), self.graph.nodes)
-        graph = from_networkx(self.graph, graph_layout)
+        graph = from_networkx(H, graph_layout)
 
         plot = figure(
             title="File provenance tracker",
@@ -97,7 +101,7 @@ class GraphBaseTasks:
             tooltips=[
                 ("index", "@index"),
                 ("description", "@description"),
-                ("workflow", "@workflow"),
+                ("subworkflow", "@subworkflow"),
                 ("inputs", "@inputs"),
                 ("outputs", "@outputs"),
                 ("command", "@command"),
