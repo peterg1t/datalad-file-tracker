@@ -48,11 +48,11 @@ def graph_components_generator(number_of_tasks):
     for i in range(number_of_tasks):
         container = st.container()
         with container:
-            col1, col2, col4, col5, col6, col7, col8, col9 = st.columns([1, 2, 2, 2, 2, 2, 2, 2])
-            stage_type = col1.selectbox(
-                "Select node type", ["task"], key=f"stage_{i}"
+            col1, col2, col4, col5, col6, col7, col8, col9 = st.columns(
+                [1, 2, 2, 2, 2, 2, 2, 2]
             )
-                            
+            stage_type = col1.selectbox("Select node type", ["task"], key=f"stage_{i}")
+
             task = col2.text_input(
                 f"Task {i}", key=f"name_{i}", placeholder="Task Name"
             )
@@ -76,9 +76,14 @@ def graph_components_generator(number_of_tasks):
             )
 
             pce = col8.number_input(
-                f"PCE for task {i}", key=f"pce_{i}", value=0, min_value=0, step=1, placeholder="Enter a number"
+                f"PCE for task {i}",
+                key=f"pce_{i}",
+                value=0,
+                min_value=0,
+                step=1,
+                placeholder="Enter a number",
             )
-            
+
             subworkflow = col9.text_input(
                 f"Subworkflow for task {i}", key=f"wrkf_{i}", placeholder="Subworkflow"
             )
@@ -94,7 +99,7 @@ def graph_components_generator(number_of_tasks):
                     st.stop()
 
                 inputs.extend(inps_expanded)
-            
+
             for item in outputs_grp.split(","):
                 outps_expanded = utils.file_name_expansion(item)
 
@@ -121,7 +126,7 @@ def graph_components_generator(number_of_tasks):
                     },
                 )
             )
-            
+
     for node1 in nodes:
         for node2 in nodes:
             print(set(node1[1]["outputs"]), set(node2[1]["inputs"]), "nodes->", nodes)
@@ -130,7 +135,7 @@ def graph_components_generator(number_of_tasks):
             if diff_set:
                 edges.append((node1[0], node2[0]))
 
-    print("results",nodes, edges)
+    print("results", nodes, edges)
     return nodes, edges
 
 
@@ -144,94 +149,148 @@ def plot_graph(plot):
 
 
 def generate_code(gdb):
-
-    module = ast.Module(body=[ast.Import(names=[ast.alias(name='asyncio')]),
-                              ast.ImportFrom(module='prefect', names=[ast.alias(name='flow')], level=0), 
-                              ast.ImportFrom(module='prefect.task_runners', names=[ast.alias(name='SequentialTaskRunner'), ast.alias(name= 'ConcurrentTaskRunner')], level=0),
-                              ast.ImportFrom(module='prefect_dask.task_runners', names=[ast.alias(name='DaskTaskRunner')], level=0),], type_ignores=[])
-    
-
+    module = ast.Module(
+        body=[
+            ast.Import(names=[ast.alias(name="asyncio")]),
+            ast.ImportFrom(module="prefect", names=[ast.alias(name="flow")], level=0),
+            ast.ImportFrom(
+                module="prefect.task_runners",
+                names=[
+                    ast.alias(name="SequentialTaskRunner"),
+                    ast.alias(name="ConcurrentTaskRunner"),
+                ],
+                level=0,
+            ),
+            ast.ImportFrom(
+                module="prefect_dask.task_runners",
+                names=[ast.alias(name="DaskTaskRunner")],
+                level=0,
+            ),
+        ],
+        type_ignores=[],
+    )
 
     workflows = nx.get_node_attributes(gdb.graph, "workflow").values()
     workflows_unique = list(dict.fromkeys(workflows))
-    
+
     flow_list = []
     for flow in workflows_unique:
-        flow_list.append(ast.Expr(value=ast.Call(func=ast.Name(id=flow, ctx=ast.Load()), args=[], keywords=[])))
+        flow_list.append(
+            ast.Expr(
+                value=ast.Call(
+                    func=ast.Name(id=flow, ctx=ast.Load()), args=[], keywords=[]
+                )
+            )
+        )
 
-        task_nodes = [n for n, v in gdb.graph.nodes(data=True) if v["type"] == 'task' and v["workflow"] == flow ]
+        task_nodes = [
+            n
+            for n, v in gdb.graph.nodes(data=True)
+            if v["type"] == "task" and v["workflow"] == flow
+        ]
 
- 
         body_list = []
         for task in task_nodes:
             # inputs  = gdb.graph.predecessors(task)
             # outputs = gdb.graph.successors(task)
-            inputs = gdb.graph.nodes[task]['inputs'].split(",")
-            outputs = gdb.graph.nodes[task]['outputs'].split(",")
-            command = gdb.graph.nodes[task]['cmd']
+            inputs = gdb.graph.nodes[task]["inputs"].split(",")
+            outputs = gdb.graph.nodes[task]["outputs"].split(",")
+            command = gdb.graph.nodes[task]["cmd"]
 
             body_list.append(
                 ast.Assign(
-                    targets=[ast.Name(id=task, ctx=ast.Store())], 
-                    value=ast.Call(func=ast.Name(id='task_build', ctx=ast.Load()), 
-                    args=[], 
-                    keywords=[
-                        ast.keyword(arg='inputs', value=ast.List(
-                            elts=[ast.Name(id=inp, ctx=ast.Load()) for inp in inputs]
-                        )),
-                        ast.keyword(arg='outputs', value=ast.List(
-                            elts=[ast.Name(id=out, ctx=ast.Load()) for out in outputs]
-                        )),
-                        ast.keyword(arg='task_name', value=ast.Constant(value=command)),
-                        ast.keyword(arg='tmp_dir', value=ast.Name(id='tmp_dir', ctx=ast.Load()))
-                        ])
+                    targets=[ast.Name(id=task, ctx=ast.Store())],
+                    value=ast.Call(
+                        func=ast.Name(id="task_build", ctx=ast.Load()),
+                        args=[],
+                        keywords=[
+                            ast.keyword(
+                                arg="inputs",
+                                value=ast.List(
+                                    elts=[
+                                        ast.Name(id=inp, ctx=ast.Load())
+                                        for inp in inputs
+                                    ]
+                                ),
+                            ),
+                            ast.keyword(
+                                arg="outputs",
+                                value=ast.List(
+                                    elts=[
+                                        ast.Name(id=out, ctx=ast.Load())
+                                        for out in outputs
+                                    ]
+                                ),
+                            ),
+                            ast.keyword(
+                                arg="task_name", value=ast.Constant(value=command)
+                            ),
+                            ast.keyword(
+                                arg="tmp_dir",
+                                value=ast.Name(id="tmp_dir", ctx=ast.Load()),
+                            ),
+                        ],
+                    ),
                 )
-                )
+            )
             body_list.append(
                 ast.Assign(
-                    targets=[ast.Name(id='cmd', ctx=ast.Store())],
-                        value=ast.Call(
-                            func=ast.Attribute(
+                    targets=[ast.Name(id="cmd", ctx=ast.Store())],
+                    value=ast.Call(
+                        func=ast.Attribute(
                             value=ast.Name(id=task, ctx=ast.Load()),
-                            attr='cmd',
-                            ctx=ast.Load()),
-                            args=[],
-                            keywords=[]))
+                            attr="cmd",
+                            ctx=ast.Load(),
+                        ),
+                        args=[],
+                        keywords=[],
+                    ),
+                )
             )
 
-
-        module.body.append(ast.FunctionDef(name=flow, args=ast.arguments(posonlyargs=[], args=[], kwonlyargs=[], kw_defaults=[], defaults=[]), body=body_list, decorator_list=[ast.Call(func=ast.Name(id='flow', ctx=ast.Load()), args=[],keywords=[ast.keyword(arg='task_runner', value=ast.Call(func=ast.Name(id='Enter Runner Type Here', ctx=ast.Load()), args=[], keywords=[]))])]))
+        module.body.append(
+            ast.FunctionDef(
+                name=flow,
+                args=ast.arguments(
+                    posonlyargs=[], args=[], kwonlyargs=[], kw_defaults=[], defaults=[]
+                ),
+                body=body_list,
+                decorator_list=[
+                    ast.Call(
+                        func=ast.Name(id="flow", ctx=ast.Load()),
+                        args=[],
+                        keywords=[
+                            ast.keyword(
+                                arg="task_runner",
+                                value=ast.Call(
+                                    func=ast.Name(
+                                        id="Enter Runner Type Here", ctx=ast.Load()
+                                    ),
+                                    args=[],
+                                    keywords=[],
+                                ),
+                            )
+                        ],
+                    )
+                ],
+            )
+        )
 
     module.body.append(
-        ast.If(test=ast.Compare(left=ast.Name(id='__name__', ctx=ast.Load()), ops=[ast.Eq()], comparators=[ast.Constant(value='__main__')]), 
-               body=[flow_list], orelse=[])
+        ast.If(
+            test=ast.Compare(
+                left=ast.Name(id="__name__", ctx=ast.Load()),
+                ops=[ast.Eq()],
+                comparators=[ast.Constant(value="__main__")],
+            ),
+            body=[flow_list],
+            orelse=[],
+        )
     )
 
     module = ast.fix_missing_locations(module)
     code = ast.unparse(module)
     return code
-
-
-
-
-
-
-
-def export_graph(**kwargs):
-    """! This function will export the graph to Pedro's notation and
-    throws an exception to streamlit if there is some error
-    """
-    try:
-        nodes = kwargs["graph"].graph.nodes(data=True)
-        with open(kwargs["filename"], "w") as file_abs:
-            for node in nodes:
-                if 'cmd' in node[1]:
-                    file_abs.writelines(f"{node[1]['type'][0].upper()}<>{node[0]}<>{','.join(node[1]['predecesor'])}<>{node[1]['inputs']}<>{node[1]['outputs']}<>{node[1]['cmd']}<>{node[1]['workflow']}\n")
-                else:
-                    file_abs.writelines(f"{node[1]['type'][0].upper()}<>{node[0]}<>{','.join(node[1]['predecesor'])}\n")
-        # kwargs["graph"].graph_export(kwargs["filename"])
-    except Exception as exception_graph:
-        st.sidebar.text(f"{exception_graph}")
 
 
 def export_graph_tasks(**kwargs):
@@ -240,15 +299,16 @@ def export_graph_tasks(**kwargs):
     """
     try:
         nodes = kwargs["graph"].graph.nodes(data=True)
-        with open(kwargs["filename"], "w") as file_abs:
+        path = Path(kwargs["filename"])
+        with open(path, "w") as file_abs:
             for node in nodes:
-                if 'cmd' in node[1]:
-                    file_abs.writelines(f"{node[1]['type'][0].upper()}<>{node[0]}<>{','.join(node[1]['inputs'])}<>{','.join(node[1]['outputs'])}<>{node[1]['cmd']}<>{node[1]['pce']}<>{node[1]['workflow']}\n")
-                else:
-                    file_abs.writelines(f"{node[1]['type'][0].upper()}<>{node[0]}<>{','.join(node[1]['predecesor'])}\n")
+                file_abs.writelines(
+                    f"T<>{node[0]}<>{','.join(node[1]['inputs'])}<>{','.join(node[1]['outputs'])}<>{node[1]['command']}<>{node[1]['PCE']}<>{node[1]['subworkflow']}<>{node[1]['message']}\n"
+                )
+
         # kwargs["graph"].graph_export(kwargs["filename"])
     except Exception as exception_graph:
-        st.sidebar.text(f"{exception_graph}")        
+        st.sidebar.text(f"{exception_graph}")
 
 
 def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
@@ -262,16 +322,15 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
     repo = git.Repo(provenance_ds_path)
     branch = repo.heads[ds_branch]
     branch.checkout()
-    with open(f"{provenance_graph_path}/tf.csv",'r') as translation_file:
+    with open(f"{provenance_graph_path}/tf.csv", "r") as translation_file:
         reader = csv.reader(translation_file)
         for row in reader:
             node_mapping[row[0]] = f"{provenance_graph_path}/{row[1]}"
 
-
     if utils.exists_case_sensitive(provenance_ds_path):
         # try:
         gdb_provenance = graphs.GraphProvenance(provenance_ds_path, ds_branch)
-        gdb_abstract = utils.graph_relabel(gdb_abstract, node_mapping)            
+        gdb_abstract = utils.graph_relabel(gdb_abstract, node_mapping)
 
         # except Exception as err:
         #     st.warning(
@@ -279,11 +338,11 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
         #     )
         #     st.stop()
 
-        gdb_abstract, gdb_difference = utils.graph_diff(gdb_abstract, gdb_provenance) 
+        gdb_abstract, gdb_difference = utils.graph_diff(gdb_abstract, gdb_provenance)
 
         graph_plot_abs = gdb_abstract.graph_object_plot()
         plot_graph(graph_plot_abs)
-        
+
         # graph_plot_diff = gdb_difference.graph_object_plot()
         # plot_graph(graph_plot_diff)
 
@@ -308,11 +367,11 @@ def run_pending_nodes(gdb_difference, branch):
     """
     inputs_dict = {}
     outputs_dict = {}
-    inputs=[]
+    inputs = []
 
     # we need to use the translation file so the nodes in the difference tree have the file names instead of the abstract names. From the nodes we can extract the list of inputs and outputs for the job that is going to run
     node_mapping = {}
-    with open(f"{provenance_graph_path}/tf.csv",'r') as translation_file:
+    with open(f"{provenance_graph_path}/tf.csv", "r") as translation_file:
         reader = csv.reader(translation_file)
         for row in reader:
             node_mapping[row[0]] = f"{provenance_graph_path}/{row[1]}"
@@ -335,8 +394,11 @@ def run_pending_nodes(gdb_difference, branch):
             command = gdb_difference.graph.nodes[item]["cmd"]
             message = "test"
 
-            print("submit_job", dataset, inputs, outputs, message, "command=",command)
-            scheduler.add_job(utils.job_submit, args=[dataset, branch, inputs, outputs,message,     command])
+            print("submit_job", dataset, inputs, outputs, message, "command=", command)
+            scheduler.add_job(
+                utils.job_submit,
+                args=[dataset, branch, inputs, outputs, message, command],
+            )
 
     except Exception as err:  # pylint: disable = bare-except
         st.warning(
@@ -434,7 +496,6 @@ if __name__ == "__main__":
         kwargs={"graph": gdb, "filename": export_name},
     )
 
-
     # The provenance graph name is the path to any
     # directory in a project where provenance is recorded.
     # When the button is clicked a full provenance graph
@@ -442,12 +503,9 @@ if __name__ == "__main__":
     # to the abstract graph
     provenance_graph_path = st.sidebar.text_input("Path to the dataset with provenance")
 
-    
     if st.sidebar.button("Generate code"):
         code = generate_code(gdb)
-        st.text_area("Prefect code",code)
-
-        
+        st.text_area("Prefect code", code)
 
     if utils.exists_case_sensitive(provenance_graph_path):
         branches_project = utils.get_branches(provenance_graph_path)
