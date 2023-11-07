@@ -18,10 +18,11 @@ from .jobs import job_submit, run_pending_nodes, job_prepare, job_clean  # pylin
 from .string_manip import (
     line_process_file,
     line_process_task,
+    line_process_task_v2,
     file_name_expansion,
     remove_space,
 )  # pylint: disable=import-error
-from .graph_gen import gcg_from_file, gcg_processing
+from .graph_gen import gcg_from_file, gcg_processing, gcg_processing_tasks
 
 
 __all__ = [
@@ -50,10 +51,12 @@ __all__ = [
     "job_clean",
     "line_process_file",
     "line_process_task",
+    "line_process_task_v2",
     "file_name_expansion",
     "remove_space",
     "gcg_from_file", 
     "gcg_processing", 
-    "graph_components_generator"
+    "graph_components_generator",
+    "gcg_processing_tasks"
 
 ]

@@ -94,8 +94,9 @@ def match_run(abstract, provenance_path, runs):
         provenance_path (graph): Concrete graph
         runs (lst): A list of branches (could also contain just one branch)
     """
-    node_abstract_list, edge_abstract_list = utils.gcg_processing(abstract)
-    gdb_abs = graphs.GraphBase(node_abstract_list, edge_abstract_list)
+    node_abstract_list, edge_abstract_list = utils.gcg_processing_tasks(abstract)
+    gdb_abs = graphs.GraphBaseTasks(node_abstract_list, edge_abstract_list)
+    print("here",gdb_abs)
 
         
     outputs=[]

@@ -37,6 +37,39 @@ def line_process_task(line):
     return task_name, predecesors, task_command, workflow
 
 
+def line_process_task_v2(line):
+    """This function will process a line from the text file
+
+    Args:
+        line (str): A line from the text file
+
+    Returns:
+        task_name: A task command
+        task_command: A task command
+        predecesors: A list of node predecesors
+        workflow: The workflow to which the task belongs, if void workflow="main"
+    """
+    line = line.rstrip()
+
+    try:
+        task_name = line.split("<>")[1]
+        inputs = line.split("<>")[2].split(",")
+        outputs = line.split("<>")[3].split(",")
+        task_command = line.split("<>")[4]
+        pce = line.split("<>")[5]
+        subworkflow = line.split("<>")[6]
+        message = line.split("<>")[7]
+    except Exception as e:  # pylint: disable = bare-except
+        print("Incorrect file format, check the file and reload {e}")
+
+    if not subworkflow:
+        subworkflow = "main"
+
+    # print(f"processing node {task_name}, workflow is {workflow}")
+
+    return task_name, inputs, outputs, task_command, pce, subworkflow, message
+
+
 def line_process_file(line):
     """! Process a file line
 

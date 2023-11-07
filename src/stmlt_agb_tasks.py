@@ -466,7 +466,7 @@ if __name__ == "__main__":
 
     if args.agraph:
         # node_list, edge_list = utils.gcg_from_file(args.agraph)
-        node_list, edge_list = utils.gcg_processing(args.agraph)
+        node_list, edge_list = utils.gcg_processing_tasks(args.agraph)
 
     else:
         tasks_number = st.number_input("Please define a number of stages", min_value=1)
