@@ -32,6 +32,7 @@ Welcome to the abstract graph builder!
 )
 
 
+
 def graph_components_generator(number_of_tasks):
     """! This function will generate the graph of the entire project
 
@@ -129,13 +130,10 @@ def graph_components_generator(number_of_tasks):
 
     for node1 in nodes:
         for node2 in nodes:
-            print(set(node1[1]["outputs"]), set(node2[1]["inputs"]), "nodes->", nodes)
             diff_set = set(node1[1]["outputs"]).intersection(set(node2[1]["inputs"]))
-            print(diff_set)
             if diff_set:
                 edges.append((node1[0], node2[0]))
 
-    print("results", nodes, edges)
     return nodes, edges
 
 
@@ -170,7 +168,8 @@ def generate_code(gdb):
         type_ignores=[],
     )
 
-    workflows = nx.get_node_attributes(gdb.graph, "workflow").values()
+    workflows = nx.get_node_attributes(gdb.graph, "subworkflow").values()
+    print("workflows",gdb.graph.nodes(data=True), workflows)
     workflows_unique = list(dict.fromkeys(workflows))
 
     flow_list = []
@@ -186,16 +185,17 @@ def generate_code(gdb):
         task_nodes = [
             n
             for n, v in gdb.graph.nodes(data=True)
-            if v["type"] == "task" and v["workflow"] == flow
+            if v["subworkflow"] == flow
         ]
 
         body_list = []
         for task in task_nodes:
+            print("task", task, gdb.graph.nodes[task]["inputs"], gdb.graph.nodes[task]["command"])
             # inputs  = gdb.graph.predecessors(task)
             # outputs = gdb.graph.successors(task)
-            inputs = gdb.graph.nodes[task]["inputs"].split(",")
-            outputs = gdb.graph.nodes[task]["outputs"].split(",")
-            command = gdb.graph.nodes[task]["cmd"]
+            inputs = gdb.graph.nodes[task]["inputs"][0].split(",")
+            outputs = gdb.graph.nodes[task]["outputs"][0].split(",")
+            command = gdb.graph.nodes[task]["command"]
 
             body_list.append(
                 ast.Assign(
@@ -235,11 +235,11 @@ def generate_code(gdb):
             )
             body_list.append(
                 ast.Assign(
-                    targets=[ast.Name(id="cmd", ctx=ast.Store())],
+                    targets=[ast.Name(id="command", ctx=ast.Store())],
                     value=ast.Call(
                         func=ast.Attribute(
                             value=ast.Name(id=task, ctx=ast.Load()),
-                            attr="cmd",
+                            attr="command",
                             ctx=ast.Load(),
                         ),
                         args=[],

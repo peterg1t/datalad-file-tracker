@@ -11,7 +11,7 @@ import graphs
 from .graph_base import GraphBase
 
 
-class GraphProvenance(GraphBase):  # pylint: disable = too-few-public-methods
+class GraphProvenanceTasks(GraphBase):  # pylint: disable = too-few-public-methods
     """! This class will represent a graph created from provenance
 
     Returns:
@@ -91,65 +91,30 @@ class GraphProvenance(GraphBase):  # pylint: disable = too-few-public-methods
                 )
 
                 if dict_o["inputs"]:
-                    task.parent_files = dict_o["inputs"]
-                    for input_file in task.parent_files:
+                    for input_file in dict_o["inputs"]:
                         input_path = glob.glob(
                             self.superdataset.path
                             + f"/**/*{os.path.basename(input_file)}",
                             recursive=True,
                         )[0]
-                        ds_file = git.Repo(os.path.dirname(input_path))
-                        file_status = dl.status(
-                            path=input_path, dataset=ds_file.working_tree_dir
-                        )[0]
-
-                        file = graphs.FileWorkflow(
-                            subdataset,
-                            input_path,
-                            commit.hexsha,
-                            commit.author.name,
-                            commit.authored_date,
-                            file_status["gitshasum"],
-                        )
-                        file.ID = utils.encode(file.name)
-                        file.child_task = dict_o["cmd"]
-
-                        # Creating a shallow copy of the object attribute dictionary
-                        dict_file = copy.copy(file.__dict__)
-                        dict_file.pop("child_task", None)
-
-                        node_list.append((file.name, dict_file))
-                        edge_list.append((file.name, task.commit))
-
+                        task.parentFiles.append(input_path)
+                
                 if dict_o["outputs"]:
-                    task.child_files = dict_o["outputs"]
-                    for output_file in task.child_files:
+                    for output_file in dict_o["outputs"]:
                         output_path = glob.glob(
-                            self.superdataset.path + f"/**/*{os.path.basename(output_file)}",
+                            self.superdataset.path 
+                            + f"/**/*{os.path.basename(output_file)}",
                             recursive=True,
                         )[0]
-                        ds_file = git.Repo(os.path.dirname(output_path))
-                        file_status = dl.status(
-                            path=output_path, dataset=ds_file.working_tree_dir
-                        )[0]
-
-                        file = graphs.FileWorkflow(
-                            subdataset,
-                            output_path,
-                            commit.hexsha,
-                            commit.author.name,
-                            commit.authored_date,
-                            file_status["gitshasum"],
-                        )
-                        file.ID = utils.encode(file.name)
-                        file.parent_task = dict_o["cmd"]
-
-                        dict_file = copy.copy(file.__dict__)
-                        dict_file.pop("parent_task", None)
-
-                        node_list.append((file.name, dict_file))
-                        edge_list.append((task.commit, file.name))
+                        task.childFiles.append(output_path)
 
                 node_list.append((task.commit, task.__dict__))
+
+            for idx_node, node1 in enumerate(node_list):
+                for node2 in node_list[:idx_node + 1]:
+                    diff_set = set(node1[1]["childFiles"]).intersection(set(node2[1]["parentFiles"]))
+                    if diff_set:
+                        edge_list.append((node1[0], node2[0]))
+
 
         return node_list, edge_list

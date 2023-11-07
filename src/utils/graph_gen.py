@@ -1,5 +1,5 @@
 import os
-import utils
+from . import line_process_task, encode, line_process_file
 
 
 def gcg_from_file(filename):
@@ -19,7 +19,7 @@ def gcg_from_file(filename):
         for item in read_data:
             stage_type = item.split("<>")[0].strip()
             if stage_type == "T":
-                task, prec_nodes, command, workflow = utils.line_process_task(item)
+                task, prec_nodes, command, workflow = line_process_task(item)
                 nodes.append(
                     (
                         task,
@@ -42,7 +42,7 @@ def gcg_from_file(filename):
                         edges.append((node, task))
 
             elif stage_type == "F":
-                files, prec_nodes = utils.line_process_file(item)
+                files, prec_nodes = line_process_file(item)
                 for file in files:
                     nodes.append(
                         (
@@ -55,7 +55,7 @@ def gcg_from_file(filename):
                                 "status": "pending",
                                 "node_color": "grey",
                                 "predecesor": prec_nodes,
-                                "ID": utils.encode(file),
+                                "ID": encode(file),
                             },
                         )
                     )
@@ -83,7 +83,7 @@ def gcg_processing(filename):
         for item in read_data:
             stage_type = item.split("<>")[0].strip()
             if stage_type == "T":
-                task, prec_nodes, command, workflow = utils.line_process_task(item)
+                task, prec_nodes, command, workflow = line_process_task(item)
                 nodes.append(
                     (
                         task,
@@ -106,7 +106,7 @@ def gcg_processing(filename):
                         edges.append((node, task))
 
             elif stage_type == "F":
-                files, prec_nodes = utils.line_process_file(item)
+                files, prec_nodes = line_process_file(item)
                 for file in files:
                     nodes.append(
                         (
@@ -119,7 +119,7 @@ def gcg_processing(filename):
                                 "status": "pending",
                                 "node_color": "grey",
                                 "predecesor": prec_nodes,
-                                "ID": utils.encode(file),
+                                "ID": encode(file),
                             },
                         )
                     )

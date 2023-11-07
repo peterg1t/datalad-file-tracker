@@ -1,4 +1,3 @@
-import os
 import networkx as nx
 from networkx.drawing.nx_agraph import graphviz_layout
 from bokeh.plotting import from_networkx, figure
