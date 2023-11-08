@@ -113,3 +113,22 @@ def graph_relabel(graph, nmap):
             )
 
     return graph2remap
+
+def graph_relabel_tasks(graph, nmap):
+    """This function will relabel the ID on the graphs
+
+    Args:
+        graph (graph): A base graph object
+        nmap (dict): Node remapping
+    """
+    graph2remap = copy.deepcopy(graph)
+    graph2remap.graph = nx.relabel_nodes(graph2remap.graph, nmap)
+    
+    for node, attrs in graph2remap.graph.nodes(data=True):
+        full_task_description = ???
+        full_task_description.append(attrs["cmd"])
+        attrs["ID"] = utils.encode(
+            ",".join(sorted(full_task_description))
+        )
+
+    return graph2remap
