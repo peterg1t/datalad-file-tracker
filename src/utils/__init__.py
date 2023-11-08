@@ -6,7 +6,9 @@ from .graph_analysis import (
     eigen_centrl,
     close_centrl,
     graph_diff,
+    graph_diff_tasks,
     graph_relabel,
+    graph_remap_attributes
 )  # pylint: disable=import-error
 from .encode import encode, decode  # pylint: disable=import-error
 from .paths_check import (
@@ -31,7 +33,9 @@ __all__ = [
     "eigen_centrl",
     "close_centrl",
     "graph_diff",
+    "graph_diff_tasks",
     "graph_relabel",
+    "graph_remap_attributes",
     "is_tool",
     "exists_case_sensitive",
     "get_dataset",

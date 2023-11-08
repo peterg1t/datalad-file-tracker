@@ -106,7 +106,6 @@ def gcg_processing_tasks(filename):
         read_data = file_abstract.readlines()
         for item in read_data:
             task, inputs, outputs, command, pce, subworkflow, message = line_process_task_v2(item)
-            print("here",line_process_task_v2(item))
             nodes.append(
                 (
                     task,

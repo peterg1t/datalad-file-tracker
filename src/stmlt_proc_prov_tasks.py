@@ -31,8 +31,7 @@ def run_cleaning_worktree(super_ds):
 
 
 def graph_diff_calc(gdb_abs, super_ds, run):
-    
-    node_mapping = {}
+    attribute_mapping = {}
     repo = git.Repo(super_ds)
     tree = repo.heads[run].commit.tree
     output_datasets=[]
@@ -40,32 +39,29 @@ def graph_diff_calc(gdb_abs, super_ds, run):
     for blob in tree.blobs:
         if blob.name == 'tf.csv':
             translation_file_data = blob.data_stream.read().decode('utf-8').split('\n')
- 
             for row in translation_file_data[:-1]:
                 row_splitted = row.split(',')
-                print('row',row,row_splitted, len(row_splitted))
-                node_mapping[row_splitted[0]] = f"{super_ds}/{row_splitted[1]}"
+                attribute_mapping[row_splitted[0]] = f"{super_ds}/{row_splitted[1]}"
             
-            gdb_abs_proc = utils.graph_relabel(gdb_abs,node_mapping)
-            print('node_mapping', node_mapping, run)
-            print(gdb_abs_proc.graph.nodes())
-
-            gdb_conc = graphs.GraphProvenance(super_ds, run)
-            gdb_abstract, gdb_difference = utils.graph_diff(gdb_abs_proc, gdb_conc)
+            gdb_abs_proc = utils.graph_remap_attributes(gdb_abs, attribute_mapping)
+            gdb_conc = graphs.GraphProvenanceTasks(super_ds, run)
+            gdb_abstract, gdb_difference = utils.graph_diff_tasks(gdb_abs_proc, gdb_conc)
             
             #We now need to get the input file/files for this job so it can be passed to the pending nodes job
             clone_dataset = f"/tmp/test_{run}"
+            print("clone_dataset",clone_dataset)
 
             # clone the repo
             utils.sub_clone_flock(super_ds, clone_dataset, run)
+            print("after clonning")
             
             # get all submodules with no data
             utils.sub_get(clone_dataset, True)
 
             #mark dead here (ephemeral dataset)
             utils.sub_dead_here(clone_dataset)
+            print("after dead here")
             
-
             next_nodes = gdb_difference.next_nodes_run()
             for item in next_nodes:
                 output_datasets.extend([os.path.dirname(os.path.relpath(s, super_ds)) for s in gdb_abstract.graph.successors(item) if os.path.exists(os.path.dirname(os.path.join(clone_dataset,os.path.relpath(s, super_ds))))])
@@ -96,7 +92,6 @@ def match_run(abstract, provenance_path, runs):
     """
     node_abstract_list, edge_abstract_list = utils.gcg_processing_tasks(abstract)
     gdb_abs = graphs.GraphBaseTasks(node_abstract_list, edge_abstract_list)
-    print("here",gdb_abs)
 
         
     outputs=[]

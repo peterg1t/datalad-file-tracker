@@ -465,7 +465,6 @@ if __name__ == "__main__":
     edge_list = None  # pylint: disable=invalid-name
 
     if args.agraph:
-        # node_list, edge_list = utils.gcg_from_file(args.agraph)
         node_list, edge_list = utils.gcg_processing_tasks(args.agraph)
 
     else:
