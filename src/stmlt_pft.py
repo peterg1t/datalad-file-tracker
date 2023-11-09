@@ -6,7 +6,6 @@ import argparse
 from pathlib import Path
 import cProfile
 import streamlit as st
-import graphs
 import networkx as nx
 from bokeh.transform import linear_cmap
 

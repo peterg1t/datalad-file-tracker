@@ -1,8 +1,7 @@
 import os
 from . import line_process_task, encode, line_process_file, line_process_task_v2
 
-def process_task_node(line, nodes, edges):
-    task, prec_nodes, command, workflow = line_process_task(line)
+def process_task_node(task, prec_nodes, command, workflow, nodes, edges):
     nodes.append(
         (
             task,
@@ -24,8 +23,7 @@ def process_task_node(line, nodes, edges):
         if node:
             edges.append((node, task))
 
-def process_file_node(line, nodes, edges):
-    files, prec_nodes = line_process_file(line)
+def process_file_node(files, prec_nodes, nodes, edges):
     for file in files:
         nodes.append(
             (
@@ -63,9 +61,11 @@ def gcg_processing(filename):
         for item in read_data:
             stage_type = item.split("<>")[0].strip()
             if stage_type == "T":
-                process_task_node(item, nodes, edges)
+                task, prec_nodes, command, workflow = line_process_task(line)
+                process_task_node(task, prec_nodes, command, workflow, nodes, edges)
             elif stage_type == "F":
-                process_file_node(item, nodes, edges)
+                files, prec_nodes = line_process_file(item)
+                process_file_node(files, prec_nodes, nodes, edges)
                 
                 
                 

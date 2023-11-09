@@ -24,7 +24,7 @@ from .string_manip import (
     file_name_expansion,
     remove_space,
 )  # pylint: disable=import-error
-from .graph_gen import gcg_processing, gcg_processing_tasks
+from .graph_gen import gcg_processing, gcg_processing_tasks, process_file_node, process_task_node
 
 
 __all__ = [
@@ -60,6 +60,8 @@ __all__ = [
     "remove_space", 
     "gcg_processing", 
     "graph_components_generator",
-    "gcg_processing_tasks"
+    "gcg_processing_tasks",
+    "process_file_node",
+    "process_task_node"
 
 ]

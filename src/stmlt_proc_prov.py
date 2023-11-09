@@ -12,7 +12,6 @@ from bokeh.io import export_png
 
 import cProfile
 
-import graphs
 from bokeh.transform import linear_cmap
 
 import utils

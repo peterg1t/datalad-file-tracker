@@ -12,10 +12,10 @@ from bokeh.io import export_png
 
 import cProfile
 
-import graphs
 from bokeh.transform import linear_cmap
 
 import utils
+import networkx as nx
 
 
 profiler = cProfile.Profile()
@@ -91,7 +91,9 @@ def match_run(abstract, provenance_path, runs):
         runs (lst): A list of branches (could also contain just one branch)
     """
     node_abstract_list, edge_abstract_list = utils.gcg_processing_tasks(abstract)
-    gdb_abs = graphs.GraphBaseTasks(node_abstract_list, edge_abstract_list)
+    gdb_abs = nx.DiGraph()
+    gdb_abs.add_nodes_from(node_abstract_list)
+    gdb_abs.add_edges_from(edge_abstract_list)
 
         
     outputs=[]
