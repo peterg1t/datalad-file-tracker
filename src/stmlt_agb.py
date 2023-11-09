@@ -2,33 +2,25 @@
 Docstring
 """
 import os
-import sys
 import argparse
 import copy
-import ast
-from pathlib import Path
 import cProfile
-import streamlit as st
 import csv
+import import_export
+import git
+import glob
+
+import streamlit as st
 import networkx as nx
-from networkx.drawing.nx_agraph import graphviz_layout
-from bokeh.plotting import from_networkx, figure
-from bokeh.models import (
-    BoxZoomTool,
-    Circle,
-    HoverTool,
-    ResetTool,
-    ColumnDataSource,
-    LabelSet,
-    DataRange1d,
-)
 from bokeh.io import export_png
 import datalad.api as dl
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
 
-import utils
+import utilities
+import graphs
+
 
 
 profiler = cProfile.Profile()
@@ -41,7 +33,6 @@ Welcome to the abstract graph builder!
 )
 
 
-
 def plot_graph(plot):
     """! Function to generate a bokeh chart
 
@@ -51,171 +42,6 @@ def plot_graph(plot):
     st.bokeh_chart(plot, use_container_width=True)
 
 
-def generate_code(gdb):
-    module = ast.Module(
-        body=[
-            ast.Import(names=[ast.alias(name="asyncio")]),
-            ast.ImportFrom(module="prefect", names=[ast.alias(name="flow")], level=0),
-            ast.ImportFrom(
-                module="prefect.task_runners",
-                names=[
-                    ast.alias(name="SequentialTaskRunner"),
-                    ast.alias(name="ConcurrentTaskRunner"),
-                ],
-                level=0,
-            ),
-            ast.ImportFrom(
-                module="prefect_dask.task_runners",
-                names=[ast.alias(name="DaskTaskRunner")],
-                level=0,
-            ),
-        ],
-        type_ignores=[],
-    )
-
-    workflows = nx.get_node_attributes(gdb, "workflow").values()
-    workflows_unique = list(dict.fromkeys(workflows))
-
-    flow_list = []
-    for flow in workflows_unique:
-        flow_list.append(
-            ast.Expr(
-                value=ast.Call(
-                    func=ast.Name(id=flow, ctx=ast.Load()), args=[], keywords=[]
-                )
-            )
-        )
-
-        task_nodes = [
-            n
-            for n, v in gdb.graph.nodes(data=True)
-            if v["type"] == "task" and v["workflow"] == flow
-        ]
-
-        body_list = []
-        for task in task_nodes:
-            inputs = gdb.predecessors(task)
-            outputs = gdb.successors(task)
-            command = gdb.nodes[task]["cmd"]
-
-            body_list.append(
-                ast.Assign(
-                    targets=[ast.Name(id=task, ctx=ast.Store())],
-                    value=ast.Call(
-                        func=ast.Name(id="task_build", ctx=ast.Load()),
-                        args=[],
-                        keywords=[
-                            ast.keyword(
-                                arg="inputs",
-                                value=ast.List(
-                                    elts=[
-                                        ast.Name(id=inp, ctx=ast.Load())
-                                        for inp in inputs
-                                    ]
-                                ),
-                            ),
-                            ast.keyword(
-                                arg="outputs",
-                                value=ast.List(
-                                    elts=[
-                                        ast.Name(id=out, ctx=ast.Load())
-                                        for out in outputs
-                                    ]
-                                ),
-                            ),
-                            ast.keyword(
-                                arg="task_name", value=ast.Constant(value=command)
-                            ),
-                            ast.keyword(
-                                arg="tmp_dir",
-                                value=ast.Name(id="tmp_dir", ctx=ast.Load()),
-                            ),
-                        ],
-                    ),
-                )
-            )
-            body_list.append(
-                ast.Assign(
-                    targets=[ast.Name(id="cmd", ctx=ast.Store())],
-                    value=ast.Call(
-                        func=ast.Attribute(
-                            value=ast.Name(id=task, ctx=ast.Load()),
-                            attr="cmd",
-                            ctx=ast.Load(),
-                        ),
-                        args=[],
-                        keywords=[],
-                    ),
-                )
-            )
-
-        module.body.append(
-            ast.FunctionDef(
-                name=flow,
-                args=ast.arguments(
-                    posonlyargs=[], args=[], kwonlyargs=[], kw_defaults=[], defaults=[]
-                ),
-                body=body_list,
-                decorator_list=[
-                    ast.Call(
-                        func=ast.Name(id="flow", ctx=ast.Load()),
-                        args=[],
-                        keywords=[
-                            ast.keyword(
-                                arg="task_runner",
-                                value=ast.Call(
-                                    func=ast.Name(
-                                        id="Enter Runner Type Here", ctx=ast.Load()
-                                    ),
-                                    args=[],
-                                    keywords=[],
-                                ),
-                            )
-                        ],
-                    )
-                ],
-            )
-        )
-
-    module.body.append(
-        ast.If(
-            test=ast.Compare(
-                left=ast.Name(id="__name__", ctx=ast.Load()),
-                ops=[ast.Eq()],
-                comparators=[ast.Constant(value="__main__")],
-            ),
-            body=[flow_list],
-            orelse=[],
-        )
-    )
-
-    module = ast.fix_missing_locations(module)
-    code = ast.unparse(module)
-    return code
-
-
-def export_graph(**kwargs):
-    """! This function will export the graph to Pedro's notation and
-    throws an exception to streamlit if there is some error
-    """
-    try:
-        nodes = kwargs["graph"].nodes(data=True)
-        with open(kwargs["filename"], "w") as file_abs:
-            for node in nodes:
-                if "cmd" in node[1]:
-                    file_abs.writelines(
-                        f"{node[1]['type'][0].upper()}<>{node[0]}<>{','.join(node[1]['predecesor'])}<>{node[1]['cmd']}<>{node[1]['workflow']}\n"
-                    )
-                else:
-                    file_abs.writelines(
-                        f"{node[1]['type'][0].upper()}<>{node[0]}<>{','.join(node[1]['predecesor'])}\n"
-                    )
-        # kwargs["graph"].graph_export(kwargs["filename"])
-    except Exception as exception_graph:
-        st.sidebar.text(f"{exception_graph}")
-
-
-    
 def prov_scan(self):
     """! This function will return the nodes and edges list
     Args:
@@ -230,9 +56,9 @@ def prov_scan(self):
     for subdataset in subdatasets:
         repo = git.Repo(subdataset)
         commits = list(repo.iter_commits(repo.heads[self.ds_branch]))
-        dl_run_commits = _get_commit_list(commits)
+        dl_run_commits = utilities.get_commit_list(commits)
         for commit in dl_run_commits:
-            dict_o = _commit_message_node_extract(commit)
+            dict_o = utilities.commit_message_node_extract(commit)
             task = graphs.TaskWorkflow(
                 self.superdataset.path,
                 dict_o["cmd"],
@@ -244,8 +70,7 @@ def prov_scan(self):
                 task.parent_files = dict_o["inputs"]
                 for input_file in task.parent_files:
                     input_path = glob.glob(
-                        self.superdataset.path
-                        + f"/**/*{os.path.basename(input_file)}",
+                        self.superdataset.path + f"/**/*{os.path.basename(input_file)}",
                         recursive=True,
                     )[0]
                     ds_file = git.Repo(os.path.dirname(input_path))
@@ -260,7 +85,7 @@ def prov_scan(self):
                         commit.authored_date,
                         file_status["gitshasum"],
                     )
-                    file.ID = utils.base_conversions(file.name)
+                    file.ID = utilities.base_conversions(file.name)
                     file.child_task = dict_o["cmd"]
                     # Creating a shallow copy of the object attribute dictionary
                     dict_file = copy.copy(file.__dict__)
@@ -271,7 +96,8 @@ def prov_scan(self):
                 task.child_files = dict_o["outputs"]
                 for output_file in task.child_files:
                     output_path = glob.glob(
-                        self.superdataset.path + f"/**/*{os.path.basename(output_file)}",
+                        self.superdataset.path
+                        + f"/**/*{os.path.basename(output_file)}",
                         recursive=True,
                     )[0]
                     ds_file = git.Repo(os.path.dirname(output_path))
@@ -286,7 +112,7 @@ def prov_scan(self):
                         commit.authored_date,
                         file_status["gitshasum"],
                     )
-                    file.ID = utils.base_conversions(file.name)
+                    file.ID = utilities.base_conversions(file.name)
                     file.parent_task = dict_o["cmd"]
                     dict_file = copy.copy(file.__dict__)
                     dict_file.pop("parent_task", None)
@@ -294,7 +120,6 @@ def prov_scan(self):
                     edge_list.append((task.commit, file.name))
             node_list.append((task.commit, task.__dict__))
     return node_list, edge_list
-
 
 
 def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
@@ -313,11 +138,11 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
         for row in reader:
             node_mapping[row[0]] = f"{provenance_graph_path}/{row[1]}"
 
-    if utils.exists_case_sensitive(provenance_ds_path):
+    if utilities.exists_case_sensitive(provenance_ds_path):
         # try:
         gdb_provenance = graphs.GraphProvenance(provenance_ds_path, ds_branch)
         print("b4", gdb_abstract.graph.nodes)
-        gdb_abstract = utils.graph_relabel(gdb_abstract, node_mapping)
+        gdb_abstract = graphs.graph_relabel(gdb_abstract, node_mapping)
         print("aft", gdb_abstract.graph.nodes(data=True))
 
         # except Exception as err:
@@ -326,9 +151,9 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
         #     )
         #     st.stop()
 
-        gdb_abstract, gdb_difference = utils.graph_diff(gdb_abstract, gdb_provenance)
+        gdb_abstract, gdb_difference = utilities.graph_diff(gdb_abstract, gdb_provenance)
 
-        graph_plot_abs = graph_object_plot(gdb_abstract)
+        graph_plot_abs = graphs.graph_object_plot(gdb_abstract)
         plot_graph(graph_plot_abs)
 
         # graph_plot_diff = gdb_difference.graph_object_plot()
@@ -344,9 +169,6 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
         st.stop()
 
     return gdb_difference
-
-
-
 
 
 def run_pending_nodes(gdb_difference, branch):
@@ -367,7 +189,7 @@ def run_pending_nodes(gdb_difference, branch):
         for row in reader:
             node_mapping[row[0]] = f"{provenance_graph_path}/{row[1]}"
 
-    gdb_difference = utils.graph_relabel(gdb_difference, node_mapping)
+    gdb_difference = utilities.graph_relabel(gdb_difference, node_mapping)
 
     try:
         next_nodes_req = st.session_state["next_nodes_req"]
@@ -385,13 +207,13 @@ def run_pending_nodes(gdb_difference, branch):
             print("inputs_dict2", inputs)
 
             outputs = list(outputs_dict.keys())
-            dataset = utils.get_git_root(os.path.dirname(inputs[0]))
+            dataset = utilities.get_git_root(os.path.dirname(inputs[0]))
             command = gdb_difference.nodes[item]["cmd"]
             message = "test"
 
             print("submit_job", dataset, inputs, outputs, message, "command=", command)
             scheduler.add_job(
-                utils.job_submit,
+                utilities.job_submit,
                 args=[dataset, branch, inputs, outputs, message, command],
             )
 
@@ -460,11 +282,11 @@ if __name__ == "__main__":
     edge_list = None  # pylint: disable=invalid-name
 
     if args.agraph:
-        node_list, edge_list = utils.gcg_processing(args.agraph)
+        node_list, edge_list = graphs.graph_components_generator_from_file(args.agraph)
 
     else:
         tasks_number = st.number_input("Please define a number of stages", min_value=1)
-        node_list, edge_list = utils.graph_components_generator(tasks_number)
+        node_list, edge_list = graphs.graph_components_generator(tasks_number)
 
     try:
         gdb = nx.DiGraph()
@@ -479,7 +301,7 @@ if __name__ == "__main__":
         )
         st.stop()
 
-    graph_plot_abstract = graph_object_plot(gdb)
+    graph_plot_abstract = graphs.graph_object_plot(gdb)
     plot_graph(graph_plot_abstract)
     if args.png_export:
         export_png(graph_plot_abstract, filename=args.png_export)
@@ -488,7 +310,7 @@ if __name__ == "__main__":
 
     st.sidebar.button(
         "Save",
-        on_click=export_graph,
+        on_click=import_export.export_graph,
         kwargs={"graph": gdb, "filename": export_name},
     )
 
@@ -500,11 +322,11 @@ if __name__ == "__main__":
     provenance_graph_path = st.sidebar.text_input("Path to the dataset with provenance")
 
     if st.sidebar.button("Generate code"):
-        code = generate_code(gdb)
+        code = import_export.generate_code(gdb)
         st.text_area("Prefect code", code)
 
-    if utils.exists_case_sensitive(provenance_graph_path):
-        branches_project = utils.get_branches(provenance_graph_path)
+    if utilities.exists_case_sensitive(provenance_graph_path):
+        branches_project = utilities.get_branches(provenance_graph_path)
         branch_select = st.sidebar.selectbox("Branches", branches_project)
         match_button = st.sidebar.button("Match")
 

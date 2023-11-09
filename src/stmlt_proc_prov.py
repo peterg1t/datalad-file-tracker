@@ -14,7 +14,7 @@ import cProfile
 
 from bokeh.transform import linear_cmap
 
-import utils
+import utilities
 
 
 profiler = cProfile.Profile()
@@ -22,11 +22,11 @@ profiler = cProfile.Profile()
 
 
 def run_preparation_worktree(super_ds, run):
-    utils.job_prepare(super_ds, run)
+    utilities.job_prepare(super_ds, run)
 
 
 def run_cleaning_worktree(super_ds):
-    utils.job_clean(super_ds)
+    utilities.job_clean(super_ds)
 
 
 def graph_diff_calc(gdb_abs, super_ds, run):
@@ -45,24 +45,24 @@ def graph_diff_calc(gdb_abs, super_ds, run):
                 print('row',row,row_splitted, len(row_splitted))
                 node_mapping[row_splitted[0]] = f"{super_ds}/{row_splitted[1]}"
             
-            gdb_abs_proc = utils.graph_relabel(gdb_abs,node_mapping)
+            gdb_abs_proc = utilities.graph_relabel(gdb_abs,node_mapping)
             print('node_mapping', node_mapping, run)
             print(gdb_abs_proc.graph.nodes())
 
             gdb_conc = graphs.GraphProvenance(super_ds, run)
-            gdb_abstract, gdb_difference = utils.graph_diff(gdb_abs_proc, gdb_conc)
+            gdb_abstract, gdb_difference = utilities.graph_diff(gdb_abs_proc, gdb_conc)
             
             #We now need to get the input file/files for this job so it can be passed to the pending nodes job
             clone_dataset = f"/tmp/test_{run}"
 
             # clone the repo
-            utils.sub_clone_flock(super_ds, clone_dataset, run)
+            utilities.sub_clone_flock(super_ds, clone_dataset, run)
             
             # get all submodules with no data
-            utils.sub_get(clone_dataset, True)
+            utilities.sub_get(clone_dataset, True)
 
             #mark dead here (ephemeral dataset)
-            utils.sub_dead_here(clone_dataset)
+            utilities.sub_dead_here(clone_dataset)
             
 
             next_nodes = gdb_difference.next_nodes_run()
@@ -70,15 +70,15 @@ def graph_diff_calc(gdb_abs, super_ds, run):
                 output_datasets.extend([os.path.dirname(os.path.relpath(s, super_ds)) for s in gdb_abstract.graph.successors(item) if os.path.exists(os.path.dirname(os.path.join(clone_dataset,os.path.relpath(s, super_ds))))])
 
             for item in output_datasets:
-                utils.job_checkout(clone_dataset, item, run)
+                utilities.job_checkout(clone_dataset, item, run)
 
 
-            status = utils.run_pending_nodes(super_ds, clone_dataset, gdb_abstract, gdb_difference, run)
+            status = utilities.run_pending_nodes(super_ds, clone_dataset, gdb_abstract, gdb_difference, run)
             # print('status->', run, status)
 
             if status is not None:
                 for item in output_datasets:
-                    utils.sub_push_flock(clone_dataset, item, 'origin')
+                    utilities.sub_push_flock(clone_dataset, item, 'origin')
             
  
     return output_datasets
@@ -93,7 +93,7 @@ def match_run(abstract, provenance_path, runs):
         provenance_path (graph): Concrete graph
         runs (lst): A list of branches (could also contain just one branch)
     """
-    node_abstract_list, edge_abstract_list = utils.gcg_processing(abstract)
+    node_abstract_list, edge_abstract_list = utilities.gcg_processing(abstract)
     gdb_abs = graphs.GraphBase(node_abstract_list, edge_abstract_list)
 
         
@@ -111,17 +111,17 @@ def match_run(abstract, provenance_path, runs):
     print('b4 merging',provenance_path, outputs)
     for output in outputs:
         print('to_merge',provenance_path, output)
-        utils.git_merge(provenance_path, output)
+        utilities.git_merge(provenance_path, output)
     
     #Saving the current branch
     repo = git.Repo(provenance_path)
     current_branch = repo.active_branch
-    utils.branch_save(provenance_path, current_branch)
+    utilities.branch_save(provenance_path, current_branch)
 
 
     # now for every other branch we save the datasets to acknowledge the changes
     for run in runs:
-        utils.branch_save(provenance_path, run)
+        utilities.branch_save(provenance_path, run)
 
     
         

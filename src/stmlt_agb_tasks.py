@@ -23,7 +23,7 @@ from bokeh.models import (
     DataRange1d,
 )
 import git
-import utils
+import utilities
 from bokeh.io import export_png
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -102,7 +102,7 @@ def graph_components_generator(number_of_tasks):
             inputs = []
             outputs = []
             for item in inputs_grp.split(","):
-                inps_expanded = utils.file_name_expansion(item)
+                inps_expanded = utilities.file_name_expansion(item)
 
                 if (
                     len(item.rstrip()) == 0
@@ -112,7 +112,7 @@ def graph_components_generator(number_of_tasks):
                 inputs.extend(inps_expanded)
 
             for item in outputs_grp.split(","):
-                outps_expanded = utils.file_name_expansion(item)
+                outps_expanded = utilities.file_name_expansion(item)
 
                 if (
                     len(item.rstrip()) == 0
@@ -432,10 +432,10 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
         for row in reader:
             node_mapping[row[0]] = f"{provenance_graph_path}/{row[1]}"
 
-    if utils.exists_case_sensitive(provenance_ds_path):
+    if utilities.exists_case_sensitive(provenance_ds_path):
         # try:
         gdb_provenance = graphs.GraphProvenance(provenance_ds_path, ds_branch)
-        gdb_abstract = utils.graph_relabel(gdb_abstract, node_mapping)
+        gdb_abstract = utilities.graph_relabel(gdb_abstract, node_mapping)
 
         # except Exception as err:
         #     st.warning(
@@ -443,7 +443,7 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
         #     )
         #     st.stop()
 
-        gdb_abstract, gdb_difference = utils.graph_diff(gdb_abstract, gdb_provenance)
+        gdb_abstract, gdb_difference = utilities.graph_diff(gdb_abstract, gdb_provenance)
 
         graph_plot_abs = gdb_abstract.graph_object_plot()
         plot_graph(graph_plot_abs)
@@ -481,7 +481,7 @@ def run_pending_nodes(gdb_difference, branch):
         for row in reader:
             node_mapping[row[0]] = f"{provenance_graph_path}/{row[1]}"
 
-    gdb_difference = utils.graph_relabel(gdb_difference, node_mapping)
+    gdb_difference = utilities.graph_relabel(gdb_difference, node_mapping)
 
     try:
         next_nodes_req = st.session_state["next_nodes_req"]
@@ -495,12 +495,12 @@ def run_pending_nodes(gdb_difference, branch):
 
             inputs = list(inputs_dict.keys())
             outputs = list(outputs_dict.keys())
-            dataset = utils.get_git_root(os.path.dirname(inputs[0]))
+            dataset = utilities.get_git_root(os.path.dirname(inputs[0]))
             command = gdb_difference.graph.nodes[item]["cmd"]
             message = "test"
 
             scheduler.add_job(
-                utils.job_submit,
+                utilities.job_submit,
                 args=[dataset, branch, inputs, outputs, message, command],
             )
 
@@ -623,7 +623,7 @@ if __name__ == "__main__":
     edge_list = None  # pylint: disable=invalid-name
 
     if args.agraph:
-        node_list, edge_list = utils.gcg_processing_tasks(args.agraph)
+        node_list, edge_list = utilities.gcg_processing_tasks(args.agraph)
 
     else:
         tasks_number = st.number_input("Please define a number of stages", min_value=1)
@@ -666,8 +666,8 @@ if __name__ == "__main__":
         code = generate_code(gdb)
         st.text_area("Prefect code", code)
 
-    if utils.exists_case_sensitive(provenance_graph_path):
-        branches_project = utils.get_branches(provenance_graph_path)
+    if utilities.exists_case_sensitive(provenance_graph_path):
+        branches_project = utilities.get_branches(provenance_graph_path)
         branch_select = st.sidebar.selectbox("Branches", branches_project)
         match_button = st.sidebar.button("Match")
 

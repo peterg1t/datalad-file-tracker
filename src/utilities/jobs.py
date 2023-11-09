@@ -1,6 +1,6 @@
 import os
 import datalad.api as dl
-import utils
+import utilities
 import asyncio
 import git
 import subprocess

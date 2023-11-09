@@ -18,7 +18,7 @@ from bokeh.models import (
 )  # pylint: disable=line-too-long
 from bokeh.transform import linear_cmap
 import networkx as nx
-import utils
+import utilities
 
 
 class PlotNotes:  # pylint: disable=too-few-public-methods
@@ -159,7 +159,7 @@ class PlotNotes:  # pylint: disable=too-few-public-methods
         network_graph = self._create_network()
 
         if self._analysismode == "Betweeness Centrality":
-            node_attr = utils.calc_betw_centrl(network_graph)
+            node_attr = utilities.calc_betw_centrl(network_graph)
             nx.set_node_attributes(network_graph, node_attr, name="node_a")
             fill_col = linear_cmap(
                 "node_a",
@@ -168,7 +168,7 @@ class PlotNotes:  # pylint: disable=too-few-public-methods
                 max(list(node_attr.values())),
             )
         elif self._analysismode == "Degree Centrality":
-            node_attr = utils.deg_centrl(network_graph)
+            node_attr = utilities.deg_centrl(network_graph)
             nx.set_node_attributes(network_graph, node_attr, name="node_a")
             fill_col = linear_cmap(
                 "node_a",

@@ -1,6 +1,6 @@
 import os
 import streamlit as st
-from ..utils import *
+import utilities
 
 def process_task_node(task, prec_nodes, command, workflow, nodes, edges):
     nodes.append(
@@ -37,7 +37,7 @@ def process_file_node(files, prec_nodes, nodes, edges):
                     "status": "pending",
                     "node_color": "grey",
                     "predecesor": prec_nodes,
-                    "ID": encode(file),
+                    "ID": utilities.encode(file),
                 },
             )
         )
@@ -45,7 +45,7 @@ def process_file_node(files, prec_nodes, nodes, edges):
             if node:
                 edges.append((node, os.path.basename(file)))
 
-def gcg_processing(filename):
+def graph_components_generator_from_file(filename):
     """! This function generate a networkx graph from a file containing an abstract graph
 
     Args:
@@ -62,10 +62,10 @@ def gcg_processing(filename):
         for line in read_data:
             stage_type = line.split("<>")[0].strip()
             if stage_type == "T":
-                task, prec_nodes, command, workflow = line_process_task(line)
+                task, prec_nodes, command, workflow = utilities.line_process_task(line)
                 process_task_node(task, prec_nodes, command, workflow, nodes, edges)
             elif stage_type == "F":
-                files, prec_nodes = line_process_file(line)
+                files, prec_nodes = utilities.line_process_file(line)
                 process_file_node(files, prec_nodes, nodes, edges)
                 
                 
@@ -89,18 +89,18 @@ def graph_components_generator(number_of_tasks):
             stage_type = col1.selectbox(
                 "Select node type", ["file", "task"], key=f"stage_{i}"
             )
-            prec_nodes_grp = remove_space(
+            prec_nodes_grp = utilities.remove_space(
                 col3.text_input(f"Preceding node(s) for stage{i}", key=f"node(s)_{i}")
             ).split(",")
 
             prec_nodes = []
             for prec_nodes_item in prec_nodes_grp:
                 # for file definition lets check if we have defined multiple files with regex
-                nodes_expanded = file_name_expansion(prec_nodes_item)
+                nodes_expanded = utilities.file_name_expansion(prec_nodes_item)
                 prec_nodes.extend(nodes_expanded)
 
             if stage_type == "file":
-                file_grp = remove_space(
+                file_grp = utilities.remove_space(
                     col2.text_input(
                         f"File(s) for stage {i}",
                         key=f"name_{i}",
@@ -111,7 +111,7 @@ def graph_components_generator(number_of_tasks):
                 files = []
                 for file_item in file_grp:
                     # for file definition lets check if we have defined multiple files with regex
-                    files_expanded = file_name_expansion(file_item)
+                    files_expanded = utilities.file_name_expansion(file_item)
 
                     if (
                         len(file_item.rstrip()) == 0

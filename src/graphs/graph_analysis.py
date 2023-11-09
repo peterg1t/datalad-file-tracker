@@ -4,7 +4,7 @@ This module allows the user to print the different network attributes as well as
 from pathlib import Path
 import copy
 import networkx as nx
-import utils
+import utilities
 
 
 class FileHandleNotFound(Exception):
@@ -143,13 +143,13 @@ def graph_relabel(graph, nmap):
     graph2remap.graph = nx.relabel_nodes(graph2remap.graph, nmap)
     for node, attrs in graph2remap.graph.nodes(data=True):
         if attrs["type"] == "file":
-            attrs["ID"] = utils.base_conversions(node)
+            attrs["ID"] = utilities.base_conversions(node)
 
     for node, attrs in graph2remap.graph.nodes(data=True):
         if attrs["type"] == "task":
             full_task_description = list(nx.all_neighbors(graph2remap.graph, node))
             full_task_description.append(attrs["cmd"])
-            attrs["ID"] = utils.base_conversions(",".join(sorted(full_task_description)))
+            attrs["ID"] = utilities.base_conversions(",".join(sorted(full_task_description)))
 
     return graph2remap
 
@@ -200,7 +200,7 @@ def graph_remap_attributes(graph, nmap):
 
         full_task_description = inputs_paths + output_paths
         full_task_description.append(attrs["command"])
-        graph2remap.graph.nodes[node]["ID"] = utils.base_conversions(
+        graph2remap.graph.nodes[node]["ID"] = utilities.base_conversions(
             ",".join(sorted(full_task_description))
         )
         inputs_mapped.update(outputs_mapped)

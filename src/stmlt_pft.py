@@ -9,7 +9,7 @@ import streamlit as st
 import networkx as nx
 from bokeh.transform import linear_cmap
 
-import utils
+import utilities
 
 
 profiler = cProfile.Profile()
@@ -76,19 +76,19 @@ def calculate_attribute(attr, dataset_name, branch):
             st.bokeh_chart(graph_plot_abstract, use_container_width=True)
 
         elif attr == "Betweeness Centrality":
-            node_attr = utils.calc_betw_centrl(provenance_graph.graph)
+            node_attr = utilities.calc_betw_centrl(provenance_graph.graph)
             plot_attributes(provenance_graph, node_attr)
 
         elif attr == "Degree Centrality":
-            node_attr = utils.deg_centrl(provenance_graph.graph)
+            node_attr = utilities.deg_centrl(provenance_graph.graph)
             plot_attributes(provenance_graph, node_attr)
 
         elif attr == "Bonacich Centrality":
-            node_attr = utils.eigen_centrl(provenance_graph.graph)
+            node_attr = utilities.eigen_centrl(provenance_graph.graph)
             plot_attributes(provenance_graph, node_attr)
 
         elif attr == "Closeness Centrality":
-            node_attr = utils.close_centrl(provenance_graph.graph)
+            node_attr = utilities.close_centrl(provenance_graph.graph)
             plot_attributes(provenance_graph, node_attr)
 
     else:
@@ -144,8 +144,8 @@ if __name__ == "__main__":
             )
 
         # # Sreamlit UI implementation
-        if utils.exists_case_sensitive(dataset_name):
-            branches_project = utils.get_branches(dataset_name)
+        if utilities.exists_case_sensitive(dataset_name):
+            branches_project = utilities.get_branches(dataset_name)
             branch_select = st.selectbox("Branches", branches_project)
 
             calculate_attribute(analysis_type, dataset_name, branch_select)
