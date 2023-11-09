@@ -291,54 +291,166 @@ def export_graph(**kwargs):
     except Exception as exception_graph:
         st.sidebar.text(f"{exception_graph}")
 
+def _get_commit_list(self, commits):
+        """! This function will append to run_cmd_commits if there is a DATALAD RUNCMD"""
+        return [item for item in commits if "DATALAD RUNCMD" in item.message]
 
-# def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
-#     """! Function to match the graphs loaded with Streamlit interface
+def _commit_message_node_extract(self, commit):
+    return ast.literal_eval(
+        re.search("(?=\{)(.|\n)*?(?<=\}\n)", commit.message).group(0)
+    )
 
-#     Args:
-#         provenance_ds_path (str)`: The path to the provenance dataset
-#         gdb_abstract (graph): An abstract graph
-#     """
-#     node_mapping = {}
-#     repo = git.Repo(provenance_ds_path)
-#     branch = repo.heads[ds_branch]
-#     branch.checkout()
-#     with open(f"{provenance_graph_path}/tf.csv", "r") as translation_file:
-#         reader = csv.reader(translation_file)
-#         for row in reader:
-#             node_mapping[row[0]] = f"{provenance_graph_path}/{row[1]}"
+def _get_dataset(self, dataset):
+    """! This function will return a Datalad dataset for the given path
+    Args:
+        dataset (str): _description_
+    Returns:
+        dset (Dataset): A Datalad dataset
+    """
+    dset = dl.Dataset(dataset)
+    if dset is not None:
+        return dset
+    
+def _get_superdataset(self, dataset):
+    """! This function will return the superdataset
+    Returns:
+        sds/dset (Dataset): A datalad superdataset
+    """
+    dset = dl.Dataset(dataset)
+    sds = dset.get_superdataset()
+    if sds is not None:  # pylint: disable = no-else-return
+        return sds
+    else:
+        return dset
+    
+def prov_scan(self):
+    """! This function will return the nodes and edges list
+    Args:
+        ds_name (str): A path to the dataset (or subdataset)
+    Returns:
+        graph: A networkx graph
+    """
+    node_list = []
+    edge_list = []
+    # subdatasets = self.superdataset.subdatasets()
+    subdatasets = [self.dataset.path]
+    for subdataset in subdatasets:
+        repo = git.Repo(subdataset)
+        commits = list(repo.iter_commits(repo.heads[self.ds_branch]))
+        dl_run_commits = _get_commit_list(commits)
+        for commit in dl_run_commits:
+            dict_o = _commit_message_node_extract(commit)
+            task = graphs.TaskWorkflow(
+                self.superdataset.path,
+                dict_o["cmd"],
+                commit.hexsha,
+                commit.author.name,
+                commit.authored_date,
+            )
+            if dict_o["inputs"]:
+                task.parent_files = dict_o["inputs"]
+                for input_file in task.parent_files:
+                    input_path = glob.glob(
+                        self.superdataset.path
+                        + f"/**/*{os.path.basename(input_file)}",
+                        recursive=True,
+                    )[0]
+                    ds_file = git.Repo(os.path.dirname(input_path))
+                    file_status = dl.status(
+                        path=input_path, dataset=ds_file.working_tree_dir
+                    )[0]
+                    file = graphs.FileWorkflow(
+                        subdataset,
+                        input_path,
+                        commit.hexsha,
+                        commit.author.name,
+                        commit.authored_date,
+                        file_status["gitshasum"],
+                    )
+                    file.ID = utils.encode(file.name)
+                    file.child_task = dict_o["cmd"]
+                    # Creating a shallow copy of the object attribute dictionary
+                    dict_file = copy.copy(file.__dict__)
+                    dict_file.pop("child_task", None)
+                    node_list.append((file.name, dict_file))
+                    edge_list.append((file.name, task.commit))
+            if dict_o["outputs"]:
+                task.child_files = dict_o["outputs"]
+                for output_file in task.child_files:
+                    output_path = glob.glob(
+                        self.superdataset.path + f"/**/*{os.path.basename(output_file)}",
+                        recursive=True,
+                    )[0]
+                    ds_file = git.Repo(os.path.dirname(output_path))
+                    file_status = dl.status(
+                        path=output_path, dataset=ds_file.working_tree_dir
+                    )[0]
+                    file = graphs.FileWorkflow(
+                        subdataset,
+                        output_path,
+                        commit.hexsha,
+                        commit.author.name,
+                        commit.authored_date,
+                        file_status["gitshasum"],
+                    )
+                    file.ID = utils.encode(file.name)
+                    file.parent_task = dict_o["cmd"]
+                    dict_file = copy.copy(file.__dict__)
+                    dict_file.pop("parent_task", None)
+                    node_list.append((file.name, dict_file))
+                    edge_list.append((task.commit, file.name))
+            node_list.append((task.commit, task.__dict__))
+    return node_list, edge_list
 
-#     if utils.exists_case_sensitive(provenance_ds_path):
-#         # try:
-#         gdb_provenance = graphs.GraphProvenance(provenance_ds_path, ds_branch)
-#         print("b4", gdb_abstract.graph.nodes)
-#         gdb_abstract = utils.graph_relabel(gdb_abstract, node_mapping)
-#         print("aft", gdb_abstract.graph.nodes(data=True))
 
-#         # except Exception as err:
-#         #     st.warning(
-#         #         f"Error creating graph object. Please check that your dataset path contains a valid Datalad dataset"
-#         #     )
-#         #     st.stop()
 
-#         gdb_abstract, gdb_difference = utils.graph_diff(gdb_abstract, gdb_provenance)
+def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
+    """! Function to match the graphs loaded with Streamlit interface
 
-#         graph_plot_abs = graph_object_plot(gdb_abstract)
-#         plot_graph(graph_plot_abs)
+    Args:
+        provenance_ds_path (str)`: The path to the provenance dataset
+        gdb_abstract (graph): An abstract graph
+    """
+    node_mapping = {}
+    repo = git.Repo(provenance_ds_path)
+    branch = repo.heads[ds_branch]
+    branch.checkout()
+    with open(f"{provenance_graph_path}/tf.csv", "r") as translation_file:
+        reader = csv.reader(translation_file)
+        for row in reader:
+            node_mapping[row[0]] = f"{provenance_graph_path}/{row[1]}"
 
-#         # graph_plot_diff = gdb_difference.graph_object_plot()
-#         # plot_graph(graph_plot_diff)
+    if utils.exists_case_sensitive(provenance_ds_path):
+        # try:
+        gdb_provenance = graphs.GraphProvenance(provenance_ds_path, ds_branch)
+        print("b4", gdb_abstract.graph.nodes)
+        gdb_abstract = utils.graph_relabel(gdb_abstract, node_mapping)
+        print("aft", gdb_abstract.graph.nodes(data=True))
 
-#         next_nodes_requirements = gdb_difference.next_nodes_run()
+        # except Exception as err:
+        #     st.warning(
+        #         f"Error creating graph object. Please check that your dataset path contains a valid Datalad dataset"
+        #     )
+        #     st.stop()
 
-#         if "next_nodes_req" not in st.session_state:
-#             st.session_state["next_nodes_req"] = next_nodes_requirements
+        gdb_abstract, gdb_difference = utils.graph_diff(gdb_abstract, gdb_provenance)
 
-#     else:
-#         st.warning(f"Path {provenance_ds_path} does not exist.")
-#         st.stop()
+        graph_plot_abs = graph_object_plot(gdb_abstract)
+        plot_graph(graph_plot_abs)
 
-#     return gdb_difference
+        # graph_plot_diff = gdb_difference.graph_object_plot()
+        # plot_graph(graph_plot_diff)
+
+        next_nodes_requirements = gdb_difference.next_nodes_run()
+
+        if "next_nodes_req" not in st.session_state:
+            st.session_state["next_nodes_req"] = next_nodes_requirements
+
+    else:
+        st.warning(f"Path {provenance_ds_path} does not exist.")
+        st.stop()
+
+    return gdb_difference
 
 
 def graph_object_plot(graph_input, fc="node_color"):
@@ -524,8 +636,6 @@ if __name__ == "__main__":
         )
         st.stop()
 
-    print("here0", gdb.nodes(data=True))
-
     graph_plot_abstract = graph_object_plot(gdb)
     plot_graph(graph_plot_abstract)
     if args.png_export:
@@ -546,17 +656,17 @@ if __name__ == "__main__":
     # to the abstract graph
     provenance_graph_path = st.sidebar.text_input("Path to the dataset with provenance")
 
-    # if st.sidebar.button("Generate code"):
-    #     code = generate_code(gdb)
-    #     st.text_area("Prefect code", code)
+    if st.sidebar.button("Generate code"):
+        code = generate_code(gdb)
+        st.text_area("Prefect code", code)
 
-    # if utils.exists_case_sensitive(provenance_graph_path):
-    #     branches_project = utils.get_branches(provenance_graph_path)
-    #     branch_select = st.sidebar.selectbox("Branches", branches_project)
-    #     match_button = st.sidebar.button("Match")
+    if utils.exists_case_sensitive(provenance_graph_path):
+        branches_project = utils.get_branches(provenance_graph_path)
+        branch_select = st.sidebar.selectbox("Branches", branches_project)
+        match_button = st.sidebar.button("Match")
 
-    #     if match_button:
-    #         match_graphs(provenance_graph_path, gdb, branch_select)
-    #     run_next_button = st.sidebar.button("Run pending nodes")
-    #     if run_next_button:
-    #         run_pending_nodes(gdb, branch_select)
+        if match_button:
+            match_graphs(provenance_graph_path, gdb, branch_select)
+        run_next_button = st.sidebar.button("Run pending nodes")
+        if run_next_button:
+            run_pending_nodes(gdb, branch_select)

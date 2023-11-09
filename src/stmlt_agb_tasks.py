@@ -319,6 +319,103 @@ def export_graph_tasks(**kwargs):
         st.sidebar.text(f"{exception_graph}")
 
 
+
+
+
+
+def _get_commit_list(self, commits):
+    """! This function will append to run_cmd_commits if there is a DATALAD RUNCMD"""
+    return [item for item in commits if "DATALAD RUNCMD" in item.message]
+
+
+def _commit_message_node_extract(self, commit):
+    return ast.literal_eval(
+        re.search("(?=\{)(.|\n)*?(?<=\}\n)", commit.message).group(0)
+    )
+
+
+def _get_dataset(self, dataset):
+    """! This function will return a Datalad dataset for the given path
+    Args:
+        dataset (str): _description_
+    Returns:
+        dset (Dataset): A Datalad dataset
+    """
+    dset = dl.Dataset(dataset)
+    if dset is not None:
+        return dset
+    
+
+def _get_superdataset(self, dataset):
+    """! This function will return the superdataset
+    Returns:
+        sds/dset (Dataset): A datalad superdataset
+    """
+    dset = dl.Dataset(dataset)
+    sds = dset.get_superdataset()
+    if sds is not None:  # pylint: disable = no-else-return
+        return sds
+    else:
+        return dset
+    
+
+def prov_scan(self):
+    """! This function will return the nodes and edges list
+    Args:
+        ds_name (str): A path to the dataset (or subdataset)
+    Returns:
+        graph: A networkx graph
+    """
+    node_list = []
+    edge_list = []
+    # subdatasets = self.superdataset.subdatasets()
+    subdatasets = [self.dataset.path]
+    for subdataset in subdatasets:
+        repo = git.Repo(subdataset)
+        commits = list(repo.iter_commits(repo.heads[self.ds_branch]))
+        dl_run_commits = _get_commit_list(commits)
+        for commit in dl_run_commits:
+            dict_o = _commit_message_node_extract(commit)
+            print('dictionary', dict_o)
+            task = graphs.TaskWorkflow(
+                self.superdataset.path,
+                dict_o["cmd"],
+                commit.hexsha,
+                commit.author.name,
+                commit.authored_date,
+            )
+            if dict_o["inputs"]:
+                for input_file in dict_o["inputs"]:
+                    input_path = glob.glob(
+                        self.superdataset.path
+                        + f"/**/*{os.path.basename(input_file)}",
+                        recursive=True,
+                    )[0]
+                    task.inputs.append(input_path)
+            
+            if dict_o["outputs"]:
+                for output_file in dict_o["outputs"]:
+                    output_path = glob.glob(
+                        self.superdataset.path 
+                        + f"/**/*{os.path.basename(output_file)}",
+                        recursive=True,
+                    )[0]
+                    task.outputs.append(output_path)
+            node_list.append((task.commit, task.__dict__))
+        for idx_node, node1 in enumerate(node_list):
+            for node2 in node_list[:idx_node + 1]:
+                diff_set = set(node1[1]["outputs"]).intersection(set(node2[1]["inputs"]))
+                if diff_set:
+                    edge_list.append((node1[0], node2[0]))
+    return node_list, edge_list
+
+
+
+
+
+
+
+
 def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
     """! Function to match the graphs loaded with Streamlit interface
 
