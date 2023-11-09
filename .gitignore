@@ -2,3 +2,4 @@
 .trunk/
 env/
 *.pyc
+__pycache__/
