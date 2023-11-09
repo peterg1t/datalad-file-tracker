@@ -38,6 +38,7 @@ def git_log_parse(ds_name, ds_branch):
         a_option (str): An analysis mode for the node calculation
     """
     try:
+        # gdb = graphs.GraphProvenance(ds_name, ds_branch)
         gdb = graphs.GraphProvenanceTasks(ds_name, ds_branch)
     except Exception as err:
         st.warning(

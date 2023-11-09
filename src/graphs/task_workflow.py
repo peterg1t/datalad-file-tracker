@@ -11,14 +11,11 @@ class TaskWorkflow(NodeWorkflow):
     """
 
     def __init__(self, dataset, command, commit, author, date):
-        super().__init__(commit, author, command, date, "", "", "", "")
+        super().__init__(commit, author, command, date, "")
         self.dataset = dataset
-        self.cmd = command
-        self.transform = ""
-        self.parentFiles = []
-        self.childFiles = []
-        self.type = "task"
-        self.node_color = "green"
+        self.command = command
+        self.inputs = []
+        self.outputs = []
 
     # def _encode(self, message):
     #     message_bytes = message.encode("ascii")
@@ -30,15 +27,3 @@ class TaskWorkflow(NodeWorkflow):
     #     message_bytes = base64.b64decode(base64_bytes)
     #     return message_bytes.decode("ascii")  # original message
 
-    def compute_id(self):
-        """This function will compute the ID and store it in the name attribute of the object"""
-        parents_path = []
-        childs_path = []
-
-        if self.parentFiles:
-            # parents_path = [os.path.basename(glob.glob(self.dataset+f"/**/*{os.path.basename(item)}", recursive=True)[0]) for item in self.parentFiles] # Just in case we need the full path in the future
-            parents_path = [os.path.basename(item) for item in self.parentFiles]
-
-        if self.childFiles:
-            # childs_path = [os.path.basename(glob.glob(self.dataset+f"/**/*{os.path.basename(item)}", recursive=True)[0]) for item in self.childFiles] # Just in case we need the full path in the future
-            childs_path = [os.path.basename(item) for item in self.childFiles]

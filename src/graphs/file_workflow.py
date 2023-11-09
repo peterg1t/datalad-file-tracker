@@ -16,16 +16,12 @@ class FileWorkflow(NodeWorkflow):
             author,
             name,
             date,
-            os.path.dirname(name),
-            os.path.basename(name).split(".")[0],
-            "",
             "",
         )
         self.dataset = dataset
         self.fileBlob = fileBlob
         self.parentTask = []
         self.childTask = []
-        self.type = "file"
         self.node_color = "red"
 
     def _encode(self, message):

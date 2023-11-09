@@ -24,8 +24,6 @@ class GraphBaseTasks:
         self.node_list = node_list
         self.edge_list = edge_list
         self.status = []
-        # self.absGraphID = absGraphID # An abstract graph ID
-        #  to match with this graph
         self.concrete_graph_ID = 0
         self.graph = self._graph_gen()
 

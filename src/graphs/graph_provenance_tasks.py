@@ -2,16 +2,14 @@
 import os
 import re
 import ast
-import copy
 import glob
 import git
 import datalad.api as dl
-import utils
 import graphs
-from .graph_base import GraphBase
+from .graph_base_tasks import GraphBaseTasks
 
 
-class GraphProvenanceTasks(GraphBase):  # pylint: disable = too-few-public-methods
+class GraphProvenanceTasks(GraphBaseTasks):  # pylint: disable = too-few-public-methods
     """! This class will represent a graph created from provenance
 
     Returns:
@@ -81,6 +79,7 @@ class GraphProvenanceTasks(GraphBase):  # pylint: disable = too-few-public-metho
 
             for commit in dl_run_commits:
                 dict_o = self._commit_message_node_extract(commit)
+                print('dictionary', dict_o)
 
                 task = graphs.TaskWorkflow(
                     self.superdataset.path,
@@ -97,7 +96,7 @@ class GraphProvenanceTasks(GraphBase):  # pylint: disable = too-few-public-metho
                             + f"/**/*{os.path.basename(input_file)}",
                             recursive=True,
                         )[0]
-                        task.parentFiles.append(input_path)
+                        task.inputs.append(input_path)
                 
                 if dict_o["outputs"]:
                     for output_file in dict_o["outputs"]:
@@ -106,15 +105,14 @@ class GraphProvenanceTasks(GraphBase):  # pylint: disable = too-few-public-metho
                             + f"/**/*{os.path.basename(output_file)}",
                             recursive=True,
                         )[0]
-                        task.childFiles.append(output_path)
+                        task.outputs.append(output_path)
 
                 node_list.append((task.commit, task.__dict__))
 
             for idx_node, node1 in enumerate(node_list):
                 for node2 in node_list[:idx_node + 1]:
-                    diff_set = set(node1[1]["childFiles"]).intersection(set(node2[1]["parentFiles"]))
+                    diff_set = set(node1[1]["outputs"]).intersection(set(node2[1]["inputs"]))
                     if diff_set:
                         edge_list.append((node1[0], node2[0]))
-
 
         return node_list, edge_list
