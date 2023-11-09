@@ -23,7 +23,7 @@ from bokeh.models import (
     DataRange1d,
 )
 from bokeh.io import export_png
-
+import datalad.api as dl
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
@@ -40,83 +40,6 @@ Welcome to the abstract graph builder!
 """
 )
 
-
-def graph_components_generator(number_of_tasks):
-    """! This function will generate the graph of the entire project
-
-    Args:
-        number_of_tasks (int): A number describing the number of tasks to be added
-
-    Returns:
-        inputs: A list of input files
-        commands: A list of commands (ideally one per task)
-        outputs: A list of output files
-    """
-    nodes = []
-    edges = []
-    for i in range(number_of_tasks):
-        container = st.container()
-        with container:
-            col1, col2, col3, col4, col5 = st.columns([1, 2, 2, 2, 2])
-            stage_type = col1.selectbox(
-                "Select node type", ["file", "task"], key=f"stage_{i}"
-            )
-            prec_nodes_grp = utils.remove_space(
-                col3.text_input(f"Preceding node(s) for stage{i}", key=f"node(s)_{i}")
-            ).split(",")
-
-            prec_nodes = []
-            for prec_nodes_item in prec_nodes_grp:
-                # for file definition lets check if we have defined multiple files with regex
-                nodes_expanded = utils.file_name_expansion(prec_nodes_item)
-                prec_nodes.extend(nodes_expanded)
-
-            if stage_type == "file":
-                file_grp = utils.remove_space(
-                    col2.text_input(
-                        f"File(s) for stage {i}",
-                        key=f"name_{i}",
-                        placeholder="File(s) Name (comma sepparated)",
-                    )
-                ).split(",")
-
-                files = []
-                for file_item in file_grp:
-                    # for file definition lets check if we have defined multiple files with regex
-                    files_expanded = utils.file_name_expansion(file_item)
-
-                    if (
-                        len(file_item.rstrip()) == 0
-                    ):  # if there is no file (or there is an empty file) stop the execution
-                        st.stop()
-
-                    files.extend(files_expanded)
-                    utils.process_file_node(files, prec_nodes, nodes, edges)
-
-            elif stage_type == "task":
-                task = col2.text_input(
-                    f"Task for stage {i}", key=f"name_{i}", placeholder="Task Name"
-                )
-
-                if not task:  # if there is no task stop the execution
-                    st.stop()
-
-                command = col4.text_input(
-                    f"Command for stage {i}", key=f"cmd_{i}", placeholder="Command"
-                )
-                workflow = col5.text_input(
-                    f"Workflow for stage {i}",
-                    key=f"wrkf_{i}",
-                    placeholder="Subworkflow",
-                )
-                if not workflow:
-                    workflow = "main"
-
-                utils.process_task_node(
-                    task, prec_nodes, command, workflow, nodes, edges
-                )
-
-    return nodes, edges
 
 
 def plot_graph(plot):
@@ -291,37 +214,7 @@ def export_graph(**kwargs):
     except Exception as exception_graph:
         st.sidebar.text(f"{exception_graph}")
 
-def _get_commit_list(self, commits):
-        """! This function will append to run_cmd_commits if there is a DATALAD RUNCMD"""
-        return [item for item in commits if "DATALAD RUNCMD" in item.message]
 
-def _commit_message_node_extract(self, commit):
-    return ast.literal_eval(
-        re.search("(?=\{)(.|\n)*?(?<=\}\n)", commit.message).group(0)
-    )
-
-def _get_dataset(self, dataset):
-    """! This function will return a Datalad dataset for the given path
-    Args:
-        dataset (str): _description_
-    Returns:
-        dset (Dataset): A Datalad dataset
-    """
-    dset = dl.Dataset(dataset)
-    if dset is not None:
-        return dset
-    
-def _get_superdataset(self, dataset):
-    """! This function will return the superdataset
-    Returns:
-        sds/dset (Dataset): A datalad superdataset
-    """
-    dset = dl.Dataset(dataset)
-    sds = dset.get_superdataset()
-    if sds is not None:  # pylint: disable = no-else-return
-        return sds
-    else:
-        return dset
     
 def prov_scan(self):
     """! This function will return the nodes and edges list
@@ -367,7 +260,7 @@ def prov_scan(self):
                         commit.authored_date,
                         file_status["gitshasum"],
                     )
-                    file.ID = utils.encode(file.name)
+                    file.ID = utils.base_conversions(file.name)
                     file.child_task = dict_o["cmd"]
                     # Creating a shallow copy of the object attribute dictionary
                     dict_file = copy.copy(file.__dict__)
@@ -393,7 +286,7 @@ def prov_scan(self):
                         commit.authored_date,
                         file_status["gitshasum"],
                     )
-                    file.ID = utils.encode(file.name)
+                    file.ID = utils.base_conversions(file.name)
                     file.parent_task = dict_o["cmd"]
                     dict_file = copy.copy(file.__dict__)
                     dict_file.pop("parent_task", None)
@@ -453,57 +346,7 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
     return gdb_difference
 
 
-def graph_object_plot(graph_input, fc="node_color"):
-    """! Utility to generate a plot for a networkx graph
-    Args:
-        graph_nx (graph): A networkx graph
-    Returns:
-        plot: A graphviz figure to be plotted with bokeh
-    """
-    # The next two lines are to fix an issue with bokeh 3.3.0 if using bokeh 2.4.3 these can be removed
-    mapping = dict((n, i) for i, n in enumerate(graph_input.nodes))
-    H = nx.relabel_nodes(graph_input, mapping=mapping)
-    nx.set_node_attributes(H, "grey", name=fc)   # adding grey color at initialization
-    graph_layout = graphviz_layout(
-        H, prog="dot", root=None, args="-Gnodesep=1000 -Grankdir=TB"
-    )
-    graph = from_networkx(H, graph_layout)
-    plot = figure(
-        title="File provenance tracker",
-        toolbar_location="below",
-        tools="pan,wheel_zoom",
-    )
-    plot.axis.visible = False
-    plot.x_range = DataRange1d(range_padding=0.5)
-    plot.y_range = DataRange1d(range_padding=0.5)
-    node_hover_tool = HoverTool(
-        tooltips=[
-            ("index", "@index"),
-            ("name", "@name"),
-            ("label", "@label"),
-            ("status", "@status"),
-            ("node_color", "@node_color"),
-            ("ID", "@ID")
-        ]
-    )
-    plot.add_tools(node_hover_tool, BoxZoomTool(), ResetTool())
-    graph.node_renderer.glyph = Circle(size=20, fill_color=fc)
-    plot.renderers.append(graph)
-    x_coord, y_coord = zip(*graph.layout_provider.graph_layout.values())
-    node_labels = nx.get_node_attributes(graph_input, "name")
-    node_names = list(node_labels.values())
-    source = ColumnDataSource({"x": x_coord, "y": y_coord, "name": node_names})
-    labels = LabelSet(
-        x="x",
-        y="y",
-        text="name",
-        source=source,
-        background_fill_color="white",
-        text_align="center",
-        y_offset=11,
-    )
-    plot.renderers.append(labels)
-    return plot
+
 
 
 def run_pending_nodes(gdb_difference, branch):
@@ -529,7 +372,7 @@ def run_pending_nodes(gdb_difference, branch):
     try:
         next_nodes_req = st.session_state["next_nodes_req"]
         for item in next_nodes_req:
-            for predecessors in gdb_differenŻe.predecessors(item):
+            for predecessors in gdb_difference.predecessors(item):
                 print("predecessors", predecessors)
                 inputs_dict[predecessors] = gdb_difference.nodes[predecessors]
                 inputs.append(gdb_difference.nodes[predecessors])
@@ -621,7 +464,7 @@ if __name__ == "__main__":
 
     else:
         tasks_number = st.number_input("Please define a number of stages", min_value=1)
-        node_list, edge_list = graph_components_generator(tasks_number)
+        node_list, edge_list = utils.graph_components_generator(tasks_number)
 
     try:
         gdb = nx.DiGraph()

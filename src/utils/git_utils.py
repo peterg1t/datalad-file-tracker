@@ -4,6 +4,41 @@ import git
 import subprocess
 import datalad.api as dl
 import uuid
+import ast
+import re
+
+
+def _get_commit_list(commits):
+        """! This function will append to run_cmd_commits if there is a DATALAD RUNCMD"""
+        return [item for item in commits if "DATALAD RUNCMD" in item.message]
+
+def _commit_message_node_extract(commit):
+    return ast.literal_eval(
+        re.search("(?=\{)(.|\n)*?(?<=\}\n)", commit.message).group(0)
+    )
+
+def _get_dataset(dataset):
+    """! This function will return a Datalad dataset for the given path
+    Args:
+        dataset (str): _description_
+    Returns:
+        dset (Dataset): A Datalad dataset
+    """
+    dset = dl.Dataset(dataset)
+    if dset is not None:
+        return dset
+    
+def _get_superdataset(dataset):
+    """! This function will return the superdataset
+    Returns:
+        sds/dset (Dataset): A datalad superdataset
+    """
+    dset = dl.Dataset(dataset)
+    sds = dset.get_superdataset()
+    if sds is not None:  # pylint: disable = no-else-return
+        return sds
+    else:
+        return dset
 
 def get_dataset(dataset):
     """! This function will return a Datalad dataset for the given path

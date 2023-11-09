@@ -1,6 +1,6 @@
-"""Init module for utilities"""
+"""Init module for utilities."""
 from .notes import PlotNotes, FileNote  # pylint: disable=import-error
-from .graph_analysis import (
+from ..graphs.graph_analysis import (
     calc_betw_centrl,
     deg_centrl,
     eigen_centrl,
@@ -10,7 +10,7 @@ from .graph_analysis import (
     graph_relabel,
     graph_remap_attributes
 )  # pylint: disable=import-error
-from .encode import encode, decode  # pylint: disable=import-error
+from .base_conversions import encode, decode  # pylint: disable=import-error
 from .paths_check import (
     is_tool,
     exists_case_sensitive,
@@ -24,7 +24,7 @@ from .string_manip import (
     file_name_expansion,
     remove_space,
 )  # pylint: disable=import-error
-from .graph_gen import gcg_processing, gcg_processing_tasks, process_file_node, process_task_node
+from ..graphs.graph_gen import gcg_processing, gcg_processing_tasks, process_file_node, process_task_node, graph_components_generator
 
 
 __all__ = [
@@ -62,6 +62,9 @@ __all__ = [
     "graph_components_generator",
     "gcg_processing_tasks",
     "process_file_node",
-    "process_task_node"
+    "process_task_node",
+    "graph_components_generator",
+    "encode",
+    "decode"
 
 ]
