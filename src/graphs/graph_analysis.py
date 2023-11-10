@@ -36,6 +36,7 @@ def deg_centrl(graph):
     return nx.degree_centrality(graph)
 
 
+
 def eigen_centrl(graph):
     """! This function will return the eigen vector centrality
 
@@ -46,6 +47,7 @@ def eigen_centrl(graph):
         node attribute: degree centrality
     """
     return nx.eigenvector_centrality_numpy(graph)
+
 
 
 def close_centrl(graph):
@@ -60,6 +62,8 @@ def close_centrl(graph):
     return nx.closeness_centrality(graph)
 
 
+
+
 def graph_diff(abstract, provenance):
     """! Calculate the difference of the abstract and provenance graphs
 
@@ -70,28 +74,31 @@ def graph_diff(abstract, provenance):
     Returns:
         graphs: An updated abstract graph with completed nodes for plotting and a graph containing the difference between the nodes. (abstract-concrete)
     """
-    abs_graph_id = list(nx.get_node_attributes(abstract.graph, "ID").values())
-    prov_graph_id = list(nx.get_node_attributes(provenance.graph, "ID").values())
+    abs_graph_id = list(nx.get_node_attributes(abstract, "ID").values())
+    prov_graph_id = list(nx.get_node_attributes(provenance, "ID").values())
+
+    print("graph_diff", provenance.nodes(data=True), prov_graph_id, '\n')
 
     difference = copy.deepcopy(abstract)
     nodes_update = [
-        n for n, v in abstract.graph.nodes(data=True) if v["ID"] in prov_graph_id
+        n for n, v in abstract.nodes(data=True) if v["ID"] in prov_graph_id
     ]
 
     for node in nodes_update:
-        nx.set_node_attributes(abstract.graph, {node: "complete"}, "status")
-        if abstract.graph.nodes()[node]["type"] == "task":
-            nx.set_node_attributes(abstract.graph, {node: "green"}, "node_color")
-        elif abstract.graph.nodes()[node]["type"] == "file":
-            nx.set_node_attributes(abstract.graph, {node: "red"}, "node_color")
+        nx.set_node_attributes(abstract, {node: "complete"}, "status")
+        if abstract.nodes()[node]["type"] == "task":
+            nx.set_node_attributes(abstract, {node: "green"}, "node_color")
+        elif abstract.nodes()[node]["type"] == "file":
+            nx.set_node_attributes(abstract, {node: "red"}, "node_color")
 
-    difference.graph.remove_nodes_from(
-        n for n, v in abstract.graph.nodes(data=True) if v["status"] == "complete"
+    difference.remove_nodes_from(
+        n for n, v in abstract.nodes(data=True) if v["status"] == "complete"
     )
 
     # In the difference graph the start_nodes is the list of nodes that can be
     # started (these should usually be a task)
     return abstract, difference
+
 
 
 def graph_diff_tasks(abstract, provenance):
@@ -140,16 +147,16 @@ def graph_relabel(graph, nmap):
         nmap (dict): Node remapping
     """
     graph2remap = copy.deepcopy(graph)
-    graph2remap.graph = nx.relabel_nodes(graph2remap.graph, nmap)
-    for node, attrs in graph2remap.graph.nodes(data=True):
+    graph2remap = nx.relabel_nodes(graph2remap, nmap)
+    for node, attrs in graph2remap.nodes(data=True):
         if attrs["type"] == "file":
-            attrs["ID"] = utilities.base_conversions(node)
+            attrs["ID"] = utilities.encode(node)
 
-    for node, attrs in graph2remap.graph.nodes(data=True):
+    for node, attrs in graph2remap.nodes(data=True):
         if attrs["type"] == "task":
-            full_task_description = list(nx.all_neighbors(graph2remap.graph, node))
+            full_task_description = list(nx.all_neighbors(graph2remap, node))
             full_task_description.append(attrs["cmd"])
-            attrs["ID"] = utilities.base_conversions(",".join(sorted(full_task_description)))
+            attrs["ID"] = utilities.encode(",".join(sorted(full_task_description)))
 
     return graph2remap
 
@@ -167,6 +174,8 @@ def _file_handles_for_node(
     #     handle: filepath for handle, filepath in file_handles.items()
     #     if handle in node_handles
     # }
+
+
 
 def _materialize_files_in_command(command: str, file_handles: dict[str, Path]) -> str:
     """Inject input/output files into their handles in a command."""
@@ -209,3 +218,34 @@ def graph_remap_attributes(graph, nmap):
         print(graph2remap.graph.nodes(data=True))
 
     return graph2remap
+
+
+
+
+def end_nodes(self):
+        """This function return the last node(s) in a tree
+
+        Returns:
+            list: A list of ending nodes
+        """
+        end_nodes = [
+            x
+            for x in self.graph.nodes()
+            if self.graph.out_degree(x) == 0 and self.graph.in_degree(x) == 1
+        ]
+        return end_nodes
+
+def next_nodes_run(graph):
+    """This function return the first node(s) in a tree or in the
+    case of a diff graph the next node scheduled to run
+    Returns:
+        list: A list of starting nodes
+    """
+    next_nodes_run = [
+        x
+        for x in graph.nodes()
+        if int(graph.out_degree(x)) >= 1 and int(graph.in_degree(x)) == 0
+    ]
+    
+    return next_nodes_run
+

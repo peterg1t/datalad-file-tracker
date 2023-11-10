@@ -42,7 +42,7 @@ def plot_graph(plot):
     st.bokeh_chart(plot, use_container_width=True)
 
 
-def prov_scan(self):
+def prov_scan(dataset_path, dataset_branch):
     """! This function will return the nodes and edges list
     Args:
         ds_name (str): A path to the dataset (or subdataset)
@@ -51,52 +51,48 @@ def prov_scan(self):
     """
     node_list = []
     edge_list = []
-    # subdatasets = self.superdataset.subdatasets()
-    subdatasets = [self.dataset.path]
+    superdataset = utilities.get_superdataset(dataset_path)
+    subdatasets = [dataset_path]
     for subdataset in subdatasets:
         repo = git.Repo(subdataset)
-        commits = list(repo.iter_commits(repo.heads[self.ds_branch]))
+        commits = list(repo.iter_commits(repo.heads[dataset_branch]))
         dl_run_commits = utilities.get_commit_list(commits)
         for commit in dl_run_commits:
+            task = {}
             dict_o = utilities.commit_message_node_extract(commit)
-            task = graphs.TaskWorkflow(
-                self.superdataset.path,
-                dict_o["cmd"],
-                commit.hexsha,
-                commit.author.name,
-                commit.authored_date,
-            )
-            if dict_o["inputs"]:
-                task.parent_files = dict_o["inputs"]
-                for input_file in task.parent_files:
+            task["dataset"] = superdataset.path 
+            task["command"] = dict_o["cmd"]
+            task["commit"] = commit.hexsha
+            task["author"] = commit.author.name
+            task["date"] = commit.authored_date
+            task["inputs"] = dict_o["inputs"]
+            task["outputs"] = dict_o["outputs"]
+            task["ID"] = 
+            if task["inputs"]:
+                for input_file in task["inputs"]:
+                    file = {}
                     input_path = glob.glob(
-                        self.superdataset.path + f"/**/*{os.path.basename(input_file)}",
+                        superdataset.path + f"/**/*{os.path.basename(input_file)}",
                         recursive=True,
                     )[0]
                     ds_file = git.Repo(os.path.dirname(input_path))
                     file_status = dl.status(
                         path=input_path, dataset=ds_file.working_tree_dir
                     )[0]
-                    file = graphs.FileWorkflow(
-                        subdataset,
-                        input_path,
-                        commit.hexsha,
-                        commit.author.name,
-                        commit.authored_date,
-                        file_status["gitshasum"],
-                    )
-                    file.ID = utilities.base_conversions(file.name)
-                    file.child_task = dict_o["cmd"]
-                    # Creating a shallow copy of the object attribute dictionary
-                    dict_file = copy.copy(file.__dict__)
-                    dict_file.pop("child_task", None)
-                    node_list.append((file.name, dict_file))
-                    edge_list.append((file.name, task.commit))
-            if dict_o["outputs"]:
-                task.child_files = dict_o["outputs"]
-                for output_file in task.child_files:
+                    file["dataset"] = subdataset
+                    file["input_path"] = input_path
+                    file["commit"] = commit.hexsha
+                    file["author"] = commit.author.name,
+                    file["date"] = commit.authored_date
+                    file["status"] = file_status["gitshasum"]
+                    file["ID"] = utilities.encode(file["input_path"])
+
+                    node_list.append((file["input_path"], file))
+                    edge_list.append((file["input_path"], task["commit"]))
+            if task["outputs"]:
+                for output_file in task["outputs"]:
                     output_path = glob.glob(
-                        self.superdataset.path
+                        superdataset.path
                         + f"/**/*{os.path.basename(output_file)}",
                         recursive=True,
                     )[0]
@@ -104,21 +100,17 @@ def prov_scan(self):
                     file_status = dl.status(
                         path=output_path, dataset=ds_file.working_tree_dir
                     )[0]
-                    file = graphs.FileWorkflow(
-                        subdataset,
-                        output_path,
-                        commit.hexsha,
-                        commit.author.name,
-                        commit.authored_date,
-                        file_status["gitshasum"],
-                    )
-                    file.ID = utilities.base_conversions(file.name)
-                    file.parent_task = dict_o["cmd"]
-                    dict_file = copy.copy(file.__dict__)
-                    dict_file.pop("parent_task", None)
-                    node_list.append((file.name, dict_file))
-                    edge_list.append((task.commit, file.name))
-            node_list.append((task.commit, task.__dict__))
+                    file["dataset"] = subdataset
+                    file["input_path"] = input_path
+                    file["commit"] = commit.hexsha
+                    file["author"] = commit.author.name
+                    file["date"] = commit.authored_date
+                    file["status"] = file_status["gitshasum"]
+                    file["ID"] = utilities.encode(file["input_path"])
+
+                    node_list.append((file["input_path"], file))
+                    edge_list.append((file["input_path"], task["commit"]))
+            node_list.append((task["commit"], task))
     return node_list, edge_list
 
 
@@ -139,27 +131,26 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
             node_mapping[row[0]] = f"{provenance_graph_path}/{row[1]}"
 
     if utilities.exists_case_sensitive(provenance_ds_path):
-        # try:
-        gdb_provenance = graphs.GraphProvenance(provenance_ds_path, ds_branch)
-        print("b4", gdb_abstract.graph.nodes)
+        nodes_provenance, edges_provenance = prov_scan(provenance_ds_path, ds_branch)
+        gdb_provenance = nx.DiGraph()
+        gdb_provenance.add_nodes_from(nodes_provenance)
+        gdb_provenance.add_edges_from(edges_provenance)
         gdb_abstract = graphs.graph_relabel(gdb_abstract, node_mapping)
-        print("aft", gdb_abstract.graph.nodes(data=True))
 
-        # except Exception as err:
-        #     st.warning(
-        #         f"Error creating graph object. Please check that your dataset path contains a valid Datalad dataset"
-        #     )
-        #     st.stop()
+        gdb_abstract, gdb_difference = graphs.graph_diff(gdb_abstract, gdb_provenance)
 
-        gdb_abstract, gdb_difference = utilities.graph_diff(gdb_abstract, gdb_provenance)
+        # graph_plot_abs = graphs.graph_object_plot(gdb_abstract)
+        # plot_graph(graph_plot_abs)
+        print("abstract graph", gdb_abstract.nodes(data=True), '\n')
 
-        graph_plot_abs = graphs.graph_object_plot(gdb_abstract)
-        plot_graph(graph_plot_abs)
+        print("provenance graph", gdb_provenance.nodes(data=True), '\n')
 
-        # graph_plot_diff = gdb_difference.graph_object_plot()
-        # plot_graph(graph_plot_diff)
+        print("difference graph", gdb_difference.nodes(data=True), '\n')
 
-        next_nodes_requirements = gdb_difference.next_nodes_run()
+        graph_plot_diff = graphs.graph_object_plot(gdb_difference)
+        plot_graph(graph_plot_diff)
+
+        next_nodes_requirements = graphs.next_nodes_run(gdb_difference)
 
         if "next_nodes_req" not in st.session_state:
             st.session_state["next_nodes_req"] = next_nodes_requirements
@@ -195,17 +186,13 @@ def run_pending_nodes(gdb_difference, branch):
         next_nodes_req = st.session_state["next_nodes_req"]
         for item in next_nodes_req:
             for predecessors in gdb_difference.predecessors(item):
-                print("predecessors", predecessors)
                 inputs_dict[predecessors] = gdb_difference.nodes[predecessors]
                 inputs.append(gdb_difference.nodes[predecessors])
 
             for successors in gdb_difference.successors(item):
                 outputs_dict[successors] = gdb_difference.nodes[successors]
 
-            print("inputs_dict", inputs_dict)
             inputs = list(inputs_dict.keys())
-            print("inputs_dict2", inputs)
-
             outputs = list(outputs_dict.keys())
             dataset = utilities.get_git_root(os.path.dirname(inputs[0]))
             command = gdb_difference.nodes[item]["cmd"]

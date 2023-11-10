@@ -1,11 +1,11 @@
 """Init file."""
 from src import graphs
-from src import io
+from src import import_export
 from src import utilities
 
 
 __all__ = [
     "graphs",
-    "io",
+    "import_export",
     "utilities"
 ]

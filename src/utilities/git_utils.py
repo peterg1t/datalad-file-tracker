@@ -29,7 +29,7 @@ def get_dataset(dataset):
     
     
 
-def get_superdataset(dataset):
+def get_superdataset(dataset: str) -> dl.Dataset:
     """! This function will return the superdataset
     Returns:
         sds/dset (Dataset): A datalad superdataset
