@@ -1,8 +1,9 @@
 """Init module for utilities."""
 from .base_conversions import encode, decode  # pylint: disable=import-error
-from .paths_check import (
+from .paths_utils import (
     is_tool,
     exists_case_sensitive,
+    full_path_from_partial
 )  # pylint: disable=import-error
 from .git_utils import (
     get_commit_list,
@@ -37,6 +38,7 @@ from .string_manip import (
 __all__ = [
     "is_tool",
     "exists_case_sensitive",
+    "full_path_from_partial",
     "get_commit_list",
     "commit_message_node_extract",
     "get_dataset",

@@ -77,12 +77,14 @@ def graph_diff(abstract, provenance):
     abs_graph_id = list(nx.get_node_attributes(abstract, "ID").values())
     prov_graph_id = list(nx.get_node_attributes(provenance, "ID").values())
 
-    print("graph_diff", provenance.nodes(data=True), prov_graph_id, '\n')
+    print("diff_nodes", abs_graph_id, prov_graph_id)
 
     difference = copy.deepcopy(abstract)
     nodes_update = [
         n for n, v in abstract.nodes(data=True) if v["ID"] in prov_graph_id
     ]
+    print("nodes_update", nodes_update)
+
 
     for node in nodes_update:
         nx.set_node_attributes(abstract, {node: "complete"}, "status")
@@ -116,8 +118,6 @@ def graph_diff_tasks(abstract, provenance):
 
     difference = copy.deepcopy(abstract)
 
-    print("a", abstract.graph.nodes(data=True))
-    print("p", provenance.graph.nodes(data=True))
     # print("difference", difference.graph.nodes(data=True))
     # nodes_update = [
     #     n for n, v in abstract.graph.nodes(data=True) if v["ID"] in prov_graph_id
@@ -157,6 +157,7 @@ def graph_relabel(graph, nmap):
             full_task_description = list(nx.all_neighbors(graph2remap, node))
             full_task_description.append(attrs["cmd"])
             attrs["ID"] = utilities.encode(",".join(sorted(full_task_description)))
+            # attrs["ID"] = ",".join(sorted(full_task_description))
 
     return graph2remap
 
