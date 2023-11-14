@@ -50,11 +50,11 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
         provenance_ds_path (str)`: The path to the provenance dataset
         gdb_abstract (graph): An abstract graph
     """
-    node_mapping = {}
+    
     repo = git.Repo(provenance_ds_path)
     branch = repo.heads[ds_branch]
     branch.checkout()
-    
+    node_mapping = transla
     
     {provenance_graph_path}/tf.csv"
 
