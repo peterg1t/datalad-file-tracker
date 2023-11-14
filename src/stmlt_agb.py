@@ -21,6 +21,7 @@ from apscheduler.executors.pool import ThreadPoolExecutor
 
 import utilities
 import graphs
+import match
 
 
 profiler = cProfile.Profile()
@@ -42,90 +43,6 @@ def plot_graph(plot):
     st.bokeh_chart(plot, use_container_width=True)
 
 
-def prov_scan(dataset_path, dataset_branch):
-    """! This function will return the nodes and edges list
-    Args:
-        ds_name (str): A path to the dataset (or subdataset)
-    Returns:
-        graph: A networkx graph
-    """
-    node_list = []
-    edge_list = []
-    superdataset = utilities.get_superdataset(dataset_path)
-    subdatasets = [dataset_path]
-    for subdataset in subdatasets:
-        repo = git.Repo(subdataset)
-        commits = list(repo.iter_commits(repo.heads[dataset_branch]))
-        dl_run_commits = utilities.get_commit_list(commits)
-        for commit in dl_run_commits:
-            task = {}
-            dict_o = utilities.commit_message_node_extract(commit)
-            task["dataset"] = superdataset.path
-            task["command"] = dict_o["cmd"]
-            task["commit"] = commit.hexsha
-            task["author"] = commit.author.name
-            task["date"] = datetime.utcfromtimestamp(commit.authored_date).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )
-            task["inputs"] = ",".join(sorted(dict_o["inputs"]))
-            task["outputs"] = ",".join(sorted(dict_o["outputs"]))
-
-            inputs_full_path = [
-                utilities.full_path_from_partial(superdataset.path, inp)
-                for inp in dict_o["inputs"]
-            ]
-            outputs_full_path = [
-                utilities.full_path_from_partial(superdataset.path, out)
-                for out in dict_o["outputs"]
-            ]
-            full_task_description = inputs_full_path + outputs_full_path
-            full_task_description.append(dict_o["cmd"])
-            task["ID"] = utilities.encode(",".join(sorted(full_task_description)))
-            # task["ID"] = ",".join(sorted(full_task_description))
-            if task["inputs"]:
-                for input_file in inputs_full_path:
-                    file = {}
-
-                    ds_file = git.Repo(os.path.dirname(input_file))
-                    file_status = dl.status(
-                        path=input_file, dataset=ds_file.working_tree_dir
-                    )[0]
-                    file["dataset"] = subdataset
-                    file["path"] = input_file
-                    file["commit"] = commit.hexsha
-                    file["author"] = commit.author.name
-                    file["date"] = datetime.utcfromtimestamp(
-                        commit.authored_date
-                    ).strftime("%Y-%m-%d %H:%M:%S")
-                    file["status"] = file_status["gitshasum"]
-                    file["ID"] = utilities.encode(file["path"])
-
-                    node_list.append((file["path"], file))
-                    edge_list.append((file["path"], task["commit"]))
-            if task["outputs"]:
-                for output_file in outputs_full_path:
-                    file = {}
-
-                    ds_file = git.Repo(os.path.dirname(output_file))
-                    file_status = dl.status(
-                        path=output_file, dataset=ds_file.working_tree_dir
-                    )[0]
-                    file["dataset"] = subdataset
-                    file["path"] = output_file
-                    file["commit"] = commit.hexsha
-                    file["author"] = commit.author.name
-                    file["date"] = datetime.utcfromtimestamp(
-                        commit.authored_date
-                    ).strftime("%Y-%m-%d %H:%M:%S")
-                    file["status"] = file_status["gitshasum"]
-                    file["ID"] = utilities.encode(file["path"])
-
-                    node_list.append((file["path"], file))
-                    edge_list.append((task["commit"], file["path"]))
-            node_list.append((task["commit"], task))
-    return node_list, edge_list
-
-
 def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
     """! Function to match the graphs loaded with Streamlit interface
 
@@ -137,37 +54,33 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
     repo = git.Repo(provenance_ds_path)
     branch = repo.heads[ds_branch]
     branch.checkout()
-    with open(f"{provenance_graph_path}/tf.csv", "r") as translation_file:
-        reader = csv.reader(translation_file)
-        for row in reader:
-            node_mapping[row[0]] = f"{provenance_graph_path}/{row[1]}"
+    
+    
+    {provenance_graph_path}/tf.csv"
 
     if utilities.exists_case_sensitive(provenance_ds_path):
-        nodes_provenance, edges_provenance = prov_scan(provenance_ds_path, ds_branch)
+        nodes_provenance, edges_provenance = graphs.prov_scan(provenance_ds_path, ds_branch)
         gdb_provenance = nx.DiGraph()
         gdb_provenance.add_nodes_from(nodes_provenance)
         gdb_provenance.add_edges_from(edges_provenance)
 
-        gdb_abstract = graphs.graph_relabel(gdb_abstract, node_mapping)
-        gdb_abstract, gdb_difference = graphs.graph_diff(gdb_abstract, gdb_provenance)
+        gdb_abstract = match.graph_remap_command(gdb_abstract, node_mapping)
+        gdb_abstract = match.graph_ID_relabel(gdb_abstract, node_mapping)
+        gdb_abstract, gdb_difference = match.graph_diff(gdb_abstract, gdb_provenance)
 
-        print("diff", gdb_difference.nodes(data=True))
+        graph_plot_diff = graphs.graph_object_plot(gdb_abstract)
+        plot_graph(graph_plot_diff)
 
-        # graph_plot_prov = graphs.graph_object_plot(gdb_provenance)
-        # plot_graph(graph_plot_prov)
         if gdb_difference:
-            graph_plot_diff = graphs.graph_object_plot(gdb_difference)
-            plot_graph(graph_plot_diff)
+            next_nodes_requirements = match.next_nodes_run(gdb_difference)
 
-            next_nodes_requirements = graphs.next_nodes_run(gdb_difference)
-
-        if "next_nodes_req" not in st.session_state:
             st.session_state["next_nodes_req"] = next_nodes_requirements
 
     else:
         st.warning(f"Path {provenance_ds_path} does not exist.")
         st.stop()
 
+    print("session state", st.session_state)
     return gdb_difference
 
 
@@ -187,13 +100,16 @@ def run_pending_nodes(gdb_difference, branch):
     with open(f"{provenance_graph_path}/tf.csv", "r") as translation_file:
         reader = csv.reader(translation_file)
         for row in reader:
-            node_mapping[row[0]] = f"{provenance_graph_path}/{row[1]}"
+            node_mapping[row[0]] = f"{provenance_graph_path}{row[1]}"
 
-    gdb_difference = utilities.graph_relabel(gdb_difference, node_mapping)
+    gdb_difference = match.graph_ID_relabel(gdb_difference, node_mapping)
+    print("graph_diff", gdb_difference.nodes(data=True),"\n")
 
     try:
-        next_nodes_req = st.session_state["next_nodes_req"]
-        for item in next_nodes_req:
+        next_nodes_run = st.session_state["next_nodes_req"]
+        print("next_nodes_run", next_nodes_run, st.session_state)
+
+        for item in next_nodes_run:
             for predecessors in gdb_difference.predecessors(item):
                 inputs_dict[predecessors] = gdb_difference.nodes[predecessors]
                 inputs.append(gdb_difference.nodes[predecessors])

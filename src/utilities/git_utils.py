@@ -148,13 +148,6 @@ def sub_push_flock(clone_dataset, ds_output, sibling):
     # print('outlogs_push=',outlogs)
     # print('errlogs_push=',errlogs)
 
-
-
-
-
-
-
-
 def job_checkout(clone_dataset, ds_output, branch):
     """ This task will perform a branch checkout
         @param source_dataset (str): The source dataset to push

@@ -23,14 +23,15 @@ from bokeh.models import (
     DataRange1d,
 )
 import git
-import utilities
 from bokeh.io import export_png
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
 
-
+import utilities
+import graphs
+import match
 
 profiler = cProfile.Profile()
 
@@ -40,7 +41,6 @@ st.write(
 Welcome to the abstract graph builder!
 """
 )
-
 
 
 def graph_components_generator(number_of_tasks):
@@ -192,9 +192,7 @@ def generate_code(gdb):
         )
 
         task_nodes = [
-            n
-            for n, v in gdb.graph.nodes(data=True)
-            if v["subworkflow"] == flow
+            n for n, v in gdb.graph.nodes(data=True) if v["subworkflow"] == flow
         ]
 
         body_list = []
@@ -320,102 +318,6 @@ def export_graph_tasks(**kwargs):
 
 
 
-
-
-
-def _get_commit_list(self, commits):
-    """! This function will append to run_cmd_commits if there is a DATALAD RUNCMD"""
-    return [item for item in commits if "DATALAD RUNCMD" in item.message]
-
-
-def _commit_message_node_extract(self, commit):
-    return ast.literal_eval(
-        re.search("(?=\{)(.|\n)*?(?<=\}\n)", commit.message).group(0)
-    )
-
-
-def _get_dataset(self, dataset):
-    """! This function will return a Datalad dataset for the given path
-    Args:
-        dataset (str): _description_
-    Returns:
-        dset (Dataset): A Datalad dataset
-    """
-    dset = dl.Dataset(dataset)
-    if dset is not None:
-        return dset
-    
-
-def _get_superdataset(self, dataset):
-    """! This function will return the superdataset
-    Returns:
-        sds/dset (Dataset): A datalad superdataset
-    """
-    dset = dl.Dataset(dataset)
-    sds = dset.get_superdataset()
-    if sds is not None:  # pylint: disable = no-else-return
-        return sds
-    else:
-        return dset
-    
-
-def prov_scan(self):
-    """! This function will return the nodes and edges list
-    Args:
-        ds_name (str): A path to the dataset (or subdataset)
-    Returns:
-        graph: A networkx graph
-    """
-    node_list = []
-    edge_list = []
-    # subdatasets = self.superdataset.subdatasets()
-    subdatasets = [self.dataset.path]
-    for subdataset in subdatasets:
-        repo = git.Repo(subdataset)
-        commits = list(repo.iter_commits(repo.heads[self.ds_branch]))
-        dl_run_commits = _get_commit_list(commits)
-        for commit in dl_run_commits:
-            dict_o = _commit_message_node_extract(commit)
-            print('dictionary', dict_o)
-            task = graphs.TaskWorkflow(
-                self.superdataset.path,
-                dict_o["cmd"],
-                commit.hexsha,
-                commit.author.name,
-                commit.authored_date,
-            )
-            if dict_o["inputs"]:
-                for input_file in dict_o["inputs"]:
-                    input_path = glob.glob(
-                        self.superdataset.path
-                        + f"/**/*{os.path.basename(input_file)}",
-                        recursive=True,
-                    )[0]
-                    task.inputs.append(input_path)
-            
-            if dict_o["outputs"]:
-                for output_file in dict_o["outputs"]:
-                    output_path = glob.glob(
-                        self.superdataset.path 
-                        + f"/**/*{os.path.basename(output_file)}",
-                        recursive=True,
-                    )[0]
-                    task.outputs.append(output_path)
-            node_list.append((task.commit, task.__dict__))
-        for idx_node, node1 in enumerate(node_list):
-            for node2 in node_list[:idx_node + 1]:
-                diff_set = set(node1[1]["outputs"]).intersection(set(node2[1]["inputs"]))
-                if diff_set:
-                    edge_list.append((node1[0], node2[0]))
-    return node_list, edge_list
-
-
-
-
-
-
-
-
 def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
     """! Function to match the graphs loaded with Streamlit interface
 
@@ -430,28 +332,23 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
     with open(f"{provenance_graph_path}/tf.csv", "r") as translation_file:
         reader = csv.reader(translation_file)
         for row in reader:
-            node_mapping[row[0]] = f"{provenance_graph_path}/{row[1]}"
+            node_mapping[row[0]] = f"{provenance_graph_path}{row[1]}"
 
     if utilities.exists_case_sensitive(provenance_ds_path):
-        # try:
-        gdb_provenance = graphs.GraphProvenance(provenance_ds_path, ds_branch)
-        gdb_abstract = utilities.graph_relabel(gdb_abstract, node_mapping)
+        nodes_provenance, edges_provenance = graphs.prov_scan(provenance_ds_path, ds_branch)
+        gdb_provenance = nx.DiGraph()
+        gdb_provenance.add_nodes_from(nodes_provenance)
+        gdb_provenance.add_edges_from(edges_provenance)
 
-        # except Exception as err:
-        #     st.warning(
-        #         f"Error creating graph object. Please check that your dataset path contains a valid Datalad dataset"
-        #     )
-        #     st.stop()
+        gdb_abstract = match.graph_remap_command_task(gdb_abstract, node_mapping)
+        gdb_abstract = match.graph_ID_relabel(gdb_abstract, node_mapping)
+        gdb_abstract, gdb_difference = match.graph_diff_tasks(gdb_abstract, gdb_provenance)
 
-        gdb_abstract, gdb_difference = utilities.graph_diff(gdb_abstract, gdb_provenance)
+        if gdb_difference:
+            graph_plot_diff = graphs.graph_object_plot_task(gdb_abstract)
+            plot_graph(graph_plot_diff)
 
-        graph_plot_abs = gdb_abstract.graph_object_plot()
-        plot_graph(graph_plot_abs)
-
-        # graph_plot_diff = gdb_difference.graph_object_plot()
-        # plot_graph(graph_plot_diff)
-
-        next_nodes_requirements = gdb_difference.next_nodes_run()
+            next_nodes_requirements = match.next_nodes_run(gdb_difference)
 
         if "next_nodes_req" not in st.session_state:
             st.session_state["next_nodes_req"] = next_nodes_requirements
@@ -479,7 +376,7 @@ def run_pending_nodes(gdb_difference, branch):
     with open(f"{provenance_graph_path}/tf.csv", "r") as translation_file:
         reader = csv.reader(translation_file)
         for row in reader:
-            node_mapping[row[0]] = f"{provenance_graph_path}/{row[1]}"
+            node_mapping[row[0]] = f"{provenance_graph_path}{row[1]}"
 
     gdb_difference = utilities.graph_relabel(gdb_difference, node_mapping)
 
@@ -520,7 +417,7 @@ def graph_object_plot(graph_input, fc="node_color"):
     # The next two lines are to fix an issue with bokeh 3.3.0 if using bokeh 2.4.3 these can be removed
     mapping = dict((n, i) for i, n in enumerate(graph_input.nodes))
     H = nx.relabel_nodes(graph_input, mapping=mapping)
-    nx.set_node_attributes(H, "grey", name=fc)   # adding grey color at initialization
+    nx.set_node_attributes(H, "grey", name=fc)  # adding grey color at initialization
     graph_layout = graphviz_layout(
         H, prog="dot", root=None, args="-Gnodesep=1000 -Grankdir=TB"
     )
@@ -542,7 +439,7 @@ def graph_object_plot(graph_input, fc="node_color"):
             ("outputs", "@outputs"),
             ("command", "@command"),
             ("message", "@message"),
-            ("PCE", "@PCE")
+            ("PCE", "@PCE"),
         ]
     )
     plot.add_tools(node_hover_tool, BoxZoomTool(), ResetTool())
@@ -563,6 +460,7 @@ def graph_object_plot(graph_input, fc="node_color"):
     )
     plot.renderers.append(labels)
     return plot
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

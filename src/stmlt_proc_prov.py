@@ -4,6 +4,7 @@ Docstring
 import os
 import argparse
 import git
+import networkx as nx
 from itertools import repeat
 from multiprocessing import Pool
 from concurrent import futures
@@ -15,6 +16,7 @@ import cProfile
 from bokeh.transform import linear_cmap
 
 import utilities
+import match
 
 
 profiler = cProfile.Profile()
@@ -37,6 +39,7 @@ def graph_diff_calc(gdb_abs, super_ds, run):
     output_datasets=[]
     
     for blob in tree.blobs:
+        print("blob name",blob.name)
         if blob.name == 'tf.csv':
             translation_file_data = blob.data_stream.read().decode('utf-8').split('\n')
  
@@ -45,11 +48,16 @@ def graph_diff_calc(gdb_abs, super_ds, run):
                 print('row',row,row_splitted, len(row_splitted))
                 node_mapping[row_splitted[0]] = f"{super_ds}/{row_splitted[1]}"
             
-            gdb_abs_proc = utilities.graph_relabel(gdb_abs,node_mapping)
+            # gdb_abs_proc = utilities.graph_relabel(gdb_abs,node_mapping)
+            gdb_abs_proc = match.graph_ID_relabel(gdb_abs, node_mapping)
             print('node_mapping', node_mapping, run)
-            print(gdb_abs_proc.graph.nodes())
+            print(gdb_abs_proc.nodes())
 
-            gdb_conc = graphs.GraphProvenance(super_ds, run)
+            nodes_provenance, edges_provenance = graphs.prov_scan(provenance_ds_path, ds_branch)
+            gdb_provenance = nx.DiGraph()
+            gdb_provenance.add_nodes_from(nodes_provenance)
+            gdb_provenance.add_edges_from(edges_provenance)
+
             gdb_abstract, gdb_difference = utilities.graph_diff(gdb_abs_proc, gdb_conc)
             
             #We now need to get the input file/files for this job so it can be passed to the pending nodes job

@@ -1,5 +1,6 @@
 """This module will generate prefect code."""
 import ast
+import networkx as nx
 
 
 def generate_code(gdb):

@@ -43,7 +43,7 @@ def graph_diff_calc(gdb_abs, super_ds, run):
                 row_splitted = row.split(',')
                 attribute_mapping[row_splitted[0]] = f"{super_ds}/{row_splitted[1]}"
             
-            gdb_abs_proc = utilities.graph_remap_attributes(gdb_abs, attribute_mapping)
+            gdb_abs_proc = utilities.graph_remap_command(gdb_abs, attribute_mapping)
             gdb_conc = graphs.GraphProvenanceTasks(super_ds, run)
             gdb_abstract, gdb_difference = utilities.graph_diff_tasks(gdb_abs_proc, gdb_conc)
             

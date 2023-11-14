@@ -22,22 +22,18 @@ def command_submit(command):
     return outlog, errlog
 
 
-def job_prepare(dataset,branch):
+def job_prepare(dataset, branch):
     outlogs = []
     errlogs = []
 
-    print(dataset)
     worktree_command = f"cd {dataset}; git worktree add .wt/{branch}_wt {branch}"
     outlog, errlog = command_submit(worktree_command)
 
-    outlogs.append(('dataset->', dataset))
+    outlogs.append(("dataset->", dataset))
     outlogs.append(outlog)
     errlogs.append(errlog)
 
-    print('logs',outlogs, errlogs)
-
-
-
+    print("logs", outlogs, errlogs)
 
 
 def job_clean(dataset):
@@ -54,8 +50,7 @@ def job_clean(dataset):
     outlogs.append(outlog)
     errlogs.append(errlog)
 
-    print('logs',outlogs, errlogs)
-
+    print("logs", outlogs, errlogs)
 
 
 def run_pending_nodes(original_ds, dataset, gdb_abstract, gdb_difference, branch):
@@ -71,39 +66,36 @@ def run_pending_nodes(original_ds, dataset, gdb_abstract, gdb_difference, branch
     Returns:
         _type_: _description_
     """
-    inputs =[] 
-    outputs=[]
-    input_datasets =[]
-    output_datasets =[]
+    inputs = []
+    outputs = []
+    input_datasets = []
+    output_datasets = []
     # try:
     next_nodes_req = gdb_difference.next_nodes_run()
-    print('Inputs')
-    print(original_ds)
-    print(dataset)
-    print(branch)
+    print("next_nodes_req", next_nodes_req, "branch->", branch)
 
-    print('next_nodes_req', next_nodes_req, 'branch->', branch)
-   
     for item in next_nodes_req:
-        inputs.extend([os.path.join(dataset,os.path.relpath(p, original_ds)) for p in gdb_abstract.graph.predecessors(item)])
-        outputs.extend([os.path.join(dataset,os.path.relpath(s, original_ds)) for s in gdb_abstract.graph.successors(item)])
-        
-    
+        inputs.extend(
+            [
+                os.path.join(dataset, os.path.relpath(p, original_ds))
+                for p in gdb_abstract.graph.predecessors(item)
+            ]
+        )
+        outputs.extend(
+            [
+                os.path.join(dataset, os.path.relpath(s, original_ds))
+                for s in gdb_abstract.graph.successors(item)
+            ]
+        )
+
     if inputs:
-        if ( (all( [os.path.exists(os.path.dirname(f)) for f in outputs] ) and all( [os.path.exists(os.path.dirname(f)) for f in inputs] ))):
+        if all([os.path.exists(os.path.dirname(f)) for f in outputs]) and all(
+            [os.path.exists(os.path.dirname(f)) for f in inputs]
+        ):
             command = gdb_difference.graph.nodes[item]["cmd"]
             message = "test"
 
             return job_submit(dataset, branch, inputs, outputs, message, command)
-
-            
- 
-
-
-
-
-    
-
 
 
 def job_submit(dataset, branch, inputs, outputs, message, command):
@@ -121,7 +113,7 @@ def job_submit(dataset, branch, inputs, outputs, message, command):
     """
     outlogs = []
     errlogs = []
-    print('submitting job', inputs, outputs, branch, message, command)
+    print("submitting job", inputs, outputs, branch, message, command)
 
     # making the output stage folder
     if os.path.exists(os.path.dirname(outputs[0])):
@@ -132,11 +124,15 @@ def job_submit(dataset, branch, inputs, outputs, message, command):
     inputs_proc = " -i ".join(inputs)
     outputs_proc = " -o ".join(outputs)
     # saving the dataset prior to processing
-    dl.save(path=dataset, dataset=dataset)
-
-    datalad_run_command = f"cd {dataset}; datalad run -m '{message}' -d '{dataset}' -i {inputs_proc} -o {outputs_proc} '{command}'"
-    print('command->', datalad_run_command, 'branch->', branch)
     
+    superdataset = utilities.get_superdataset(dataset=dataset)
+
+    dl.save(path=superdataset.path, dataset=superdataset.path, recursive=True)
+
+    datalad_run_command = f"cd {superdataset.path}; datalad run -m '{message}' -d^ -i {inputs_proc} -o {outputs_proc} '{command}'"
+    # datalad_run_command = f"cd {dataset}; datalad run -m '{message}' -d '{dataset}' -i {inputs_proc} -o {outputs_proc} '{command}'"
+    print("command->", datalad_run_command, "branch->", branch)
+
     outlog, errlog = command_submit(datalad_run_command)
     outlogs.append(outlog)
     errlogs.append(errlog)
@@ -145,6 +141,6 @@ def job_submit(dataset, branch, inputs, outputs, message, command):
             raise Exception(
                 "Error found in the datalad containers run command, check the log for more information on this error."
             )
-    
-    print('logs',outlogs, errlogs)
+
+    print("logs", outlogs, errlogs)
     return outlogs
