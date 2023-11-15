@@ -46,8 +46,7 @@ def prov_scan(dataset_path, dataset_branch):
             if task["inputs"]:
                 for input_file in inputs_full_path:
                     file = {}
-
-                    ds_file = git.Repo(os.path.dirname(input_file))
+                    ds_file = git.Repo(utilities.get_git_root(input_file))
                     file_status = dl.status(
                         path=input_file, dataset=ds_file.working_tree_dir
                     )[0]
@@ -67,7 +66,7 @@ def prov_scan(dataset_path, dataset_branch):
                 for output_file in outputs_full_path:
                     file = {}
 
-                    ds_file = git.Repo(os.path.dirname(output_file))
+                    ds_file = git.Repo(utilities.get_git_root(output_file))
                     file_status = dl.status(
                         path=output_file, dataset=ds_file.working_tree_dir
                     )[0]

@@ -22,6 +22,7 @@ from apscheduler.executors.pool import ThreadPoolExecutor
 import utilities
 import graphs
 import match
+import import_export
 
 
 profiler = cProfile.Profile()
@@ -54,9 +55,7 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
     repo = git.Repo(provenance_ds_path)
     branch = repo.heads[ds_branch]
     branch.checkout()
-    node_mapping = transla
-    
-    {provenance_graph_path}/tf.csv"
+    node_mapping = import_export.translation_file_process(f"{provenance_ds_path}/tf.csv")
 
     if utilities.exists_case_sensitive(provenance_ds_path):
         nodes_provenance, edges_provenance = graphs.prov_scan(provenance_ds_path, ds_branch)
@@ -67,6 +66,9 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
         gdb_abstract = match.graph_remap_command(gdb_abstract, node_mapping)
         gdb_abstract = match.graph_ID_relabel(gdb_abstract, node_mapping)
         gdb_abstract, gdb_difference = match.graph_diff(gdb_abstract, gdb_provenance)
+        print("abstract", gdb_abstract.nodes(data=True), "\n")
+        print("provenance", gdb_provenance.nodes(data=True), "\n")
+        print("difference", gdb_difference.nodes(data=True), "\n")
 
         graph_plot_diff = graphs.graph_object_plot(gdb_abstract)
         plot_graph(graph_plot_diff)
@@ -74,6 +76,7 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
         if gdb_difference:
             next_nodes_requirements = match.next_nodes_run(gdb_difference)
 
+        if "next_nodes_req" not in st.session_state:
             st.session_state["next_nodes_req"] = next_nodes_requirements
 
     else:

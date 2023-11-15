@@ -185,13 +185,11 @@ def graph_remap_command(graph, nmap):
             node_handles_paths = _neighbour_handles_for_node(graph, node, nmap)
             neighbors_inputs = list(graph.predecessors(node))
             neighbors_outputs = list(graph.successors(node))
-            print("neigh inputs",neighbors_inputs, nmap)
 
             inputs_mapped = {inp: nmap[inp] for inp in neighbors_inputs}
             outputs_mapped = {out: nmap[out] for out in neighbors_outputs}
             inputs_paths = [nmap[inp] for inp in neighbors_inputs]
             output_paths = [nmap[out] for out in neighbors_outputs]
-            print("inputs_paths", inputs_paths)
 
             graph2remap.nodes[node]["inputs"] = inputs_paths
             graph2remap.nodes[node]["outputs"] = output_paths
