@@ -11,6 +11,17 @@ import cProfile
 import streamlit as st
 import csv
 import networkx as nx
+from networkx.drawing.nx_agraph import graphviz_layout
+from bokeh.plotting import from_networkx, figure
+from bokeh.models import (
+    BoxZoomTool,
+    Circle,
+    HoverTool,
+    ResetTool,
+    ColumnDataSource,
+    LabelSet,
+    DataRange1d,
+)
 import git
 from bokeh.io import export_png
 
@@ -18,9 +29,9 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
 
+import utilities
 import graphs
-import utils
-
+import match
 
 profiler = cProfile.Profile()
 
@@ -91,7 +102,7 @@ def graph_components_generator(number_of_tasks):
             inputs = []
             outputs = []
             for item in inputs_grp.split(","):
-                inps_expanded = utils.file_name_expansion(item)
+                inps_expanded = utilities.file_name_expansion(item)
 
                 if (
                     len(item.rstrip()) == 0
@@ -101,7 +112,7 @@ def graph_components_generator(number_of_tasks):
                 inputs.extend(inps_expanded)
 
             for item in outputs_grp.split(","):
-                outps_expanded = utils.file_name_expansion(item)
+                outps_expanded = utilities.file_name_expansion(item)
 
                 if (
                     len(item.rstrip()) == 0
@@ -129,13 +140,10 @@ def graph_components_generator(number_of_tasks):
 
     for node1 in nodes:
         for node2 in nodes:
-            print(set(node1[1]["outputs"]), set(node2[1]["inputs"]), "nodes->", nodes)
             diff_set = set(node1[1]["outputs"]).intersection(set(node2[1]["inputs"]))
-            print(diff_set)
             if diff_set:
                 edges.append((node1[0], node2[0]))
 
-    print("results", nodes, edges)
     return nodes, edges
 
 
@@ -170,7 +178,7 @@ def generate_code(gdb):
         type_ignores=[],
     )
 
-    workflows = nx.get_node_attributes(gdb.graph, "workflow").values()
+    workflows = nx.get_node_attributes(gdb.graph, "subworkflow").values()
     workflows_unique = list(dict.fromkeys(workflows))
 
     flow_list = []
@@ -184,18 +192,16 @@ def generate_code(gdb):
         )
 
         task_nodes = [
-            n
-            for n, v in gdb.graph.nodes(data=True)
-            if v["type"] == "task" and v["workflow"] == flow
+            n for n, v in gdb.graph.nodes(data=True) if v["subworkflow"] == flow
         ]
 
         body_list = []
         for task in task_nodes:
             # inputs  = gdb.graph.predecessors(task)
             # outputs = gdb.graph.successors(task)
-            inputs = gdb.graph.nodes[task]["inputs"].split(",")
-            outputs = gdb.graph.nodes[task]["outputs"].split(",")
-            command = gdb.graph.nodes[task]["cmd"]
+            inputs = gdb.graph.nodes[task]["inputs"][0].split(",")
+            outputs = gdb.graph.nodes[task]["outputs"][0].split(",")
+            command = gdb.graph.nodes[task]["command"]
 
             body_list.append(
                 ast.Assign(
@@ -235,11 +241,11 @@ def generate_code(gdb):
             )
             body_list.append(
                 ast.Assign(
-                    targets=[ast.Name(id="cmd", ctx=ast.Store())],
+                    targets=[ast.Name(id="command", ctx=ast.Store())],
                     value=ast.Call(
                         func=ast.Attribute(
                             value=ast.Name(id=task, ctx=ast.Load()),
-                            attr="cmd",
+                            attr="command",
                             ctx=ast.Load(),
                         ),
                         args=[],
@@ -311,6 +317,7 @@ def export_graph_tasks(**kwargs):
         st.sidebar.text(f"{exception_graph}")
 
 
+
 def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
     """! Function to match the graphs loaded with Streamlit interface
 
@@ -325,28 +332,23 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
     with open(f"{provenance_graph_path}/tf.csv", "r") as translation_file:
         reader = csv.reader(translation_file)
         for row in reader:
-            node_mapping[row[0]] = f"{provenance_graph_path}/{row[1]}"
+            node_mapping[row[0]] = f"{provenance_graph_path}{row[1]}"
 
-    if utils.exists_case_sensitive(provenance_ds_path):
-        # try:
-        gdb_provenance = graphs.GraphProvenance(provenance_ds_path, ds_branch)
-        gdb_abstract = utils.graph_relabel(gdb_abstract, node_mapping)
+    if utilities.exists_case_sensitive(provenance_ds_path):
+        nodes_provenance, edges_provenance = graphs.prov_scan(provenance_ds_path, ds_branch)
+        gdb_provenance = nx.DiGraph()
+        gdb_provenance.add_nodes_from(nodes_provenance)
+        gdb_provenance.add_edges_from(edges_provenance)
 
-        # except Exception as err:
-        #     st.warning(
-        #         f"Error creating graph object. Please check that your dataset path contains a valid Datalad dataset"
-        #     )
-        #     st.stop()
+        gdb_abstract = match.graph_remap_command_task(gdb_abstract, node_mapping)
+        gdb_abstract = match.graph_ID_relabel(gdb_abstract, node_mapping)
+        gdb_abstract, gdb_difference = match.graph_diff_tasks(gdb_abstract, gdb_provenance)
 
-        gdb_abstract, gdb_difference = utils.graph_diff(gdb_abstract, gdb_provenance)
+        if gdb_difference:
+            graph_plot_diff = graphs.graph_object_plot_task(gdb_abstract)
+            plot_graph(graph_plot_diff)
 
-        graph_plot_abs = gdb_abstract.graph_object_plot()
-        plot_graph(graph_plot_abs)
-
-        # graph_plot_diff = gdb_difference.graph_object_plot()
-        # plot_graph(graph_plot_diff)
-
-        next_nodes_requirements = gdb_difference.next_nodes_run()
+            next_nodes_requirements = match.next_nodes_run(gdb_difference)
 
         if "next_nodes_req" not in st.session_state:
             st.session_state["next_nodes_req"] = next_nodes_requirements
@@ -374,9 +376,9 @@ def run_pending_nodes(gdb_difference, branch):
     with open(f"{provenance_graph_path}/tf.csv", "r") as translation_file:
         reader = csv.reader(translation_file)
         for row in reader:
-            node_mapping[row[0]] = f"{provenance_graph_path}/{row[1]}"
+            node_mapping[row[0]] = f"{provenance_graph_path}{row[1]}"
 
-    gdb_difference = utils.graph_relabel(gdb_difference, node_mapping)
+    gdb_difference = utilities.graph_relabel(gdb_difference, node_mapping)
 
     try:
         next_nodes_req = st.session_state["next_nodes_req"]
@@ -390,13 +392,12 @@ def run_pending_nodes(gdb_difference, branch):
 
             inputs = list(inputs_dict.keys())
             outputs = list(outputs_dict.keys())
-            dataset = utils.get_git_root(os.path.dirname(inputs[0]))
+            dataset = utilities.get_git_root(os.path.dirname(inputs[0]))
             command = gdb_difference.graph.nodes[item]["cmd"]
             message = "test"
 
-            print("submit_job", dataset, inputs, outputs, message, "command=", command)
             scheduler.add_job(
-                utils.job_submit,
+                utilities.job_submit,
                 args=[dataset, branch, inputs, outputs, message, command],
             )
 
@@ -404,6 +405,61 @@ def run_pending_nodes(gdb_difference, branch):
         st.warning(
             f"No provance graph has been matched to this abstract graph, match one first {err}"
         )
+
+
+def graph_object_plot(graph_input, fc="node_color"):
+    """! Utility to generate a plot for a networkx graph
+    Args:
+        graph_nx (graph): A networkx graph
+    Returns:
+        plot: A graphviz figure to be plotted with bokeh
+    """
+    # The next two lines are to fix an issue with bokeh 3.3.0 if using bokeh 2.4.3 these can be removed
+    mapping = dict((n, i) for i, n in enumerate(graph_input.nodes))
+    H = nx.relabel_nodes(graph_input, mapping=mapping)
+    nx.set_node_attributes(H, "grey", name=fc)  # adding grey color at initialization
+    graph_layout = graphviz_layout(
+        H, prog="dot", root=None, args="-Gnodesep=1000 -Grankdir=TB"
+    )
+    graph = from_networkx(H, graph_layout)
+    plot = figure(
+        title="File provenance tracker",
+        toolbar_location="below",
+        tools="pan,wheel_zoom",
+    )
+    plot.axis.visible = False
+    plot.x_range = DataRange1d(range_padding=0.5)
+    plot.y_range = DataRange1d(range_padding=0.5)
+    node_hover_tool = HoverTool(
+        tooltips=[
+            ("index", "@index"),
+            ("description", "@description"),
+            ("subworkflow", "@subworkflow"),
+            ("inputs", "@inputs"),
+            ("outputs", "@outputs"),
+            ("command", "@command"),
+            ("message", "@message"),
+            ("PCE", "@PCE"),
+        ]
+    )
+    plot.add_tools(node_hover_tool, BoxZoomTool(), ResetTool())
+    graph.node_renderer.glyph = Circle(size=20, fill_color=fc)
+    plot.renderers.append(graph)
+    x_coord, y_coord = zip(*graph.layout_provider.graph_layout.values())
+    node_labels = nx.get_node_attributes(graph_input, "description")
+    node_names = list(node_labels.values())
+    source = ColumnDataSource({"x": x_coord, "y": y_coord, "description": node_names})
+    labels = LabelSet(
+        x="x",
+        y="y",
+        text="description",
+        source=source,
+        background_fill_color="white",
+        text_align="center",
+        y_offset=11,
+    )
+    plot.renderers.append(labels)
+    return plot
 
 
 if __name__ == "__main__":
@@ -465,15 +521,16 @@ if __name__ == "__main__":
     edge_list = None  # pylint: disable=invalid-name
 
     if args.agraph:
-        # node_list, edge_list = utils.gcg_from_file(args.agraph)
-        node_list, edge_list = utils.gcg_processing(args.agraph)
+        node_list, edge_list = utilities.gcg_processing_tasks(args.agraph)
 
     else:
         tasks_number = st.number_input("Please define a number of stages", min_value=1)
         node_list, edge_list = graph_components_generator(tasks_number)
 
     try:
-        gdb = graphs.GraphBaseTasks(node_list, edge_list)
+        gdb = nx.DiGraph()
+        gdb.add_nodes_from(node_list)
+        gdb.add_edges_from(edge_list)
         st.success("Graph created")
 
     except ValueError as e:
@@ -483,7 +540,7 @@ if __name__ == "__main__":
         )
         st.stop()
 
-    graph_plot_abstract = gdb.graph_object_plot()
+    graph_plot_abstract = graph_object_plot_abstract(gdb)
     plot_graph(graph_plot_abstract)
     if args.png_export:
         export_png(graph_plot_abstract, filename=args.png_export)
@@ -507,8 +564,8 @@ if __name__ == "__main__":
         code = generate_code(gdb)
         st.text_area("Prefect code", code)
 
-    if utils.exists_case_sensitive(provenance_graph_path):
-        branches_project = utils.get_branches(provenance_graph_path)
+    if utilities.exists_case_sensitive(provenance_graph_path):
+        branches_project = utilities.get_branches(provenance_graph_path)
         branch_select = st.sidebar.selectbox("Branches", branches_project)
         match_button = st.sidebar.button("Match")
 

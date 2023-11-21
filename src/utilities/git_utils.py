@@ -3,7 +3,18 @@ import os
 import git
 import subprocess
 import datalad.api as dl
-import uuid
+import ast
+import re
+
+
+def get_commit_list(commits):
+        """! This function will append to run_cmd_commits if there is a DATALAD RUNCMD"""
+        return [item for item in commits if "DATALAD RUNCMD" in item.message]
+
+def commit_message_node_extract(commit):
+    return ast.literal_eval(
+        re.search("(?=\{)(.|\n)*?(?<=\}\n)", commit.message).group(0)
+    )
 
 def get_dataset(dataset):
     """! This function will return a Datalad dataset for the given path
@@ -18,7 +29,7 @@ def get_dataset(dataset):
     
     
 
-def get_superdataset(dataset):
+def get_superdataset(dataset: str) -> dl.Dataset:
     """! This function will return the superdataset
     Returns:
         sds/dset (Dataset): A datalad superdataset
@@ -136,13 +147,6 @@ def sub_push_flock(clone_dataset, ds_output, sibling):
     errlogs.append(errlog)
     # print('outlogs_push=',outlogs)
     # print('errlogs_push=',errlogs)
-
-
-
-
-
-
-
 
 def job_checkout(clone_dataset, ds_output, branch):
     """ This task will perform a branch checkout

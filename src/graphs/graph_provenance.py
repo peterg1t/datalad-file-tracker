@@ -1,155 +1,94 @@
-"""A class for graph provenance"""
 import os
-import re
-import ast
-import copy
-import glob
-import git
 import datalad.api as dl
-import utils
-import graphs
-from graphs.graph_base import GraphBase
+from datetime import datetime
+import git
+import utilities
 
-
-class GraphProvenance(GraphBase):  # pylint: disable = too-few-public-methods
-    """! This class will represent a graph created from provenance
-
+def prov_scan(dataset_path, dataset_branch):
+    """! This function will return the nodes and edges list
+    Args:
+        ds_name (str): A path to the dataset (or subdataset)
     Returns:
-        obj: A provenance graph object
+        graph: A networkx graph
     """
+    node_list = []
+    edge_list = []
+    superdataset = utilities.get_superdataset(dataset_path)
+    subdatasets = [dataset_path]
+    for subdataset in subdatasets:
+        repo = git.Repo(subdataset)
+        commits = list(repo.iter_commits(repo.heads[dataset_branch]))
+        dl_run_commits = utilities.get_commit_list(commits)
+        for commit in dl_run_commits:
+            task = {}
+            dict_o = utilities.commit_message_node_extract(commit)
+            task["dataset"] = superdataset.path
+            task["command"] = dict_o["cmd"]
+            task["commit"] = commit.hexsha
+            task["author"] = commit.author.name
+            task["date"] = datetime.utcfromtimestamp(commit.authored_date).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+            task["inputs"] = ",".join(sorted(dict_o["inputs"]))
+            task["outputs"] = ",".join(sorted(dict_o["outputs"]))
 
-    def __init__(self, ds_name, ds_branch):
-        self.dataset = self._get_dataset(ds_name)
-        self.superdataset = self._get_superdataset(ds_name)
-        self.ds_branch = ds_branch
-        self.node_list, self.edge_list = self.prov_scan()
-        super().__init__(self.node_list, self.edge_list)
+            # inputs_full_path = [
+            #     utilities.full_path_from_partial(superdataset.path, inp)
+            #     for inp in dict_o["inputs"]
+            # ]
+            # outputs_full_path = [
+            #     utilities.full_path_from_partial(superdataset.path, out)
+            #     for out in dict_o["outputs"]
+            # ]
+            inputs = dict_o["inputs"]
+            outputs = dict_o["outputs"]
 
-    def _get_commit_list(self, commits):
-        """! This function will append to run_cmd_commits if there is a DATALAD RUNCMD"""
-        return [item for item in commits if "DATALAD RUNCMD" in item.message]
+            full_task_description = inputs + outputs
+            full_task_description.append(dict_o["cmd"])
+            # task["ID"] = utilities.encode(",".join(sorted(full_task_description)))
+            task["ID"] = ",".join(sorted(full_task_description))
+            if task["inputs"]:
+                for input_file in inputs:
+                    input_file_full_path = utilities.full_path_from_partial(superdataset.path, input_file)
+                    file = {}
+                    ds_file = git.Repo(utilities.get_git_root(input_file_full_path))
+                    file_status = dl.status(
+                        path=input_file_full_path, dataset=ds_file.working_tree_dir
+                    )[0]
+                    file["dataset"] = subdataset
+                    file["path"] = input_file
+                    file["commit"] = commit.hexsha
+                    file["author"] = commit.author.name
+                    file["date"] = datetime.utcfromtimestamp(
+                        commit.authored_date
+                    ).strftime("%Y-%m-%d %H:%M:%S")
+                    file["status"] = file_status["gitshasum"]
+                    # file["ID"] = utilities.encode(input_file_full_path)
+                    file["ID"] = input_file
 
-    def _commit_message_node_extract(self, commit):
-        return ast.literal_eval(
-            re.search("(?=\{)(.|\n)*?(?<=\}\n)", commit.message).group(0)
-        )
+                    node_list.append((file["path"], file))
+                    edge_list.append((file["path"], task["commit"]))
+            if task["outputs"]: 
+                for output_file in outputs:
+                    output_file_full_path = utilities.full_path_from_partial(superdataset.path, output_file)
+                    file = {}
+                    ds_file = git.Repo(utilities.get_git_root(output_file_full_path))
+                    file_status = dl.status(
+                        path=output_file_full_path, dataset=ds_file.working_tree_dir
+                    )[0]
+                    file["dataset"] = subdataset
+                    file["path"] = output_file
+                    file["commit"] = commit.hexsha
+                    file["author"] = commit.author.name
+                    file["date"] = datetime.utcfromtimestamp(
+                        commit.authored_date
+                    ).strftime("%Y-%m-%d %H:%M:%S")
+                    file["status"] = file_status["gitshasum"]
+                    # file["ID"] = utilities.encode(output_file_full_path)
+                    file["ID"] = output_file
 
-    def _get_dataset(self, dataset):
-        """! This function will return a Datalad dataset for the given path
+                    node_list.append((file["path"], file))
+                    edge_list.append((task["commit"], file["path"]))
+            node_list.append((task["commit"], task))
 
-        Args:
-            dataset (str): _description_
-
-        Returns:
-            dset (Dataset): A Datalad dataset
-        """
-        dset = dl.Dataset(dataset)
-        if dset is not None:
-            return dset
-
-    def _get_superdataset(self, dataset):
-        """! This function will return the superdataset
-        Returns:
-            sds/dset (Dataset): A datalad superdataset
-        """
-
-        dset = dl.Dataset(dataset)
-        sds = dset.get_superdataset()
-        if sds is not None:  # pylint: disable = no-else-return
-            return sds
-        else:
-            return dset
-
-    def prov_scan(self):
-        """! This function will return the nodes and edges list
-        Args:
-            ds_name (str): A path to the dataset (or subdataset)
-
-        Returns:
-            graph: A networkx graph
-        """
-        node_list = []
-        edge_list = []
-
-        # subdatasets = self.superdataset.subdatasets()
-        subdatasets = [self.dataset.path]
-
-        for subdataset in subdatasets:
-            repo = git.Repo(subdataset)
-            commits = list(repo.iter_commits(repo.heads[self.ds_branch]))
-            dl_run_commits = self._get_commit_list(commits)
-
-            for commit in dl_run_commits:
-                dict_o = self._commit_message_node_extract(commit)
-
-                task = graphs.TaskWorkflow(
-                    self.superdataset.path,
-                    dict_o["cmd"],
-                    commit.hexsha,
-                    commit.author.name,
-                    commit.authored_date,
-                )
-
-                if dict_o["inputs"]:
-                    task.parent_files = dict_o["inputs"]
-                    for input_file in task.parent_files:
-                        input_path = glob.glob(
-                            self.superdataset.path
-                            + f"/**/*{os.path.basename(input_file)}",
-                            recursive=True,
-                        )[0]
-                        ds_file = git.Repo(os.path.dirname(input_path))
-                        file_status = dl.status(
-                            path=input_path, dataset=ds_file.working_tree_dir
-                        )[0]
-
-                        file = graphs.FileWorkflow(
-                            subdataset,
-                            input_path,
-                            commit.hexsha,
-                            commit.author.name,
-                            commit.authored_date,
-                            file_status["gitshasum"],
-                        )
-                        file.ID = utils.encode(file.name)
-                        file.child_task = dict_o["cmd"]
-
-                        # Creating a shallow copy of the object attribute dictionary
-                        dict_file = copy.copy(file.__dict__)
-                        dict_file.pop("child_task", None)
-
-                        node_list.append((file.name, dict_file))
-                        edge_list.append((file.name, task.commit))
-
-                if dict_o["outputs"]:
-                    task.child_files = dict_o["outputs"]
-                    for output in task.child_files:
-                        output_path = glob.glob(
-                            self.superdataset.path + f"/**/*{os.path.basename(output)}",
-                            recursive=True,
-                        )[0]
-                        ds_file = git.Repo(os.path.dirname(output_path))
-                        file_status = dl.status(
-                            path=output_path, dataset=ds_file.working_tree_dir
-                        )[0]
-
-                        file = graphs.FileWorkflow(
-                            subdataset,
-                            output_path,
-                            commit.hexsha,
-                            commit.author.name,
-                            commit.authored_date,
-                            file_status["gitshasum"],
-                        )
-                        file.ID = utils.encode(file.name)
-                        file.parent_task = dict_o["cmd"]
-
-                        dict_file = copy.copy(file.__dict__)
-                        dict_file.pop("parent_task", None)
-
-                        node_list.append((file.name, dict_file))
-                        edge_list.append((task.commit, file.name))
-
-                node_list.append((task.commit, task.__dict__))
-
-        return node_list, edge_list
+    return node_list, edge_list

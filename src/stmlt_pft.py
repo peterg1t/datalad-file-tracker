@@ -6,11 +6,10 @@ import argparse
 from pathlib import Path
 import cProfile
 import streamlit as st
-import graphs
 import networkx as nx
 from bokeh.transform import linear_cmap
 
-import utils
+import utilities
 
 
 profiler = cProfile.Profile()
@@ -38,10 +37,11 @@ def git_log_parse(ds_name, ds_branch):
         a_option (str): An analysis mode for the node calculation
     """
     try:
-        gdb = graphs.GraphProvenance(ds_name, ds_branch)
+        # gdb = graphs.GraphProvenance(ds_name, ds_branch)
+        gdb = graphs.GraphProvenanceTasks(ds_name, ds_branch)
     except Exception as err:
         st.warning(
-            f"Error creating graph object. Please check that your path contains a valid Datalad dataset"
+            f"Error creating graph object. Please check that your path contains a valid Datalad dataset {err}"
         )
         st.stop()
 
@@ -64,7 +64,7 @@ def plot_attributes(prov_graph, node_attributes):
         min(list(node_attributes.values())),
         max(list(node_attributes.values())),
     )
-    graph_plot_abstract = prov_graph.graph_object_plot(attr_fill_col)
+    graph_plot_abstract = prov_graph.graph_object_plot_abstract(attr_fill_col)
     st.bokeh_chart(graph_plot_abstract, use_container_width=True)
 
 
@@ -72,23 +72,23 @@ def calculate_attribute(attr, dataset_name, branch):
     provenance_graph = git_log_parse(dataset_name, branch)
     if len(provenance_graph.node_list) != 0:
         if attr == "None":
-            graph_plot_abstract = provenance_graph.graph_object_plot()
+            graph_plot_abstract = provenance_graph.graph_object_plot_abstract()
             st.bokeh_chart(graph_plot_abstract, use_container_width=True)
 
         elif attr == "Betweeness Centrality":
-            node_attr = utils.calc_betw_centrl(provenance_graph.graph)
+            node_attr = utilities.calc_betw_centrl(provenance_graph.graph)
             plot_attributes(provenance_graph, node_attr)
 
         elif attr == "Degree Centrality":
-            node_attr = utils.deg_centrl(provenance_graph.graph)
+            node_attr = utilities.deg_centrl(provenance_graph.graph)
             plot_attributes(provenance_graph, node_attr)
 
         elif attr == "Bonacich Centrality":
-            node_attr = utils.eigen_centrl(provenance_graph.graph)
+            node_attr = utilities.eigen_centrl(provenance_graph.graph)
             plot_attributes(provenance_graph, node_attr)
 
         elif attr == "Closeness Centrality":
-            node_attr = utils.close_centrl(provenance_graph.graph)
+            node_attr = utilities.close_centrl(provenance_graph.graph)
             plot_attributes(provenance_graph, node_attr)
 
     else:
@@ -144,8 +144,8 @@ if __name__ == "__main__":
             )
 
         # # Sreamlit UI implementation
-        if utils.exists_case_sensitive(dataset_name):
-            branches_project = utils.get_branches(dataset_name)
+        if utilities.exists_case_sensitive(dataset_name):
+            branches_project = utilities.get_branches(dataset_name)
             branch_select = st.selectbox("Branches", branches_project)
 
             calculate_attribute(analysis_type, dataset_name, branch_select)
