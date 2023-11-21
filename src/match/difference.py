@@ -122,17 +122,19 @@ def graph_ID_relabel(graph, nmap):
     for node, attrs in graph2remap.nodes(data=True):
         if "type" in attrs:
             if attrs["type"] == "file":
-                attrs["ID"] = encode(node)
+                # attrs["ID"] = encode(node)
+                attrs["ID"] = node
         
             elif attrs["type"] == "task":
                 full_task_description = list(nx.all_neighbors(graph2remap,  node))
                 full_task_description.append(attrs["cmd"])
-                attrs["ID"] = encode(",".join(sorted(full_task_description)))
-                # attrs["ID"] = ",".join(sorted(full_task_description))
+                # attrs["ID"] = encode(",".join(sorted(full_task_description)))
+                attrs["ID"] = ",".join(sorted(full_task_description))
         else:
             full_task_description = attrs["inputs"] + attrs["outputs"]
             full_task_description.append(attrs["command"])
-            attrs["ID"] = encode(",".join(sorted(full_task_description)))
+            # attrs["ID"] = encode(",".join(sorted(full_task_description)))
+            attrs["ID"] = ",".join(sorted(full_task_description))
 
     return graph2remap
 
@@ -196,9 +198,8 @@ def graph_remap_command(graph, nmap):
 
             full_task_description = inputs_paths + output_paths
             full_task_description.append(attrs["cmd"])
-            graph2remap.nodes[node]["ID"] = encode(
-                ",".join(sorted(full_task_description))
-                )
+            # graph2remap.nodes[node]["ID"] = encode(",".join(sorted(full_task_description)))
+            graph2remap.nodes[node]["ID"] = ",".join(sorted(full_task_description))
             inputs_mapped.update(outputs_mapped)
             new_command = _materialize_files_in_command(attrs["cmd"], node_handles_paths)
             graph2remap.nodes[node]["cmd"] = new_command

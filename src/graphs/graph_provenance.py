@@ -32,23 +32,28 @@ def prov_scan(dataset_path, dataset_branch):
             task["inputs"] = ",".join(sorted(dict_o["inputs"]))
             task["outputs"] = ",".join(sorted(dict_o["outputs"]))
 
-            inputs_full_path = [
-                utilities.full_path_from_partial(superdataset.path, inp)
-                for inp in dict_o["inputs"]
-            ]
-            outputs_full_path = [
-                utilities.full_path_from_partial(superdataset.path, out)
-                for out in dict_o["outputs"]
-            ]
-            full_task_description = inputs_full_path + outputs_full_path
+            # inputs_full_path = [
+            #     utilities.full_path_from_partial(superdataset.path, inp)
+            #     for inp in dict_o["inputs"]
+            # ]
+            # outputs_full_path = [
+            #     utilities.full_path_from_partial(superdataset.path, out)
+            #     for out in dict_o["outputs"]
+            # ]
+            inputs = dict_o["inputs"]
+            outputs = dict_o["outputs"]
+
+            full_task_description = inputs + outputs
             full_task_description.append(dict_o["cmd"])
-            task["ID"] = utilities.encode(",".join(sorted(full_task_description)))
+            # task["ID"] = utilities.encode(",".join(sorted(full_task_description)))
+            task["ID"] = ",".join(sorted(full_task_description))
             if task["inputs"]:
-                for input_file in inputs_full_path:
+                for input_file in inputs:
+                    input_file_full_path = utilities.full_path_from_partial(superdataset.path, input_file)
                     file = {}
-                    ds_file = git.Repo(utilities.get_git_root(input_file))
+                    ds_file = git.Repo(utilities.get_git_root(input_file_full_path))
                     file_status = dl.status(
-                        path=input_file, dataset=ds_file.working_tree_dir
+                        path=input_file_full_path, dataset=ds_file.working_tree_dir
                     )[0]
                     file["dataset"] = subdataset
                     file["path"] = input_file
@@ -58,17 +63,18 @@ def prov_scan(dataset_path, dataset_branch):
                         commit.authored_date
                     ).strftime("%Y-%m-%d %H:%M:%S")
                     file["status"] = file_status["gitshasum"]
-                    file["ID"] = utilities.encode(file["path"])
+                    # file["ID"] = utilities.encode(input_file_full_path)
+                    file["ID"] = input_file
 
                     node_list.append((file["path"], file))
                     edge_list.append((file["path"], task["commit"]))
-            if task["outputs"]:
-                for output_file in outputs_full_path:
+            if task["outputs"]: 
+                for output_file in outputs:
+                    output_file_full_path = utilities.full_path_from_partial(superdataset.path, output_file)
                     file = {}
-
-                    ds_file = git.Repo(utilities.get_git_root(output_file))
+                    ds_file = git.Repo(utilities.get_git_root(output_file_full_path))
                     file_status = dl.status(
-                        path=output_file, dataset=ds_file.working_tree_dir
+                        path=output_file_full_path, dataset=ds_file.working_tree_dir
                     )[0]
                     file["dataset"] = subdataset
                     file["path"] = output_file
@@ -78,7 +84,8 @@ def prov_scan(dataset_path, dataset_branch):
                         commit.authored_date
                     ).strftime("%Y-%m-%d %H:%M:%S")
                     file["status"] = file_status["gitshasum"]
-                    file["ID"] = utilities.encode(file["path"])
+                    # file["ID"] = utilities.encode(output_file_full_path)
+                    file["ID"] = output_file
 
                     node_list.append((file["path"], file))
                     edge_list.append((task["commit"], file["path"]))

@@ -540,7 +540,7 @@ if __name__ == "__main__":
         )
         st.stop()
 
-    graph_plot_abstract = graph_object_plot(gdb)
+    graph_plot_abstract = graph_object_plot_abstract(gdb)
     plot_graph(graph_plot_abstract)
     if args.png_export:
         export_png(graph_plot_abstract, filename=args.png_export)

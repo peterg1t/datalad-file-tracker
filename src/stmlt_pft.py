@@ -64,7 +64,7 @@ def plot_attributes(prov_graph, node_attributes):
         min(list(node_attributes.values())),
         max(list(node_attributes.values())),
     )
-    graph_plot_abstract = prov_graph.graph_object_plot(attr_fill_col)
+    graph_plot_abstract = prov_graph.graph_object_plot_abstract(attr_fill_col)
     st.bokeh_chart(graph_plot_abstract, use_container_width=True)
 
 
@@ -72,7 +72,7 @@ def calculate_attribute(attr, dataset_name, branch):
     provenance_graph = git_log_parse(dataset_name, branch)
     if len(provenance_graph.node_list) != 0:
         if attr == "None":
-            graph_plot_abstract = provenance_graph.graph_object_plot()
+            graph_plot_abstract = provenance_graph.graph_object_plot_abstract()
             st.bokeh_chart(graph_plot_abstract, use_container_width=True)
 
         elif attr == "Betweeness Centrality":

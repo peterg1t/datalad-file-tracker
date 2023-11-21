@@ -96,16 +96,15 @@ def match_run(abstract, provenance_path, runs):
     gdb_abs.add_edges_from(edge_abstract_list)
 
         
-    outputs=[]
+    outputs = []
     with futures.ProcessPoolExecutor(max_workers=4) as executor:
         fs = {executor.submit(graph_diff_calc, gdb_abs, provenance_path, run) for run in runs}
-        
         
         for future in futures.as_completed(fs):
             outputs.extend(future.result())
     
 
-    # now we perform a git merge and branch delete on origin
+    #Now we perform a git merge and branch delete
     outputs = list(set(outputs))
     print('b4 merging',provenance_path, outputs)
     for output in outputs:
@@ -118,7 +117,7 @@ def match_run(abstract, provenance_path, runs):
     utilities.branch_save(provenance_path, current_branch)
 
 
-    # now for every other branch we save the datasets to acknowledge the changes
+    #Now for every other branch we save the datasets to acknowledge the changes
     for run in runs:
         utilities.branch_save(provenance_path, run)
 

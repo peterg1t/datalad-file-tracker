@@ -10,6 +10,7 @@ import import_export
 import git
 import glob
 from datetime import datetime
+import difflib
 
 import streamlit as st
 import networkx as nx
@@ -66,28 +67,29 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
         gdb_abstract = match.graph_remap_command(gdb_abstract, node_mapping)
         gdb_abstract = match.graph_ID_relabel(gdb_abstract, node_mapping)
         gdb_abstract, gdb_difference = match.graph_diff(gdb_abstract, gdb_provenance)
-        print("abstract", gdb_abstract.nodes(data=True), "\n")
-        print("provenance", gdb_provenance.nodes(data=True), "\n")
-        print("difference", gdb_difference.nodes(data=True), "\n")
+        # print("abstract", gdb_abstract.nodes(data=True), "\n")
+        # print("provenance", gdb_provenance.nodes(data=True), "\n")
+        # print("difference", gdb_difference.nodes(data=True), "\n")
 
-        graph_plot_diff = graphs.graph_object_plot(gdb_abstract)
+        graph_plot_diff = graphs.graph_object_plot_provenance(gdb_provenance)
         plot_graph(graph_plot_diff)
 
         if gdb_difference:
             next_nodes_requirements = match.next_nodes_run(gdb_difference)
 
-        if "next_nodes_req" not in st.session_state:
+        if not st.session_state["next_nodes_req"] or "next_nodes_req" not in st.session_state:
             st.session_state["next_nodes_req"] = next_nodes_requirements
 
     else:
         st.warning(f"Path {provenance_ds_path} does not exist.")
         st.stop()
 
-    print("session state", st.session_state)
-    return gdb_difference
+    # print("session state", st.session_state)
+    # return gdb_difference
+    st.session_state["gdb_diff"] = gdb_difference
 
 
-def run_pending_nodes(gdb_difference, branch):
+def run_pending_nodes(provenance_ds_path, gdb_difference, branch):
     """! Given a graph and the list of nodes (and requirements i.e. inputs)
     compute the task with APScheduler
 
@@ -97,39 +99,28 @@ def run_pending_nodes(gdb_difference, branch):
     inputs_dict = {}
     outputs_dict = {}
     inputs = []
-
     # we need to use the translation file so the nodes in the difference tree have the file names instead of the abstract names. From the nodes we can extract the list of inputs and outputs for the job that is going to run
-    node_mapping = {}
-    with open(f"{provenance_graph_path}/tf.csv", "r") as translation_file:
-        reader = csv.reader(translation_file)
-        for row in reader:
-            node_mapping[row[0]] = f"{provenance_graph_path}{row[1]}"
+    node_mapping = import_export.translation_file_process(f"{provenance_ds_path}/tf.csv")
 
     gdb_difference = match.graph_ID_relabel(gdb_difference, node_mapping)
     print("graph_diff", gdb_difference.nodes(data=True),"\n")
 
     try:
         next_nodes_run = st.session_state["next_nodes_req"]
-        print("next_nodes_run", next_nodes_run, st.session_state)
+        print("next_nodes_run", next_nodes_run, st.session_state ,'\n', gdb_difference.nodes(data=True))
 
         for item in next_nodes_run:
-            for predecessors in gdb_difference.predecessors(item):
-                inputs_dict[predecessors] = gdb_difference.nodes[predecessors]
-                inputs.append(gdb_difference.nodes[predecessors])
+            inputs = gdb_difference.nodes[item]['inputs']
+            outputs = gdb_difference.nodes[item]['outputs']
 
-            for successors in gdb_difference.successors(item):
-                outputs_dict[successors] = gdb_difference.nodes[successors]
-
-            inputs = list(inputs_dict.keys())
-            outputs = list(outputs_dict.keys())
-            dataset = utilities.get_git_root(os.path.dirname(inputs[0]))
+            
             command = gdb_difference.nodes[item]["cmd"]
             message = "test"
 
-            print("submit_job", dataset, inputs, outputs, message, "command=", command)
+            print("submit_job", provenance_ds_path, inputs, outputs, message, "command=", command)
             scheduler.add_job(
                 utilities.job_submit,
-                args=[dataset, branch, inputs, outputs, message, command],
+                args=[provenance_ds_path, branch, inputs, outputs, message, command],
             )
 
     except Exception as err:  # pylint: disable = bare-except
@@ -216,7 +207,7 @@ if __name__ == "__main__":
         )
         st.stop()
 
-    graph_plot_abstract = graphs.graph_object_plot(gdb)
+    graph_plot_abstract = graphs.graph_object_plot_abstract(gdb)
     plot_graph(graph_plot_abstract)
     if args.png_export:
         export_png(graph_plot_abstract, filename=args.png_export)
@@ -243,10 +234,14 @@ if __name__ == "__main__":
     if utilities.exists_case_sensitive(provenance_graph_path):
         branches_project = utilities.get_branches(provenance_graph_path)
         branch_select = st.sidebar.selectbox("Branches", branches_project)
-        match_button = st.sidebar.button("Match")
 
+        match_button = st.sidebar.button("Match")
         if match_button:
             match_graphs(provenance_graph_path, gdb, branch_select)
+        
         run_next_button = st.sidebar.button("Run pending nodes")
         if run_next_button:
-            run_pending_nodes(gdb, branch_select)
+            print(st.session_state)
+            run_pending_nodes(provenance_graph_path, st.session_state.gdb_diff, branch_select)
+
+            
