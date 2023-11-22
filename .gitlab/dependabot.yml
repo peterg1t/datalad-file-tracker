@@ -1,9 +1,6 @@
 version: 2
 updates:
-  - package-ecosystem: "pip"
-    directory: "/"
+  - package-ecosystem: pip
+    directory: /
     schedule:
-      interval: "daily"
-    open-pull-requests-limit: 20
-    rebase-strategy: auto
-    auto-merge: true
+      interval: daily
