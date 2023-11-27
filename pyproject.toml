@@ -1,0 +1,50 @@
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dft"
+version = "0.0.1"
+authors = [
+    { name="Pedro Martinez", email="pemartin@ucalgary.ca" },
+]
+description = "Datalad file tracker."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "jinja2>=3.1",
+    "networkx>=3.1",
+    "bokeh>=3.3.0",
+    "pygraphviz>=1.11",
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests",
+]
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.0",
+    "flake8>=6.1",
+    "flake8-docstrings>=1.7",
+    # "flake8-docstrings-complete>=1.2",
+    "mypy>=1.5",
+    "networkx-stubs==0.0.1",
+    "pylint>=3.0",
+    "pytest>=7.4",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"wtu" = ["py.typed"]
+
+[project.scripts]
