@@ -4,12 +4,6 @@ requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-dynamic = ["dependencies"]
-[tool.setuptools.dynamic]
-
-
-
-[project]
 name = "PFT"
 version = "0.0.1"
 authors = [
@@ -18,6 +12,9 @@ authors = [
 description = "Datalad file tracker."
 readme = "README.md"
 requires-python = ">=3.11"
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
 optional-dependencies = {dev = { file = ["requirements-dev.txt"] }}
 
