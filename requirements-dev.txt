@@ -87,6 +87,7 @@ pip-requirements-parser==32.0.1
 pip_audit==2.6.1
 pipreqs==0.4.12
 platformdirs==2.6.2
+pre-commit==3.5
 protobuf==3.20.3
 py-serializable==0.11.1
 pyarrow==14.0.1
