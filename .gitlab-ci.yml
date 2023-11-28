@@ -21,7 +21,8 @@ stages:
 lint:
   stage: test
   script:
-    - pip install --editable ".[dev]"
+    # - pip install --editable ".[dev]"
+    - pip install -r requirements-dev.txt
     - pre-commit install
     - SKIP=mypy,pytest pre-commit run --all-files
 
