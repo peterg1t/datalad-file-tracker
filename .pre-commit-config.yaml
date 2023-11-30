@@ -61,8 +61,8 @@ repos:
       #   verbose: true
 
 
-  - repo: https://github.com/pypa/pip-audit
-    rev: v2.6.1
-    hooks:
-      - id: pip-audit
-        args: ["-r", "requirements-dev.txt"]
+  # - repo: https://github.com/pypa/pip-audit
+  #   rev: v2.6.1
+  #   hooks:
+  #     - id: pip-audit
+  #       args: ["-r", "requirements-dev.txt"]

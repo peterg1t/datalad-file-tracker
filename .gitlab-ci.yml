@@ -26,6 +26,12 @@ lint:
     - pre-commit install
     - SKIP=mypy,pytest pre-commit run --all-files
 
+dependency-checking:
+  stage: test
+  script:
+    - pip install pip-audit
+    - pip-audit -r requirements.txt
+
 # type-check:
 #   stage: test
 #   script:
