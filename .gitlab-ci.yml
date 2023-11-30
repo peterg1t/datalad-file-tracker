@@ -31,7 +31,7 @@ type-check:
   script:
     # - pip install --editable ".[dev]"
     - pip install -r requirements-dev.txt
-    - mypy src/wtu
+    - mypy src/
 
 unit-tests:
   stage: test
