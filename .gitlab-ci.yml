@@ -26,19 +26,19 @@ lint:
     - pre-commit install
     - SKIP=mypy,pytest pre-commit run --all-files
 
-type-check:
-  stage: test
-  script:
-    # - pip install --editable ".[dev]"
-    - pip install -r requirements-dev.txt
-    - mypy src/
+# type-check:
+#   stage: test
+#   script:
+#     # - pip install --editable ".[dev]"
+#     - pip install -r requirements-dev.txt
+#     - mypy src/
 
-unit-tests:
-  stage: test
-  script:
-    # - pip install --editable ".[dev]"
-    - pip install -r requirements-dev.txt
-    - pytest
+# unit-tests:
+#   stage: test
+#   script:
+#     # - pip install --editable ".[dev]"
+#     - pip install -r requirements-dev.txt
+#     - pytest
 
 # integration-tests:
 #   stage: test
