@@ -340,11 +340,11 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
     branch = repo.heads[ds_branch]
     branch.checkout()
     with open(
-        f"{provenance_graph_path}/tf.csv", "r", encoding="utf-8"
+        f"{provenance_ds_path}/tf.csv", "r", encoding="utf-8"
     ) as translation_file:
         reader = csv.reader(translation_file)
         for row in reader:
-            node_mapping[row[0]] = f"{provenance_graph_path}{row[1]}"
+            node_mapping[row[0]] = f"{provenance_ds_path}{row[1]}"
 
     if utilities.exists_case_sensitive(provenance_ds_path):
         nodes_provenance, edges_provenance = graphs.prov_scan(
@@ -377,7 +377,7 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
 
 
 def run_pending_nodes(
-    scheduler_instance, gdb_difference, branch
+    scheduler_instance, provenance_ds_path, gdb_difference, branch
 ):  # pylint: disable=too-many-locals
     """! Given a graph and the list of nodes (and requirements i.e. inputs)
     compute the task with APScheduler
@@ -394,11 +394,11 @@ def run_pending_nodes(
     # list of inputs and outputs for the job that is going to run
     node_mapping = {}
     with open(
-        f"{provenance_graph_path}/tf.csv", "r", encoding="utf-8"
+        f"{provenance_ds_path}/tf.csv", "r", encoding="utf-8"
     ) as translation_file:
         reader = csv.reader(translation_file)
         for row in reader:
-            node_mapping[row[0]] = f"{provenance_graph_path}{row[1]}"
+            node_mapping[row[0]] = f"{provenance_ds_path}{row[1]}"
 
     gdb_difference = match.graph_id_relabel(gdb_difference, node_mapping)
 
@@ -602,4 +602,4 @@ if __name__ == "__main__":
             match_graphs(provenance_graph_path, gdb, branch_select)
         run_next_button = st.sidebar.button("Run pending nodes")
         if run_next_button:
-            run_pending_nodes(scheduler, gdb, branch_select)
+            run_pending_nodes(scheduler, provenance_graph_path, gdb, branch_select)
