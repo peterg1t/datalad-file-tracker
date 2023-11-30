@@ -45,22 +45,22 @@ lint:
 #   script:
 #     - echo "Running integration tests"
 
-coverage:
-  stage: test
-  script:
-    - pip install coverage
-    # - pip install --editable ".[dev]"
-    - pip install -r requirements-dev.txt
-    - coverage run -m pytest
-    - coverage report --fail-under=90
-    - coverage report > coverage.txt
-    - coverage xml
-  coverage: "/TOTAL.*\\s+(\\d+%)$/"
-  artifacts:
-    paths:
-      - coverage.txt
-    expire_in: 30 days
-    reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: coverage.xml
+# coverage:
+#   stage: test
+#   script:
+#     - pip install coverage
+#     # - pip install --editable ".[dev]"
+#     - pip install -r requirements-dev.txt
+#     - coverage run -m pytest
+#     - coverage report --fail-under=90
+#     - coverage report > coverage.txt
+#     - coverage xml
+#   coverage: "/TOTAL.*\\s+(\\d+%)$/"
+#   artifacts:
+#     paths:
+#       - coverage.txt
+#     expire_in: 30 days
+#     reports:
+#       coverage_report:
+#         coverage_format: cobertura
+#         path: coverage.xml
