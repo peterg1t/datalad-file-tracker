@@ -89,7 +89,7 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
     st.session_state["gdb_diff"] = gdb_difference
 
 
-def run_pending_nodes(provenance_ds_path, gdb_difference, branch):
+def run_pending_nodes(scheduler_instance, provenance_ds_path, gdb_difference, branch):
     """! Given a graph and the list of nodes (and requirements i.e. inputs)
     compute the task with APScheduler
 
@@ -133,7 +133,7 @@ def run_pending_nodes(provenance_ds_path, gdb_difference, branch):
                 "command=",
                 command,
             )
-            scheduler.add_job(
+            scheduler_instance.add_job(
                 utilities.job_submit,
                 args=[provenance_ds_path, branch, inputs, outputs, message, command],
             )
@@ -261,5 +261,8 @@ if __name__ == "__main__":
         if run_next_button:
             print(st.session_state)
             run_pending_nodes(
-                provenance_graph_path, st.session_state.gdb_diff, branch_select
+                scheduler,
+                provenance_graph_path,
+                st.session_state.gdb_diff,
+                branch_select,
             )
