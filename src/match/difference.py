@@ -1,11 +1,15 @@
-from pathlib import Path
+"""Module for computing graph difference"""
 import copy
+from pathlib import Path
+
 import networkx as nx
-from utilities import encode
+
+from ..utilities import encode
 
 
 class FileHandleNotFound(Exception):
     """Exception when file handle is not found."""
+
 
 def graph_diff(abstract, provenance):
     """! Calculate the difference of the abstract and provenance graphs
@@ -15,14 +19,13 @@ def graph_diff(abstract, provenance):
         provenance (graph): A concrete or provenance graph
 
     Returns:
-        graphs: An updated abstract graph with completed nodes for plotting and a graph containing the difference between the nodes. (abstract-concrete)
+        graphs: An updated abstract graph with completed nodes for plotting and
+        a graph containing the difference between the nodes. (abstract-concrete)
     """
     prov_graph_id = list(nx.get_node_attributes(provenance, "ID").values())
 
     difference = copy.deepcopy(abstract)
-    nodes_update = [
-        n for n, v in abstract.nodes(data=True) if v["ID"] in prov_graph_id
-    ]
+    nodes_update = [n for n, v in abstract.nodes(data=True) if v["ID"] in prov_graph_id]
 
     for node in nodes_update:
         nx.set_node_attributes(abstract, {node: "complete"}, "status")
@@ -31,12 +34,9 @@ def graph_diff(abstract, provenance):
         elif abstract.nodes()[node]["type"] == "file":
             nx.set_node_attributes(abstract, {node: "red"}, "node_color")
 
-    difference.remove_nodes_from(
-        n for n in abstract.nodes() if n in nodes_update
-    )
+    difference.remove_nodes_from(n for n in abstract.nodes() if n in nodes_update)
 
     return abstract, difference
-
 
 
 def graph_diff_tasks(abstract, provenance):
@@ -47,15 +47,15 @@ def graph_diff_tasks(abstract, provenance):
         provenance (graph): A concrete or provenance graph
 
     Returns:
-        graphs: An updated abstract graph with completed nodes for plotting and a graph containing the difference between the nodes. (abstract-concrete)
+        graphs: An updated abstract graph with completed nodes for
+        plotting and a graph containing the difference between the nodes.
+        (abstract-concrete)
     """
     prov_graph_id = list(nx.get_node_attributes(provenance, "ID").values())
 
     difference = copy.deepcopy(abstract)
 
-    nodes_update = [
-        n for n, v in abstract.nodes(data=True) if v["ID"] in prov_graph_id
-    ]
+    nodes_update = [n for n, v in abstract.nodes(data=True) if v["ID"] in prov_graph_id]
 
     nx.set_node_attributes(abstract, "pending", "status")
     nx.set_node_attributes(abstract, "grey", "node_color")
@@ -73,13 +73,13 @@ def graph_diff_tasks(abstract, provenance):
     return abstract, difference
 
 
-def _neighbour_handles_for_node(graph,
-    node: str, file_handles: dict[str, Path]
+def _neighbour_handles_for_node(
+    graph, node: str, file_handles: dict[str, Path]
 ) -> dict[str, Path]:
     """Return input and output file handles with their file paths for a node."""
     neighbors_inputs = list(graph.predecessors(node))
     neighbors_outputs = list(graph.successors(node))
-    
+
     node_handles = neighbors_inputs + neighbors_outputs
     for handle in node_handles:
         if handle not in file_handles:
@@ -101,16 +101,12 @@ def _file_handles_for_node(
 def _materialize_files_in_command(command: str, file_handles: dict[str, Path]) -> str:
     """Inject input/output files into their handles in a command."""
     for handle, file in file_handles.items():
-        #original but handle could be or not in abstract command
-        # if handle not in command:
-        #     raise FileHandleNotFound(f"The file handle, {handle}, was not recognized.")
-        # command = command.replace(handle, str(file))
         if handle in command:
             command = command.replace(handle, str(file))
     return command
 
 
-def graph_ID_relabel(graph, nmap):
+def graph_id_relabel(graph, nmap):
     """This function will relabel the ID on the graphs
 
     Args:
@@ -124,9 +120,9 @@ def graph_ID_relabel(graph, nmap):
             if attrs["type"] == "file":
                 # attrs["ID"] = encode(node)
                 attrs["ID"] = node
-        
+
             elif attrs["type"] == "task":
-                full_task_description = list(nx.all_neighbors(graph2remap,  node))
+                full_task_description = list(nx.all_neighbors(graph2remap, node))
                 full_task_description.append(attrs["cmd"])
                 # attrs["ID"] = encode(",".join(sorted(full_task_description)))
                 attrs["ID"] = ",".join(sorted(full_task_description))
@@ -137,7 +133,6 @@ def graph_ID_relabel(graph, nmap):
             attrs["ID"] = ",".join(sorted(full_task_description))
 
     return graph2remap
-
 
 
 def graph_remap_command_task(graph, nmap):
@@ -162,15 +157,14 @@ def graph_remap_command_task(graph, nmap):
 
         full_task_description = inputs_paths + output_paths
         full_task_description.append(attrs["command"])
-        graph2remap.nodes[node]["ID"] = encode(
-            ",".join(sorted(full_task_description))
-        )
+        graph2remap.nodes[node]["ID"] = encode(",".join(sorted(full_task_description)))
         inputs_mapped.update(outputs_mapped)
-        new_command = _materialize_files_in_command(attrs["command"], node_handles_paths)
+        new_command = _materialize_files_in_command(
+            attrs["command"], node_handles_paths
+        )
         graph2remap.nodes[node]["command"] = new_command
 
     return graph2remap
-
 
 
 def graph_remap_command(graph, nmap):
@@ -198,30 +192,30 @@ def graph_remap_command(graph, nmap):
 
             full_task_description = inputs_paths + output_paths
             full_task_description.append(attrs["cmd"])
-            # graph2remap.nodes[node]["ID"] = encode(",".join(sorted(full_task_description)))
-            graph2remap.nodes[node]["ID"] = ",".join(sorted(full_task_description))
+            graph2remap.nodes[node]["ID"] = ",".join(
+                sorted(full_task_description)
+            )  # noqa: E501
             inputs_mapped.update(outputs_mapped)
-            new_command = _materialize_files_in_command(attrs["cmd"], node_handles_paths)
+            new_command = _materialize_files_in_command(
+                attrs["cmd"], node_handles_paths
+            )
             graph2remap.nodes[node]["cmd"] = new_command
 
     return graph2remap
 
 
-
-
 def end_nodes(self):
-        """This function return the last node(s) in a tree
+    """This function return the last node(s) in a tree
 
-        Returns:
-            list: A list of ending nodes
-        """
-        end_nodes = [
-            x
-            for x in self.graph.nodes()
-            if self.graph.out_degree(x) == 0 and self.graph.in_degree(x) == 1
-        ]
-        return end_nodes
-
+    Returns:
+        list: A list of ending nodes
+    """
+    nodes = [
+        x
+        for x in self.graph.nodes()
+        if self.graph.out_degree(x) == 0 and self.graph.in_degree(x) == 1
+    ]
+    return nodes
 
 
 def next_nodes_run(graph):
@@ -230,10 +224,10 @@ def next_nodes_run(graph):
     Returns:
         list: A list of starting nodes
     """
-    next_nodes_run = [
+    next_nodes = [
         x
         for x in graph.nodes()
         if int(graph.out_degree(x)) >= 1 and int(graph.in_degree(x)) == 0
     ]
-    
-    return next_nodes_run
+
+    return next_nodes

@@ -1,5 +1,5 @@
 #!/bin/bash
 export PROJECT_DIR=${PWD%/*/*}
 
-# create documention
+# create documentation
 doxygen Doxyfile

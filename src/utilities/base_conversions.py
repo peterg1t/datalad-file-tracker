@@ -1,4 +1,4 @@
-"""This module will encode and decode messages to base 64 and viceversa"""
+"""This module will encode and decode messages to base 64 and vice-versa"""
 import base64
 
 

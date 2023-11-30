@@ -1,4 +1,4 @@
-import os
+"""Docstring translation file"""
 import csv
 
 
@@ -9,11 +9,11 @@ def translation_file_process(tf_filepath: str):
         tf_filepath (str): Path to the translation file
 
     Returns:
-        dict: A mapping of nodes specifiying the translation from file
+        dict: A mapping of nodes specifying the translation from file
         handle to file path
     """
     node_mapping = {}
-    with open(tf_filepath, "r") as translation_file:
+    with open(tf_filepath, "r", encoding="utf-8") as translation_file:
         reader = csv.reader(translation_file)
         for row in reader:
             # node_mapping[row[0]] = f"{os.path.dirname(tf_filepath)}/{row[1]}"

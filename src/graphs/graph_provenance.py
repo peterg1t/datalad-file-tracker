@@ -1,10 +1,15 @@
-import os
-import datalad.api as dl
+"""Utilities for graph provenance"""
 from datetime import datetime
-import git
-import utilities
 
-def prov_scan(dataset_path, dataset_branch):
+import datalad.api as dl
+import git
+
+from .. import utilities
+
+
+def prov_scan(
+    dataset_path, dataset_branch
+):  # pylint: disable=too-many-statements, too-many-locals
     """! This function will return the nodes and edges list
     Args:
         ds_name (str): A path to the dataset (or subdataset)
@@ -28,7 +33,7 @@ def prov_scan(dataset_path, dataset_branch):
             task["author"] = commit.author.name
             task["date"] = datetime.utcfromtimestamp(commit.authored_date).strftime(
                 "%Y-%m-%d %H:%M:%S"
-            )
+            )  # noqa: E501
             task["inputs"] = ",".join(sorted(dict_o["inputs"]))
             task["outputs"] = ",".join(sorted(dict_o["outputs"]))
 
@@ -45,16 +50,21 @@ def prov_scan(dataset_path, dataset_branch):
 
             full_task_description = inputs + outputs
             full_task_description.append(dict_o["cmd"])
-            # task["ID"] = utilities.encode(",".join(sorted(full_task_description)))
             task["ID"] = ",".join(sorted(full_task_description))
             if task["inputs"]:
                 for input_file in inputs:
-                    input_file_full_path = utilities.full_path_from_partial(superdataset.path, input_file)
+                    input_file_full_path = utilities.full_path_from_partial(
+                        superdataset.path, input_file
+                    )
                     file = {}
-                    ds_file = git.Repo(utilities.get_git_root(input_file_full_path))
-                    file_status = dl.status(
+                    ds_file = git.Repo(
+                        utilities.get_git_root(input_file_full_path)
+                    )  # noqa: E501
+                    file_status = dl.status(  # pylint: disable=no-member
                         path=input_file_full_path, dataset=ds_file.working_tree_dir
-                    )[0]
+                    )[
+                        0
+                    ]  # noqa: E501
                     file["dataset"] = subdataset
                     file["path"] = input_file
                     file["commit"] = commit.hexsha
@@ -68,12 +78,16 @@ def prov_scan(dataset_path, dataset_branch):
 
                     node_list.append((file["path"], file))
                     edge_list.append((file["path"], task["commit"]))
-            if task["outputs"]: 
+            if task["outputs"]:
                 for output_file in outputs:
-                    output_file_full_path = utilities.full_path_from_partial(superdataset.path, output_file)
+                    output_file_full_path = utilities.full_path_from_partial(
+                        superdataset.path, output_file
+                    )
                     file = {}
-                    ds_file = git.Repo(utilities.get_git_root(output_file_full_path))
-                    file_status = dl.status(
+                    ds_file = git.Repo(
+                        utilities.get_git_root(output_file_full_path)
+                    )  # noqa: E501
+                    file_status = dl.status(  # pylint: disable=no-member
                         path=output_file_full_path, dataset=ds_file.working_tree_dir
                     )[0]
                     file["dataset"] = subdataset
