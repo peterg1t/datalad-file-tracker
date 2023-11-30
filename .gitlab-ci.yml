@@ -29,13 +29,15 @@ lint:
 type-check:
   stage: test
   script:
-    - pip install --editable ".[dev]"
+    # - pip install --editable ".[dev]"
+    - pip install -r requirements-dev.txt
     - mypy src/wtu
 
 unit-tests:
   stage: test
   script:
-    - pip install --editable ".[dev]"
+    # - pip install --editable ".[dev]"
+    - pip install -r requirements-dev.txt
     - pytest
 
 # integration-tests:
@@ -47,7 +49,8 @@ coverage:
   stage: test
   script:
     - pip install coverage
-    - pip install --editable ".[dev]"
+    # - pip install --editable ".[dev]"
+    - pip install -r requirements-dev.txt
     - coverage run -m pytest
     - coverage report --fail-under=90
     - coverage report > coverage.txt
