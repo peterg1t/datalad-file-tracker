@@ -1,10 +1,13 @@
 """Utilities for graph provenance"""
+import os
 from datetime import datetime
 from pathlib import Path
 import datalad.api as dl
 import git
 import networkx as nx
 import datetime as dt
+import json
+from copy import copy as shallow_copy
 
 import utilities  # pylint: disable=import-error
 
@@ -110,6 +113,49 @@ def prov_scan(
     return node_list, edge_list
 
 
+ListOrSet = TypeVar("ListOrSet", list, set)
+
+def ensure_iter(s: Any, cls: type[ListOrSet], copy: bool=False, iterate: bool=True) -> ListOrSet:
+    """Given not a list, would place it into a list. If None - empty list is returned
+
+    Parameters
+    ----------
+    s: list or anything
+    cls: class
+      Which iterable class to ensure
+    copy: bool, optional
+      If correct iterable is passed, it would generate its shallow copy
+    iterate: bool, optional
+      If it is not a list, but something iterable (but not a str)
+      iterate over it.
+    """
+
+    if isinstance(s, cls):
+        return s if not copy else shallow_copy(s)
+    elif isinstance(s, str):
+        return cls((s,))
+    elif iterate and hasattr(s, '__iter__'):
+        return cls(s)
+    elif s is None:
+        return cls()
+    else:
+        return cls((s,))
+
+def ensure_list(s: Any, copy: bool=False, iterate: bool=True) -> list:
+    """Given not a list, would place it into a list. If None - empty list is returned
+
+    Parameters
+    ----------
+    s: list or anything
+    copy: bool, optional
+      If list is passed, it would generate a shallow copy of the list
+    iterate: bool, optional
+      If it is not a list, but something iterable (but not a str)
+      iterate over it.
+    """
+    return ensure_iter(s, list, copy=copy, iterate=iterate)
+
+
 def abs2prov(abstract_graph: nx.DiGraph,
              dataset: Path,
              abstract_branch: str = "abstract"):
@@ -142,37 +188,12 @@ def abs2prov(abstract_graph: nx.DiGraph,
 
     index = repo.index
     author = git.Actor("Pedro Martinez", "pemartin@ucalgaryc.ca")
-    message = "test message"
 
     # Time objects for commit
     timezone_offset = -7.0  # Mountain Standard Time (UTC−07:00)
     tzinfo = dt.timezone(dt.timedelta(hours=timezone_offset))
 
-    run_info = {
-        'cmd': cmd,
-        # rerun does not handle any prop being None, hence all
-        # the `or/else []`
-        'chain': rerun_info["chain"] if rerun_info else [],
-    }
-    # for all following we need to make sure that the raw
-    # specifications, incl. any placeholders make it into
-    # the run-record to enable "parametric" re-runs
-    # ...except when expansion was requested
-    for k, v in specs.items():
-        run_info[k] = globbed[k].paths \
-            if expand in ["both"] + (
-                ['outputs'] if k == 'outputs' else ['inputs']) \
-            else (v if parametric_record
-                  else expanded_specs[k]) or []
-        
-    if rel_pwd is not None:
-        # only when inside the dataset to not leak information
-        run_info['pwd'] = rel_pwd
-    if ds.id:
-        run_info["dsid"] = ds.id
-    if extra_info:
-        run_info.update(extra_info)
-        
+    
 
 
     # [DATALAD RUNCMD] test
@@ -200,12 +221,45 @@ def abs2prov(abstract_graph: nx.DiGraph,
         print(node)
         # For every node we need to push an empty commit  since there is no
         # file to be added to the dataset
-            # compose commit message
+
+        run_info = {
+            'cmd': node[1]['command'],
+            # rerun does not handle any prop being None, hence all
+            # the `or/else []`
+            'chain': [],
+        }
+    # for all following we need to make sure that the raw
+    # specifications, incl. any placeholders make it into
+    # the run-record to enable "parametric" re-runs
+    # ...except when expansion was requested
+        extra_inputs = []
+        specs = {
+            k: ensure_list(v) for k, v in (('inputs', node[1]['inputs']),
+                                           ('extra_inputs', extra_inputs),
+                                           ('outputs', node[1]['outputs']))
+        }
+        for k, v in specs.items():
+            run_info[k] = globbed[k].paths \
+                if expand in ["both"] + (
+                    ['outputs'] if k == 'outputs' else ['inputs']) \
+                else (v if parametric_record
+                      else expanded_specs[k]) or []
+
+        run_info['pwd'] = os.path.abspath(os.path.dirname(__file__))
+        if ds.id:
+            run_info["dsid"] = ds.id
+        if extra_info:
+            run_info.update(extra_info)
+    
+        record = json.dumps(run_info, indent=1, sort_keys=True, ensure_ascii=False)
+
+
+        # compose commit message
         msg = f"""\
 [DATALAD RUNCMD] {node[1]["message"]}
 
 === Do not change lines below ===
-{}
+{record}
 ^^^ Do not change lines above ^^^
 """
 
