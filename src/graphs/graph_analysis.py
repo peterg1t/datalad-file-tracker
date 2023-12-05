@@ -1,11 +1,7 @@
-"""! Graph Analisys Module
+"""! Graph Analysis Module
 This module allows the user to print the different network attributes
 """
-from pathlib import Path
-import copy
 import networkx as nx
-import utilities
-
 
 
 def calc_betw_centrl(graph):
@@ -33,7 +29,6 @@ def deg_centrl(graph):
     return nx.degree_centrality(graph)
 
 
-
 def eigen_centrl(graph):
     """! This function will return the eigen vector centrality
 
@@ -46,7 +41,6 @@ def eigen_centrl(graph):
     return nx.eigenvector_centrality_numpy(graph)
 
 
-
 def close_centrl(graph):
     """! This function will return the eigen vector centrality
 
@@ -57,9 +51,3 @@ def close_centrl(graph):
         node attribute: degree centrality
     """
     return nx.closeness_centrality(graph)
-
-
-
-
-
-

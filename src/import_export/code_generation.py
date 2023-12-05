@@ -1,9 +1,26 @@
 """This module will generate prefect code."""
 import ast
+
 import networkx as nx
 
 
 def generate_code(gdb):
+    """
+    Generates a Prefect workflow module based on the provided
+    Directed Acyclic Graph (DAG).
+
+    This function takes a Directed Acyclic Graph (DAG) represented by
+    a Prefect GraphDB (gdb) object
+    and generates a Prefect workflow module. The module includes imports,
+    task definitions, and workflow configurations for unique workflows
+    found in the graph.
+
+    Args:
+        gdb (GraphDB): A Prefect GraphDB object representing the DAG.
+
+    Returns:
+        str: The generated Prefect workflow module code as a string.
+    """
     module = ast.Module(
         body=[
             ast.Import(names=[ast.alias(name="asyncio")]),

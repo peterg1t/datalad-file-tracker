@@ -1,7 +1,8 @@
-import os
+"""This module provides utilities for path manipulations"""
 import glob
+import os
 from pathlib import Path
-
+from shutil import which
 
 
 def is_tool(name):
@@ -13,23 +14,32 @@ def is_tool(name):
     Returns:
         bool: True if the executable exists False otherwise
     """
-
-    # from whichcraft import which
-    from shutil import which
-
     return which(name) is not None
 
 
 def exists_case_sensitive(path) -> bool:
-    p = Path(path)
-    if not p.exists():
+    """Checks if a specified path exists and is a direct child of its
+    parent directory.
+
+    Args:
+    path (str or Path): The path to be checked.
+
+    Returns:
+    bool: Returns True if the specified path exists and is a direct child of
+    its parent directory,
+          otherwise returns False.
+    """
+    designated_path = Path(path)
+    if not designated_path.exists():
         # If it already doesn't exist(),
         # we can skip iterdir().
         return False
-    return p in p.parent.iterdir()
+    return designated_path in designated_path.parent.iterdir()
+
 
 def full_path_from_partial(top_level_path: str, relative_path: str) -> str:
-    """This function will return an absolute path from a patial path an a top level path
+    """This function will return an absolute path from a partial path an a
+    top level path
 
     Args:
         top_level_path (str): A top level path that contains the partial path
@@ -38,4 +48,7 @@ def full_path_from_partial(top_level_path: str, relative_path: str) -> str:
     Returns:
         str: An absolute path
     """
-    return glob.glob(top_level_path + f"/**/*{os.path.basename(relative_path)}",recursive=True,)[0]
+    return glob.glob(
+        top_level_path + f"/**/*{os.path.basename(relative_path)}",
+        recursive=True,
+    )[0]

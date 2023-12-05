@@ -1,13 +1,9 @@
 """Init file."""
-from src import graphs
-from src import import_export
-from src import utilities
-from src import match
+from src import (
+    graphs,
+    import_export,
+    match,
+    utilities,
+)
 
-
-__all__ = [
-    "graphs",
-    "import_export",
-    "utilities",
-    "match"
-]
+__all__ = ["graphs", "import_export", "utilities", "match"]

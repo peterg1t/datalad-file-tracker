@@ -1,16 +1,21 @@
+"""Docstring."""
 import os
-import datalad.api as dl
-import utilities
-import asyncio
-import git
 import subprocess
 
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-from apscheduler.executors.pool import ThreadPoolExecutor
+import datalad.api as dl
+
+from . import get_superdataset
 
 
 def command_submit(command):
+    """This method will submit a command with subprocess
+
+    Args:
+        command (str): A command to be submitted
+
+    Returns:
+        str, str: Log files
+    """
     command_run_output = subprocess.run(
         command, shell=True, capture_output=True, text=True, check=False
     )
@@ -23,6 +28,23 @@ def command_submit(command):
 
 
 def job_prepare(dataset, branch):
+    """
+    Retrieve the contents of a DataLad dataset.
+
+    This function performs a 'datalad get' operation on the specified DataLad
+    dataset, optionally including subdatasets recursively.
+
+    Parameters:
+        source_dataset (str): The path to the DataLad dataset to retrieve.
+        recursive (bool, optional): If True, perform a recursive 'datalad get'
+            operation including subdatasets. Defaults to False.
+
+    Returns:
+        tuple: A tuple containing two lists:
+            - A list of strings representing the standard output logs of the
+              'datalad get' operation.
+            - A list of strings representing the standard error logs.
+    """
     outlogs = []
     errlogs = []
 
@@ -37,6 +59,18 @@ def job_prepare(dataset, branch):
 
 
 def job_clean(dataset):
+    """
+    Clean up a DataLad dataset by removing worktrees and pruning unused ones.
+
+    This function removes the worktree directory and prunes any unused worktrees
+    associated with the specified DataLad dataset.
+
+    Args:
+        dataset (str): The path to the DataLad dataset to clean.
+
+    Returns:
+        None
+    """
     outlogs = []
     errlogs = []
 
@@ -54,22 +88,29 @@ def job_clean(dataset):
 
 
 def run_pending_nodes(original_ds, dataset, gdb_abstract, gdb_difference, branch):
-    """_summary_
+    """Process the next nodes to be run, generating inputs and outputs for a job.
+
+    This method extracts information from the specified graph databases
+      (`gdb_difference`
+    and `gdb_abstract`) to determine the inputs and outputs for the next nodes to be
+    executed. It then constructs paths relative to the dataset and checks the existence
+    of the necessary directories. If all conditions are met, it extracts the command
+    associated with the nodes and submits a job.
 
     Args:
-        original_ds (str): The original dataset
-        dataset (str): A path to the dataset
-        gdb_abstract (graph): An abstract graph
-        gdb_difference (graph): A graph for the difference
-        branch (str): The branch that is running
+        dataset (str): The path to the DataLad dataset.
+        branch (str): The branch to which the job belongs.
+        gdb_difference: Graph database representing the differences between datasets.
+        gdb_abstract: Graph database representing the abstract representation of
+          the workflow.
+        original_ds (str): The path to the original dataset.
 
     Returns:
-        _type_: _description_
+        job_submit_result: The result of the job submission, or None if no job was
+          submitted.
     """
     inputs = []
     outputs = []
-    input_datasets = []
-    output_datasets = []
     # try:
     next_nodes_req = gdb_difference.next_nodes_run()
     print("next_nodes_req", next_nodes_req, "branch->", branch)
@@ -78,27 +119,31 @@ def run_pending_nodes(original_ds, dataset, gdb_abstract, gdb_difference, branch
         inputs.extend(
             [
                 os.path.join(dataset, os.path.relpath(p, original_ds))
-                for p in gdb_abstract.graph.predecessors(item)
+                for p in gdb_abstract.predecessors(item)
             ]
         )
         outputs.extend(
             [
                 os.path.join(dataset, os.path.relpath(s, original_ds))
-                for s in gdb_abstract.graph.successors(item)
+                for s in gdb_abstract.successors(item)
             ]
         )
 
-    if inputs:
-        if all([os.path.exists(os.path.dirname(f)) for f in outputs]) and all(
-            [os.path.exists(os.path.dirname(f)) for f in inputs]
-        ):
-            command = gdb_difference.graph.nodes[item]["cmd"]
-            message = "test"
+        if inputs:
+            if all(os.path.exists(os.path.dirname(f)) for f in outputs) and all(
+                os.path.exists(os.path.dirname(f)) for f in inputs
+            ):
+                command = gdb_difference.nodes[item]["cmd"]
+                message = "test"
 
-            return job_submit(dataset, branch, inputs, outputs, message, command)
+                return job_submit(dataset, branch, inputs, outputs, message, command)
+
+    return None
 
 
-def job_submit(dataset, branch, inputs, outputs, message, command):
+def job_submit(
+    dataset, branch, inputs, outputs, message, command
+):  # pylint: disable=too-many-arguments
     """! This function will execute the datalad run command
 
     Args:
@@ -106,7 +151,7 @@ def job_submit(dataset, branch, inputs, outputs, message, command):
         input (str): Path to input
         output (str): Path to output
         message (str): Commit message
-        command (str): Commmand
+        command (str): Command
 
     Raises:
         Exception: If error is found
@@ -124,13 +169,16 @@ def job_submit(dataset, branch, inputs, outputs, message, command):
     inputs_proc = " -i ".join(inputs)
     outputs_proc = " -o ".join(outputs)
     # saving the dataset prior to processing
-    
-    superdataset = utilities.get_superdataset(dataset=dataset)
 
-    dl.save(path=superdataset.path, dataset=superdataset.path, recursive=True)
+    superdataset = get_superdataset(dataset=dataset)
 
-    datalad_run_command = f"cd {superdataset.path}; datalad run -m '{message}' -d^ -i {inputs_proc} -o {outputs_proc} '{command}'"
-    # datalad_run_command = f"cd {dataset}; datalad run -m '{message}' -d '{dataset}' -i {inputs_proc} -o {outputs_proc} '{command}'"
+    dl.save(  # pylint: disable=no-member
+        path=superdataset.path,
+        dataset=superdataset.path,
+        recursive=True,
+    )
+
+    datalad_run_command = f"cd {superdataset.path}; datalad run -m '{message}' -d^ -i {inputs_proc} -o {outputs_proc} '{command}'"  # noqa: E501
     print("command->", datalad_run_command, "branch->", branch)
 
     outlog, errlog = command_submit(datalad_run_command)
@@ -139,7 +187,8 @@ def job_submit(dataset, branch, inputs, outputs, message, command):
     for item in errlogs[0]:
         if "error" in item:
             raise Exception(
-                "Error found in the datalad containers run command, check the log for more information on this error."
+                """Error found in the datalad containers run command,
+                check the log for more information on this error."""
             )
 
     print("logs", outlogs, errlogs)

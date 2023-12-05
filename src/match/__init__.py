@@ -1,17 +1,18 @@
+"""Init module for match."""
 from .difference import (
     graph_diff,
     graph_diff_tasks,
-    graph_ID_relabel,
-    next_nodes_run,
+    graph_id_relabel,
     graph_remap_command,
     graph_remap_command_task,
+    next_nodes_run,
 )
 
 __all__ = [
     "graph_diff",
     "graph_diff_tasks",
-    "graph_ID_relabel",
+    "graph_id_relabel",
     "next_nodes_run",
     "graph_remap_command",
-    "graph_remap_command_task"
-    ]
+    "graph_remap_command_task",
+]

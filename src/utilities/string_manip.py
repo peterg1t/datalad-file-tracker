@@ -1,7 +1,5 @@
-import re
-
-
 """This module will process line form the text file"""
+import re
 
 
 def line_process_task(line):
@@ -13,28 +11,28 @@ def line_process_task(line):
     Returns:
         task_name: A task command
         task_command: A task command
-        predecesors: A list of node predecesors
+        predecessors: A list of node predecessors
         workflow: The workflow to which the task belongs, if void workflow="main"
     """
     line = line.rstrip()
 
     task_name = None
     task_command = None
-    predecesors = None
+    predecessors = None
     try:
         task_name = line.split("<>")[1]
-        predecesors = line.split("<>")[2].split(",")
+        predecessors = line.split("<>")[2].split(",")
         task_command = line.split("<>")[3]
         workflow = line.split("<>")[4]
-    except:  # pylint: disable = bare-except
-        print("Incorrect file format, check the file and reload")
+    except ValueError as error:  # pylint: disable = bare-except
+        print(f"Incorrect file format, check the file and reload {error}")
 
     if not workflow:
         workflow = "main"
 
     # print(f"processing node {task_name}, workflow is {workflow}")
 
-    return task_name, predecesors, task_command, workflow
+    return task_name, predecessors, task_command, workflow
 
 
 def line_process_task_v2(line):
@@ -46,8 +44,9 @@ def line_process_task_v2(line):
     Returns:
         task_name: A task command
         task_command: A task command
-        predecesors: A list of node predecesors
-        workflow: The workflow to which the task belongs, if void workflow="main"
+        predecessors: A list of node predecessors
+        workflow: The workflow to which the task belongs, if void
+        workflow="main"
     """
     line = line.rstrip()
 
@@ -59,8 +58,8 @@ def line_process_task_v2(line):
         pce = line.split("<>")[5]
         subworkflow = line.split("<>")[6]
         message = line.split("<>")[7]
-    except Exception as e:  # pylint: disable = bare-except
-        print("Incorrect file format, check the file and reload {e}")
+    except ValueError as error:  # pylint: disable = bare-except
+        print(f"Incorrect file format, check the file and reload {error}")
 
     if not subworkflow:
         subworkflow = "main"
@@ -78,21 +77,21 @@ def line_process_file(line):
 
     Returns:
         file_list: A list of file names for node creation
-        predecesors: A list of predecesor nodes
+        predecessors: A list of predecessor nodes
     """
     line = line.rstrip()
     file_list = None
-    predecesors = None
+    predecessors = None
     try:
         file_list = line.split("<>")[1].split(",")
-        predecesors = line.split("<>")[2].split(",")
-    except:  # pylint: disable = bare-except
-        print("Incorrect file format, check the file and reload")
+        predecessors = line.split("<>")[2].split(",")
+    except ValueError as error:  # pylint: disable = bare-except
+        print(f"Incorrect file format, check the file and reload {error}")
 
-    return file_list, predecesors
+    return file_list, predecessors
 
 
-def remove_space(input):
+def remove_space(input_string):
     """! This function remove spaces in strings
 
     Args:
@@ -101,7 +100,7 @@ def remove_space(input):
     Returns:
         str: The string without spaces
     """
-    return "".join(input.split())
+    return "".join(input_string.split())
 
 
 def file_name_expansion(item):
@@ -115,14 +114,14 @@ def file_name_expansion(item):
         files (list): A list of expanded files
     """
     files = []
-    range_string = re.findall("(\d+\.\.\d+)", item)
+    range_string = re.findall(r"(\d+\.\.\d+)", item)
 
     if range_string:
         start_range = int(range_string[0].split("..")[0])
         end_range = int(range_string[0].split("..")[1])
 
         for i in range(start_range, end_range + 1):
-            file_splitted = re.split("(\{.*?\})", item)
+            file_splitted = re.split(r"(\{.*?\})", item)
             files.append(f"{file_splitted[0]}{i}{file_splitted[2]}")
     else:
         if len(item) == 0:
