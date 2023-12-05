@@ -148,35 +148,74 @@ def abs2prov(abstract_graph: nx.DiGraph,
     timezone_offset = -7.0  # Mountain Standard Time (UTC−07:00)
     tzinfo = dt.timezone(dt.timedelta(hours=timezone_offset))
 
+    run_info = {
+        'cmd': cmd,
+        # rerun does not handle any prop being None, hence all
+        # the `or/else []`
+        'chain': rerun_info["chain"] if rerun_info else [],
+    }
+    # for all following we need to make sure that the raw
+    # specifications, incl. any placeholders make it into
+    # the run-record to enable "parametric" re-runs
+    # ...except when expansion was requested
+    for k, v in specs.items():
+        run_info[k] = globbed[k].paths \
+            if expand in ["both"] + (
+                ['outputs'] if k == 'outputs' else ['inputs']) \
+            else (v if parametric_record
+                  else expanded_specs[k]) or []
+        
+    if rel_pwd is not None:
+        # only when inside the dataset to not leak information
+        run_info['pwd'] = rel_pwd
+    if ds.id:
+        run_info["dsid"] = ds.id
+    if extra_info:
+        run_info.update(extra_info)
+        
+
+
+    # [DATALAD RUNCMD] test
+
+    # === Do not change lines below ===
+    # {
+    #  "chain": [],
+    #  "cmd": "sh code/t1.sh -i {inputs} -o {outputs}",
+    #  "dsid": "3ac42793-053f-4c19-8fc7-5925378e50c3",
+    #  "exit": 0,
+    #  "extra_inputs": [],
+    #  "inputs": [
+    #   "outputs/output_t0.txt"
+    #  ],
+    #  "outputs": [
+    #   "outputs/output_t01.txt"
+    #  ],
+    #  "pwd": ".."
+    # }
+    # ^^^ Do not change lines above ^^^
+
+
+
     for node in abstract_graph.nodes(data=True):
         print(node)
         # For every node we need to push an empty commit  since there is no
         # file to be added to the dataset
+            # compose commit message
+        msg = f"""\
+[DATALAD RUNCMD] {node[1]["message"]}
+
+=== Do not change lines below ===
+{}
+^^^ Do not change lines above ^^^
+"""
 
         commit_date = dt.datetime.now(tzinfo)
-        # commit_date=datetime.date(2020, 7, 21).strftime('%Y-%m-%d %H:%M:%S')
-        # commit_date = dt.datetime.today.strftime('%Y-%m-%d %H:%M:%S')
         index.write()
-        index.commit(message=node[1]['command'],
+        index.commit(message=msg,
                      author=author,
                      commit_date=commit_date)
 
         
 
-    # run_info = {
-    #     'cmd': cmd,
-    #     # rerun does not handle any prop being None, hence all
-    #     # the `or/else []`
-    #     'chain': rerun_info["chain"] if rerun_info else [],
-    # }
-    # # for all following we need to make sure that the raw
-    # # specifications, incl. any placeholders make it into
-    # # the run-record to enable "parametric" re-runs
-    # # ...except when expansion was requested
-    # for k, v in specs.items():
-    #     run_info[k] = globbed[k].paths \
-    #         if expand in ["both"] + (
-    #             ['outputs'] if k == 'outputs' else ['inputs']) \
-    #         else (v if parametric_record
-    #               else expanded_specs[k]) or []
+    
     pass
