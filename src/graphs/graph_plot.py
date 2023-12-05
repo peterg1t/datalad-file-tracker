@@ -63,8 +63,8 @@ def graph_object_plot_task(graph_input, fcolour="node_color"):
     plot.renderers.append(graph)  # pylint: disable=no-member
 
     x_coord, y_coord = zip(
-        *graph.layout_provider.graph_layout.values()
-    )  # pylint: disable=no-member
+        *graph.layout_provider.graph_layout.values()  # pylint: disable=no-member
+    )
     node_labels = nx.get_node_attributes(relabeled_graph, "name")
     node_names = list(node_labels.values())
 
@@ -170,9 +170,9 @@ def graph_object_plot_provenance(graph_input, fcolour="node_color"):
 
     print(relabeled_graph.nodes(data=True))
 
-    nx.set_node_attributes(
-        relabeled_graph, "grey", name=fcolour
-    )  # adding grey color at initialization
+    # nx.set_node_attributes(
+    #     relabeled_graph, "grey", name=fcolour
+    # )  # adding grey color at initialization
 
     graph_layout = graphviz_layout(
         relabeled_graph, prog="dot", root=None, args="-Gnodesep=1000 -Grankdir=TB"

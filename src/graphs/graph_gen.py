@@ -3,7 +3,14 @@ import os
 
 import streamlit as st
 
-from .. import utilities
+from ..utilities import (
+    encode,
+    file_name_expansion,
+    line_process_file,
+    line_process_task,
+    line_process_task_v2,
+    remove_space,
+)
 
 
 def process_task_node(
@@ -71,7 +78,7 @@ def process_file_node(files, prec_nodes, nodes, edges):
                     "status": "pending",
                     "node_color": "grey",
                     "predecessor": prec_nodes,
-                    "ID": utilities.encode(file),
+                    "ID": encode(file),
                 },
             )
         )
@@ -110,12 +117,12 @@ def graph_components_generator_from_file(filename):
                     prec_nodes,
                     command,
                     workflow,
-                ) = utilities.line_process_task(  # noqa: E501
+                ) = line_process_task(  # noqa: E501
                     line
                 )
                 process_task_node(task, prec_nodes, command, workflow, nodes, edges)
             elif stage_type == "F":
-                files, prec_nodes = utilities.line_process_file(line)
+                files, prec_nodes = line_process_file(line)
                 process_file_node(files, prec_nodes, nodes, edges)
 
     return nodes, edges
@@ -142,7 +149,7 @@ def graph_components_generator(number_of_tasks):  # pylint: disable=too-many-loc
             stage_type = col1.selectbox(
                 "Select node type", ["file", "task"], key=f"stage_{i}"
             )
-            prec_nodes_grp = utilities.remove_space(
+            prec_nodes_grp = remove_space(
                 col3.text_input(f"Preceding node(s) for stage{i}", key=f"node(s)_{i}")
             ).split(",")
 
@@ -150,11 +157,11 @@ def graph_components_generator(number_of_tasks):  # pylint: disable=too-many-loc
             for prec_nodes_item in prec_nodes_grp:
                 # for file definition lets check if we have defined
                 # multiple files with regex
-                nodes_expanded = utilities.file_name_expansion(prec_nodes_item)
+                nodes_expanded = file_name_expansion(prec_nodes_item)
                 prec_nodes.extend(nodes_expanded)
 
             if stage_type == "file":
-                file_grp = utilities.remove_space(
+                file_grp = remove_space(
                     col2.text_input(
                         f"File(s) for stage {i}",
                         key=f"name_{i}",
@@ -166,7 +173,7 @@ def graph_components_generator(number_of_tasks):  # pylint: disable=too-many-loc
                 for file_item in file_grp:
                     # for file definition lets check if we have defined
                     #  multiple files with regex
-                    files_expanded = utilities.file_name_expansion(file_item)
+                    files_expanded = file_name_expansion(file_item)
 
                     if (
                         len(file_item.rstrip()) == 0
@@ -224,7 +231,7 @@ def gcg_processing_tasks(filename):  # pylint: disable=too-many-locals
                 pce,
                 subworkflow,
                 message,
-            ) = utilities.line_process_task_v2(item)
+            ) = line_process_task_v2(item)
             nodes.append(
                 (
                     task,

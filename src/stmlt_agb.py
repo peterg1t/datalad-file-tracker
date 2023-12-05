@@ -3,6 +3,7 @@ Docstring
 """
 import argparse
 import cProfile
+import json
 
 import git
 import networkx as nx
@@ -67,25 +68,19 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
         # print("abstract", gdb_abstract.nodes(data=True), "\n")
         # print("provenance", gdb_provenance.nodes(data=True), "\n")
         # print("difference", gdb_difference.nodes(data=True), "\n")
-
-        graph_plot_diff = graphs.graph_object_plot_provenance(gdb_provenance)
+        graph_plot_diff = graphs.graph_object_plot_abstract(gdb_abstract)
         plot_graph(graph_plot_diff)
 
         if gdb_difference:
             next_nodes_requirements = match.next_nodes_run(gdb_difference)
 
-        if (
-            not st.session_state["next_nodes_req"]
-            or "next_nodes_req" not in st.session_state
-        ):
+        if "next_nodes_req" not in st.session_state:
             st.session_state["next_nodes_req"] = next_nodes_requirements
 
     else:
         st.warning(f"Path {provenance_ds_path} does not exist.")
         st.stop()
 
-    # print("session state", st.session_state)
-    # return gdb_difference
     st.session_state["gdb_diff"] = gdb_difference
 
 
@@ -213,6 +208,8 @@ if __name__ == "__main__":
         gdb = nx.DiGraph()
         gdb.add_nodes_from(node_list)
         gdb.add_edges_from(edge_list)
+        # pprint.pp(gdb.nodes(data=True))
+        print(json.dumps(list(gdb.nodes(data=True)), indent=4))
         st.success("Graph created")
 
     except ValueError as error:
@@ -259,7 +256,7 @@ if __name__ == "__main__":
 
         run_next_button = st.sidebar.button("Run pending nodes")
         if run_next_button:
-            print(st.session_state)
+            print("session state", st.session_state)
             run_pending_nodes(
                 scheduler,
                 provenance_graph_path,

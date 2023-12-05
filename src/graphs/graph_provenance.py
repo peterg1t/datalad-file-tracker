@@ -4,7 +4,13 @@ from datetime import datetime
 import datalad.api as dl
 import git
 
-from .. import utilities
+from ..utilities import (
+    commit_message_node_extract,
+    full_path_from_partial,
+    get_commit_list,
+    get_git_root,
+    get_superdataset,
+)
 
 
 def prov_scan(
@@ -18,15 +24,15 @@ def prov_scan(
     """
     node_list = []
     edge_list = []
-    superdataset = utilities.get_superdataset(dataset_path)
+    superdataset = get_superdataset(dataset_path)
     subdatasets = [dataset_path]
     for subdataset in subdatasets:
         repo = git.Repo(subdataset)
         commits = list(repo.iter_commits(repo.heads[dataset_branch]))
-        dl_run_commits = utilities.get_commit_list(commits)
+        dl_run_commits = get_commit_list(commits)
         for commit in dl_run_commits:
             task = {}
-            dict_o = utilities.commit_message_node_extract(commit)
+            dict_o = commit_message_node_extract(commit)
             task["dataset"] = superdataset.path
             task["command"] = dict_o["cmd"]
             task["commit"] = commit.hexsha
@@ -38,11 +44,11 @@ def prov_scan(
             task["outputs"] = ",".join(sorted(dict_o["outputs"]))
 
             # inputs_full_path = [
-            #     utilities.full_path_from_partial(superdataset.path, inp)
+            #     full_path_from_partial(superdataset.path, inp)
             #     for inp in dict_o["inputs"]
             # ]
             # outputs_full_path = [
-            #     utilities.full_path_from_partial(superdataset.path, out)
+            #     full_path_from_partial(superdataset.path, out)
             #     for out in dict_o["outputs"]
             # ]
             inputs = dict_o["inputs"]
@@ -53,13 +59,11 @@ def prov_scan(
             task["ID"] = ",".join(sorted(full_task_description))
             if task["inputs"]:
                 for input_file in inputs:
-                    input_file_full_path = utilities.full_path_from_partial(
+                    input_file_full_path = full_path_from_partial(
                         superdataset.path, input_file
                     )
                     file = {}
-                    ds_file = git.Repo(
-                        utilities.get_git_root(input_file_full_path)
-                    )  # noqa: E501
+                    ds_file = git.Repo(get_git_root(input_file_full_path))  # noqa: E501
                     file_status = dl.status(  # pylint: disable=no-member
                         path=input_file_full_path, dataset=ds_file.working_tree_dir
                     )[
@@ -73,19 +77,19 @@ def prov_scan(
                         commit.authored_date
                     ).strftime("%Y-%m-%d %H:%M:%S")
                     file["status"] = file_status["gitshasum"]
-                    # file["ID"] = utilities.encode(input_file_full_path)
+                    # file["ID"] = encode(input_file_full_path)
                     file["ID"] = input_file
 
                     node_list.append((file["path"], file))
                     edge_list.append((file["path"], task["commit"]))
             if task["outputs"]:
                 for output_file in outputs:
-                    output_file_full_path = utilities.full_path_from_partial(
+                    output_file_full_path = full_path_from_partial(
                         superdataset.path, output_file
                     )
                     file = {}
                     ds_file = git.Repo(
-                        utilities.get_git_root(output_file_full_path)
+                        get_git_root(output_file_full_path)
                     )  # noqa: E501
                     file_status = dl.status(  # pylint: disable=no-member
                         path=output_file_full_path, dataset=ds_file.working_tree_dir
@@ -98,7 +102,7 @@ def prov_scan(
                         commit.authored_date
                     ).strftime("%Y-%m-%d %H:%M:%S")
                     file["status"] = file_status["gitshasum"]
-                    # file["ID"] = utilities.encode(output_file_full_path)
+                    # file["ID"] = encode(output_file_full_path)
                     file["ID"] = output_file
 
                     node_list.append((file["path"], file))
