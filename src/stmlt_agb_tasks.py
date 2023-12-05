@@ -517,6 +517,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()  # pylint: disable = invalid-name
 
+
     # We now start the background scheduler
     # scheduler = BackgroundScheduler()
     # This will get you a BackgroundScheduler with a MemoryJobStore named
@@ -590,6 +591,11 @@ if __name__ == "__main__":
     if st.sidebar.button("Generate code"):
         code_workflow = generate_code(gdb)
         st.text_area("Prefect code", code_workflow)
+
+    # here we add a button to record the abstract graph as provenance
+    if st.sidebar.button("Record as provenance"):
+        graphs.abs2prov(gdb, provenance_graph_path, "abstract")
+        
 
     if utilities.exists_case_sensitive(provenance_graph_path):
         branches_project = utilities.get_branches(provenance_graph_path)

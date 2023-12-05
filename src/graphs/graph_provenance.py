@@ -1,8 +1,10 @@
 """Utilities for graph provenance"""
 from datetime import datetime
-
+from pathlib import Path
 import datalad.api as dl
 import git
+import networkx as nx
+import datetime as dt
 
 import utilities  # pylint: disable=import-error
 
@@ -108,10 +110,73 @@ def prov_scan(
     return node_list, edge_list
 
 
-def abs2prov(abstract_graph):
-    """This function will take an abstract graph and write
+def abs2prov(abstract_graph: nx.DiGraph,
+             dataset: Path,
+             abstract_branch: str = "abstract"):
+    """This function will take an abstract graph and write a provenance entry
+    for every node in the dataset, this function will also take a branch name
+    to store the provenance. If the input branch does not exists it will create it.
 
     Args:
-        abstract_graph (_type_): _description_
+        abstract_graph (DiGraph): An abstract graph
     """
+
+    print("Function inputs", abstract_graph.nodes(data=True), abstract_branch, dataset)
+
+    # First we create the branch in the existing dataset if it doesn't exists.
+    # If the branch does exists then
+    # we will check it out and commit to it.
+    print("get_git_root", dataset, utilities.get_git_root(dataset))
+    repo = git.Repo(utilities.get_git_root(dataset))
+    branches_project = utilities.get_branches(utilities.get_git_root(dataset))
+    
+    print("branches", branches_project)
+    
+    if abstract_branch in branches_project:
+        print("branch already exist in project")
+        branch = repo.heads[abstract_branch]
+        branch.checkout()
+    else:
+        print("branch des not exist in project")
+        branch = repo.git.checkout("--orphan", abstract_branch)
+
+    index = repo.index
+    author = git.Actor("Pedro Martinez", "pemartin@ucalgaryc.ca")
+    message = "test message"
+
+    # Time objects for commit
+    timezone_offset = -7.0  # Mountain Standard Time (UTC−07:00)
+    tzinfo = dt.timezone(dt.timedelta(hours=timezone_offset))
+
+    for node in abstract_graph.nodes(data=True):
+        print(node)
+        # For every node we need to push an empty commit  since there is no
+        # file to be added to the dataset
+
+        commit_date = dt.datetime.now(tzinfo)
+        # commit_date=datetime.date(2020, 7, 21).strftime('%Y-%m-%d %H:%M:%S')
+        # commit_date = dt.datetime.today.strftime('%Y-%m-%d %H:%M:%S')
+        index.write()
+        index.commit(message=node[1]['command'],
+                     author=author,
+                     commit_date=commit_date)
+
+        
+
+    # run_info = {
+    #     'cmd': cmd,
+    #     # rerun does not handle any prop being None, hence all
+    #     # the `or/else []`
+    #     'chain': rerun_info["chain"] if rerun_info else [],
+    # }
+    # # for all following we need to make sure that the raw
+    # # specifications, incl. any placeholders make it into
+    # # the run-record to enable "parametric" re-runs
+    # # ...except when expansion was requested
+    # for k, v in specs.items():
+    #     run_info[k] = globbed[k].paths \
+    #         if expand in ["both"] + (
+    #             ['outputs'] if k == 'outputs' else ['inputs']) \
+    #         else (v if parametric_record
+    #               else expanded_specs[k]) or []
     pass
