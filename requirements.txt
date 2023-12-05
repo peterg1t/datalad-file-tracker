@@ -92,7 +92,6 @@ pydeck==0.8.0
 pydeps==1.11.1
 pyflakes==3.0.1
 Pygments==2.15.1
-pygraphviz==1.10
 pylint==3.0
 pymongo==4.3.3
 Pympler==1.0.1
