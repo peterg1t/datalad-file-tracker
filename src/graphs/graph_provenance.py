@@ -4,7 +4,7 @@ from datetime import datetime
 import datalad.api as dl
 import git
 
-import utilities
+import utilities  # pylint: disable=import-error
 
 
 def prov_scan(
@@ -57,7 +57,9 @@ def prov_scan(
                         superdataset.path, input_file
                     )
                     file = {}
-                    ds_file = git.Repo(utilities.get_git_root(input_file_full_path))  # noqa: E501
+                    ds_file = git.Repo(
+                        utilities.get_git_root(input_file_full_path)
+                    )  # noqa: E501
                     file_status = dl.status(  # pylint: disable=no-member
                         path=input_file_full_path, dataset=ds_file.working_tree_dir
                     )[
@@ -106,13 +108,10 @@ def prov_scan(
     return node_list, edge_list
 
 
-
-
 def abs2prov(abstract_graph):
-    """This function will take an abstract graph and write 
+    """This function will take an abstract graph and write
 
     Args:
         abstract_graph (_type_): _description_
     """
     pass
-

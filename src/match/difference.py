@@ -4,7 +4,7 @@ from pathlib import Path
 
 import networkx as nx
 
-import utilities
+import utilities  # pylint: disable=import-error
 
 
 class FileHandleNotFound(Exception):
@@ -157,7 +157,9 @@ def graph_remap_command_task(graph, nmap):
 
         full_task_description = inputs_paths + output_paths
         full_task_description.append(attrs["command"])
-        graph2remap.nodes[node]["ID"] = utilities.encode(",".join(sorted(full_task_description)))
+        graph2remap.nodes[node]["ID"] = utilities.encode(
+            ",".join(sorted(full_task_description))
+        )
         inputs_mapped.update(outputs_mapped)
         new_command = _materialize_files_in_command(
             attrs["command"], node_handles_paths

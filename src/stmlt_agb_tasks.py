@@ -27,11 +27,9 @@ from bokeh.models import (  # type: ignore
 from bokeh.plotting import figure, from_networkx
 from networkx.drawing.nx_agraph import graphviz_layout
 
-import graphs
-import match
-import utilities
-import import_export
-
+import graphs  # pylint: disable=import-error
+import match  # pylint: disable=import-error
+import utilities  # pylint: disable=import-error
 
 profiler = cProfile.Profile()
 
