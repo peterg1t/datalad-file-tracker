@@ -8,6 +8,8 @@ import networkx as nx
 import datetime as dt
 import json
 from copy import copy as shallow_copy
+from typing import (Any,
+                    TypeVar)
 
 import utilities  # pylint: disable=import-error
 
@@ -175,6 +177,8 @@ def abs2prov(abstract_graph: nx.DiGraph,
     print("get_git_root", dataset, utilities.get_git_root(dataset))
     repo = git.Repo(utilities.get_git_root(dataset))
     branches_project = utilities.get_branches(utilities.get_git_root(dataset))
+
+    ds = utilities.get_superdataset(dataset=dataset)
     
     print("branches", branches_project)
     
@@ -192,10 +196,6 @@ def abs2prov(abstract_graph: nx.DiGraph,
     # Time objects for commit
     timezone_offset = -7.0  # Mountain Standard Time (UTC−07:00)
     tzinfo = dt.timezone(dt.timedelta(hours=timezone_offset))
-
-    
-
-
     # [DATALAD RUNCMD] test
 
     # === Do not change lines below ===
@@ -214,8 +214,6 @@ def abs2prov(abstract_graph: nx.DiGraph,
     #  "pwd": ".."
     # }
     # ^^^ Do not change lines above ^^^
-
-
 
     for node in abstract_graph.nodes(data=True):
         print(node)
@@ -238,18 +236,18 @@ def abs2prov(abstract_graph: nx.DiGraph,
                                            ('extra_inputs', extra_inputs),
                                            ('outputs', node[1]['outputs']))
         }
+        # run_info['inputs'] = specs['inputs']
+        # run_info['outputs'] = specs['outputs']
         for k, v in specs.items():
-            run_info[k] = globbed[k].paths \
-                if expand in ["both"] + (
-                    ['outputs'] if k == 'outputs' else ['inputs']) \
-                else (v if parametric_record
-                      else expanded_specs[k]) or []
+            # we don't need to expand globs here as this graph is abstract
+            run_info[k] = v
 
         run_info['pwd'] = os.path.abspath(os.path.dirname(__file__))
         if ds.id:
             run_info["dsid"] = ds.id
-        if extra_info:
-            run_info.update(extra_info)
+        # no extra info is added at this time
+        # if extra_info:
+        #     run_info.update(extra_info)
     
         record = json.dumps(run_info, indent=1, sort_keys=True, ensure_ascii=False)
 
@@ -268,8 +266,3 @@ def abs2prov(abstract_graph: nx.DiGraph,
         index.commit(message=msg,
                      author=author,
                      commit_date=commit_date)
-
-        
-
-    
-    pass
