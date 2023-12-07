@@ -17,6 +17,8 @@ from .graph_plot import (
 )
 from .graph_provenance import prov_scan, abs2prov
 
+from .graphs_text import generate_network_text, write_network_text
+
 __all__ = [
     "graph_object_plot_abstract",
     "graph_object_plot_provenance",
@@ -30,4 +32,6 @@ __all__ = [
     "deg_centrl",
     "eigen_centrl",
     "close_centrl",
+    "generate_network_text",
+    "write_network_text"
 ]

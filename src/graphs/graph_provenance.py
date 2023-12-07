@@ -117,7 +117,10 @@ def prov_scan(
 
 ListOrSet = TypeVar("ListOrSet", list, set)
 
-def ensure_iter(s: Any, cls: type[ListOrSet], copy: bool=False, iterate: bool=True) -> ListOrSet:
+
+def ensure_iter(s: Any, cls: ListOrSet,
+                copy: bool = False,
+                iterate: bool = True) -> ListOrSet:
     """Given not a list, would place it into a list. If None - empty list is returned
 
     Parameters
@@ -187,7 +190,7 @@ def abs2prov(abstract_graph: nx.DiGraph,
         branch = repo.heads[abstract_branch]
         branch.checkout()
     else:
-        print("branch des not exist in project")
+        print("branch does not exist in project")
         branch = repo.git.checkout("--orphan", abstract_branch)
 
     index = repo.index

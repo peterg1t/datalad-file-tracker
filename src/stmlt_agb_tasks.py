@@ -30,7 +30,7 @@ from networkx.drawing.nx_agraph import graphviz_layout
 import graphs  # pylint: disable=import-error
 import match  # pylint: disable=import-error
 import utilities  # pylint: disable=import-error
-
+  
 profiler = cProfile.Profile()
 
 st.set_page_config(layout="wide")
@@ -594,8 +594,11 @@ if __name__ == "__main__":
 
     # here we add a button to record the abstract graph as provenance
     if st.sidebar.button("Record as provenance"):
+        graphs.write_network_text(gdb,
+                                  with_labels=True,
+                                  vertical_chains=True
+                                  )
         graphs.abs2prov(gdb, provenance_graph_path, "abstract")
-        
 
     if utilities.exists_case_sensitive(provenance_graph_path):
         branches_project = utilities.get_branches(provenance_graph_path)
