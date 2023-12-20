@@ -4,10 +4,18 @@ Docstring
 import argparse
 import cProfile
 import os
+import csv
 from concurrent import futures
 
 import git
 import networkx as nx
+
+from apscheduler.executors.pool import ThreadPoolExecutor
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+from apscheduler.schedulers.background import BackgroundScheduler
+
+from globus_compute_sdk import Client, Executor
+from globus_compute_sdk.serialize import CombinedCode
 
 from . import (
     graphs,
@@ -15,7 +23,129 @@ from . import (
     utilities,
 )
 
+
+
 profiler = cProfile.Profile()
+
+
+
+
+def scheduler_configuration() -> int:
+    """
+    Initializes and customizes a background scheduler for task management.
+
+    This function creates a BackgroundScheduler instance with a customized configuration,
+    including a SQLAlchemyJobStore as the jobstore, a ThreadPoolExecutor with 8 threads
+    as the executor, and specific job defaults.
+
+    Returns:
+    str: The current state of the scheduler.
+
+    Notes:
+    - The default jobstore is a MemoryJobStore, but in this customization, it is replaced
+      with an SQLAlchemyJobStore using an SQLite database at the specified URL.
+    - The default executor is a ThreadPoolExecutor, and its thread count is set to 8.
+    - Job defaults include "coalesce" set to False and "max_instances" set to 3.
+    - The scheduler is started after customization.
+
+    Example:
+    ```python
+    scheduler_state = initialize_custom_scheduler()
+    print(f"The scheduler is initialized with state: {scheduler_state}")
+    ```
+    """
+     # We now start the background scheduler
+    # scheduler = BackgroundScheduler()
+    # This will get you a BackgroundScheduler with a MemoryJobStore named
+    # “default” and a ThreadPoolExecutor named “default” with a default
+    # maximum thread count of 10.
+
+    # Lets customize the scheduler a little bit lets keep the default
+    # MemoryJobStore but define a ProcessPoolExecutor
+    jobstores = {
+        "default": SQLAlchemyJobStore(
+            url="sqlite:////Users/pemartin/Projects/file-provenance-tracker/src/jobstore.sqlite"  # noqa: E501
+        )
+    }
+    executors = {
+        "default": ThreadPoolExecutor(8),
+    }
+    job_defaults = {"coalesce": False, "max_instances": 3}
+    return BackgroundScheduler(
+        jobstores=jobstores, executors=executors, job_defaults=job_defaults
+    )
+
+
+def run_pending_nodes_scheduler(
+    scheduler_instance, provenance_ds_path, gdb_difference, branch
+):  # pylint: disable=too-many-locals
+    """! Given a graph and the list of nodes (and requirements i.e. inputs)
+    compute the task with APScheduler
+
+    Args:
+        gdb_difference (graph): An abstract graph
+    """
+    inputs_dict = {}
+    outputs_dict = {}
+    inputs = []
+
+    # we need to use the translation file so the nodes in the difference tree have the
+    # file names instead of the abstract names. From the nodes we can extract the
+    # list of inputs and outputs for the job that is going to run
+    node_mapping = {}
+    with open(
+        f"{provenance_ds_path}/tf.csv", "r", encoding="utf-8"
+    ) as translation_file:
+        reader = csv.reader(translation_file)
+        for row in reader:
+            node_mapping[row[0]] = f"{provenance_ds_path}{row[1]}"
+
+    gdb_difference = match.graph_id_relabel(gdb_difference, node_mapping)
+
+    try:
+        next_nodes = match.next_nodes_run(gdb_difference)
+        for item in next_nodes:
+            for predecessors in gdb_difference.predecessors(item):
+                inputs_dict[predecessors] = gdb_difference.nodes[predecessors]
+                inputs.append(gdb_difference.nodes[predecessors])
+
+            for successors in gdb_difference.successors(item):
+                outputs_dict[successors] = gdb_difference.nodes[successors]
+
+            inputs = list(inputs_dict.keys())
+            outputs = list(outputs_dict.keys())
+            dataset = utilities.get_git_root(os.path.dirname(inputs[0]))
+            command = gdb_difference.nodes[item]["cmd"]
+            message = "test"
+
+            scheduler_instance.add_job(
+                utilities.job_submit,
+                args=[dataset, branch, inputs, outputs, message, command],
+            )
+
+    except ValueError as err:  # pylint: disable = bare-except
+        st.warning(
+            f"No provance graph has been matched to this abstract graph, match one first {err}"  # noqa: E501
+        )
+
+
+
+def add_func(a, b):
+    import time
+    time.sleep(20)
+    return a + b
+
+def submit_globus_job():
+    # tutorial endpoint (Raspberry Pi)
+    tutorial_endpoint_id = '3677a8af-0b38-4941-b9e7-1edda0af44d8' 
+# ... then create the executor, ...
+    gcc = Client(code_serialization_strategy=CombinedCode())
+    with Executor(endpoint_id=tutorial_endpoint_id, client=gcc) as gce:
+    # ... then submit for execution, ...
+        future = gce.submit(add_func, 5, 10)
+
+    # ... and finally, wait for the result
+    print(future.result())
 
 
 def run_preparation_worktree(super_ds, run):
@@ -197,6 +327,10 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()  # pylint: disable = invalid-name
+
+    #we initialize the scheduler
+    scheduler = scheduler_configuration()
+    scheduler.start()
 
     abspath = args.agraph
     provpath = args.pgraph

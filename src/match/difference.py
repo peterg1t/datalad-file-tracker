@@ -206,7 +206,7 @@ def graph_remap_command(graph, nmap):
     return graph2remap
 
 
-def end_nodes(self):
+def end_nodes(self) -> list:
     """This function return the last node(s) in a tree
 
     Returns:
@@ -220,7 +220,7 @@ def end_nodes(self):
     return nodes
 
 
-def next_nodes_run(graph):
+def next_nodes_run(graph: nx.DiGraph) -> list:
     """This function return the first node(s) in a tree or in the
     case of a diff graph the next node scheduled to run
     Returns:

@@ -171,9 +171,6 @@ def abs2prov(abstract_graph: nx.DiGraph,
     Args:
         abstract_graph (DiGraph): An abstract graph
     """
-
-    print("Function inputs", abstract_graph.nodes(data=True), abstract_branch, dataset)
-
     # First we create the branch in the existing dataset if it doesn't exists.
     # If the branch does exists then
     # we will check it out and commit to it.
@@ -182,8 +179,6 @@ def abs2prov(abstract_graph: nx.DiGraph,
     branches_project = utilities.get_branches(utilities.get_git_root(dataset))
 
     ds = utilities.get_superdataset(dataset=dataset)
-    
-    print("branches", branches_project)
     
     if abstract_branch in branches_project:
         print("branch already exist in project")
@@ -219,7 +214,6 @@ def abs2prov(abstract_graph: nx.DiGraph,
     # ^^^ Do not change lines above ^^^
 
     for node in abstract_graph.nodes(data=True):
-        print(node)
         # For every node we need to push an empty commit  since there is no
         # file to be added to the dataset
 

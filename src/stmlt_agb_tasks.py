@@ -41,6 +41,53 @@ Welcome to the abstract graph builder!
 )
 
 
+
+def scheduler_configuration() -> int:
+    """
+    Initializes and customizes a background scheduler for task management.
+
+    This function creates a BackgroundScheduler instance with a customized configuration,
+    including a SQLAlchemyJobStore as the jobstore, a ThreadPoolExecutor with 8 threads
+    as the executor, and specific job defaults.
+
+    Returns:
+    str: The current state of the scheduler.
+
+    Notes:
+    - The default jobstore is a MemoryJobStore, but in this customization, it is replaced
+      with an SQLAlchemyJobStore using an SQLite database at the specified URL.
+    - The default executor is a ThreadPoolExecutor, and its thread count is set to 8.
+    - Job defaults include "coalesce" set to False and "max_instances" set to 3.
+    - The scheduler is started after customization.
+
+    Example:
+    ```python
+    scheduler_state = initialize_custom_scheduler()
+    print(f"The scheduler is initialized with state: {scheduler_state}")
+    ```
+    """
+     # We now start the background scheduler
+    # scheduler = BackgroundScheduler()
+    # This will get you a BackgroundScheduler with a MemoryJobStore named
+    # “default” and a ThreadPoolExecutor named “default” with a default
+    # maximum thread count of 10.
+
+    # Lets customize the scheduler a little bit lets keep the default
+    # MemoryJobStore but define a ProcessPoolExecutor
+    jobstores = {
+        "default": SQLAlchemyJobStore(
+            url="sqlite:////Users/pemartin/Projects/file-provenance-tracker/src/jobstore.sqlite"  # noqa: E501
+        )
+    }
+    executors = {
+        "default": ThreadPoolExecutor(8),
+    }
+    job_defaults = {"coalesce": False, "max_instances": 3}
+    return BackgroundScheduler(
+        jobstores=jobstores, executors=executors, job_defaults=job_defaults
+    )
+
+
 def graph_components_generator(number_of_tasks):  # pylint: disable=too-many-locals
     """! This function will generate the graph of the entire project
 
@@ -374,7 +421,7 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
     return gdb_difference
 
 
-def run_pending_nodes(
+def run_pending_nodes_scheduler(
     scheduler_instance, provenance_ds_path, gdb_difference, branch
 ):  # pylint: disable=too-many-locals
     """! Given a graph and the list of nodes (and requirements i.e. inputs)
@@ -517,28 +564,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()  # pylint: disable = invalid-name
 
-
-    # We now start the background scheduler
-    # scheduler = BackgroundScheduler()
-    # This will get you a BackgroundScheduler with a MemoryJobStore named
-    # “default” and a ThreadPoolExecutor named “default” with a default
-    # maximum thread count of 10.
-
-    # Lets customize the scheduler a little bit lets keep the default
-    # MemoryJobStore but define a ProcessPoolExecutor
-    jobstores = {
-        "default": SQLAlchemyJobStore(
-            url="sqlite:////Users/pemartin/Projects/file-provenance-tracker/src/jobstore.sqlite"  # noqa: E501
-        )
-    }
-    executors = {
-        "default": ThreadPoolExecutor(8),
-    }
-    job_defaults = {"coalesce": False, "max_instances": 3}
-    scheduler = BackgroundScheduler(
-        jobstores=jobstores, executors=executors, job_defaults=job_defaults
-    )
-    scheduler.start()  # We start the scheduler
+    #we initialize the scheduler
+    scheduler = scheduler_configuration()
+    scheduler.start()
 
     next_nodes_req = []  # type: ignore
 
@@ -594,9 +622,12 @@ if __name__ == "__main__":
 
     # here we add a button to record the abstract graph as provenance
     if st.sidebar.button("Record as provenance"):
+        print("nodes", gdb.nodes(data=True))
+        print("edges", gdb.edges(data=True))
         graphs.write_network_text(gdb,
                                   with_labels=True,
-                                  vertical_chains=True
+                                  vertical_chains=True,
+                                  ascii_only=True
                                   )
         graphs.abs2prov(gdb, provenance_graph_path, "abstract")
 
@@ -609,4 +640,7 @@ if __name__ == "__main__":
             match_graphs(provenance_graph_path, gdb, branch_select)
         run_next_button = st.sidebar.button("Run pending nodes")
         if run_next_button:
-            run_pending_nodes(scheduler, provenance_graph_path, gdb, branch_select)
+            run_pending_nodes_scheduler(scheduler,
+                                        provenance_graph_path,
+                                        gdb,
+                                        branch_select)
