@@ -34,8 +34,10 @@ def prov_scan(
         for commit in dl_run_commits:
             task = {}
             dict_o = utilities.commit_message_node_extract(commit)
+            print("dict extracted", dict_o)
             task["dataset"] = superdataset.path
             task["command"] = dict_o["cmd"]
+            print("task-command", task["command"])
             task["commit"] = commit.hexsha
             task["author"] = commit.author.name
             task["date"] = datetime.utcfromtimestamp(commit.authored_date).strftime(
@@ -111,7 +113,67 @@ def prov_scan(
                     node_list.append((file["path"], file))
                     edge_list.append((task["commit"], file["path"]))
             node_list.append((task["commit"], task))
+    
+    return node_list, edge_list
 
+
+def prov_scan_task(
+    dataset_path, dataset_branch
+):  # pylint: disable=too-many-statements, too-many-locals
+    """! This function will return the nodes and edges list
+    Args:
+        ds_name (str): A path to the dataset (or subdataset)
+    Returns:
+        graph: A networkx graph
+    """
+    node_list = []
+    edge_list = []
+    superdataset = utilities.get_superdataset(dataset_path)
+    subdatasets = [dataset_path]
+    for subdataset in subdatasets:
+        repo = git.Repo(subdataset)
+        commits = list(repo.iter_commits(repo.heads[dataset_branch]))
+        dl_run_commits = utilities.get_commit_list(commits)
+        for commit in dl_run_commits:
+            task = {}
+            dict_o = utilities.commit_message_node_extract(commit)
+            print("dict extracted", dict_o)
+            task["dataset"] = superdataset.path
+            task["command"] = dict_o["cmd"]
+            print("task-command", task["command"])
+            task["commit"] = commit.hexsha
+            task["author"] = commit.author.name
+            task["date"] = datetime.utcfromtimestamp(commit.authored_date).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )  # noqa: E501
+            task["inputs"] = ",".join(sorted(dict_o["inputs"]))
+            task["outputs"] = ",".join(sorted(dict_o["outputs"]))
+
+            # inputs_full_path = [
+            #     full_path_from_partial(superdataset.path, inp)
+            #     for inp in dict_o["inputs"]
+            # ]
+            # outputs_full_path = [
+            #     full_path_from_partial(superdataset.path, out)
+            #     for out in dict_o["outputs"]
+            # ]
+            inputs = dict_o["inputs"]
+            outputs = dict_o["outputs"]
+
+            full_task_description = inputs + outputs
+            full_task_description.append(dict_o["cmd"])
+            task["ID"] = ",".join(sorted(full_task_description))
+            
+            node_list.append((task["commit"], task))
+        
+    for node1 in node_list:
+        for node2 in node_list:
+            diff_set = set(node1[1]["outputs"]).intersection(
+                set(node2[1]["inputs"])
+            )  # noqa: E501
+            if diff_set:
+                edge_list.append((node1[0], node2[0]))
+    
     return node_list, edge_list
 
 

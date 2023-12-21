@@ -15,7 +15,7 @@ from .graph_plot import (
     graph_object_plot_provenance,
     graph_object_plot_task,
 )
-from .graph_provenance import prov_scan, abs2prov
+from .graph_provenance import prov_scan, prov_scan_task, abs2prov
 
 from .graphs_text import generate_network_text, write_network_text
 
@@ -27,6 +27,7 @@ __all__ = [
     "graph_components_generator_from_file",
     "gcg_processing_tasks",
     "prov_scan",
+    "prov_scan_task",
     "abs2prov",
     "calc_betw_centrl",
     "deg_centrl",

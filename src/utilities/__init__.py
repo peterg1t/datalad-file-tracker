@@ -34,6 +34,8 @@ from .string_manip import (  # pylint: disable=import-error
     remove_space,
 )
 
+import match
+
 __all__ = [
     "is_tool",
     "exists_case_sensitive",

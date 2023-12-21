@@ -5,6 +5,7 @@ import subprocess
 import datalad.api as dl
 
 from . import get_superdataset
+from match import next_nodes_run
 
 
 def command_submit(command):
@@ -112,7 +113,7 @@ def run_pending_nodes(original_ds, dataset, gdb_abstract, gdb_difference, branch
     inputs = []
     outputs = []
     # try:
-    next_nodes_req = gdb_difference.next_nodes_run()
+    next_nodes_req = next_nodes_run(gdb_difference)
     print("next_nodes_req", next_nodes_req, "branch->", branch)
 
     for item in next_nodes_req:

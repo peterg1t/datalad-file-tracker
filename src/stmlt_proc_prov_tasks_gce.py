@@ -17,8 +17,11 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from globus_compute_sdk import Client, Executor
 from globus_compute_sdk.serialize import CombinedCode
 
-import graphs, match, utilities
-
+from . import (
+    graphs,
+    match,
+    utilities,
+)
 
 
 
@@ -121,9 +124,28 @@ def run_pending_nodes_scheduler(
             )
 
     except ValueError as err:  # pylint: disable = bare-except
-        print(
+        st.warning(
             f"No provance graph has been matched to this abstract graph, match one first {err}"  # noqa: E501
         )
+
+
+
+def add_func(a, b):
+    import time
+    time.sleep(20)
+    return a + b
+
+def submit_globus_job():
+    # tutorial endpoint (Raspberry Pi)
+    tutorial_endpoint_id = '3677a8af-0b38-4941-b9e7-1edda0af44d8' 
+# ... then create the executor, ...
+    gcc = Client(code_serialization_strategy=CombinedCode())
+    with Executor(endpoint_id=tutorial_endpoint_id, client=gcc) as gce:
+    # ... then submit for execution, ...
+        future = gce.submit(add_func, 5, 10)
+
+    # ... and finally, wait for the result
+    print(future.result())
 
 
 def run_preparation_worktree(super_ds, run):
@@ -184,9 +206,7 @@ def graph_diff_calc(gdb_abs, super_ds, run):  # pylint: disable=too-many-locals
                 attribute_mapping[row_splitted[0]] = f"{super_ds}/{row_splitted[1]}"
 
             gdb_abs_proc = match.graph_id_relabel(gdb_abs, attribute_mapping)
-            nodes_provenance, edges_provenance = graphs.prov_scan_task(super_ds, run)
-            for node in nodes_provenance:
-                print("node",node)
+            nodes_provenance, edges_provenance = graphs.prov_scan(super_ds, run)
             gdb_provenance = nx.DiGraph()
             gdb_provenance.add_nodes_from(nodes_provenance)
             gdb_provenance.add_edges_from(edges_provenance)
@@ -194,12 +214,6 @@ def graph_diff_calc(gdb_abs, super_ds, run):  # pylint: disable=too-many-locals
             gdb_abstract, gdb_difference = match.graph_diff_tasks(
                 gdb_abs_proc, gdb_provenance
             )
-
-            print("abstract", gdb_abstract.nodes(data=True))
-            print("abstract_proc", gdb_abs_proc.nodes(data=True))
-            print("provenance", gdb_provenance.nodes(data=True))
-            print("difference", gdb_difference.nodes(data=True))
-            exit(0)
 
             # We now need to get the input file/files for this job so it can be passed
             # to the pending nodes job
@@ -217,12 +231,12 @@ def graph_diff_calc(gdb_abs, super_ds, run):  # pylint: disable=too-many-locals
             utilities.sub_dead_here(clone_dataset)
             print("after dead here")
 
-            next_nodes = match.next_nodes_run(gdb_difference)
+            next_nodes = gdb_difference.next_nodes_run()
             for item in next_nodes:
                 output_datasets.extend(
                     [
                         os.path.dirname(os.path.relpath(s, super_ds))
-                        for s in gdb_abstract.successors(item)
+                        for s in gdb_abstract.graph.successors(item)
                         if os.path.exists(
                             os.path.dirname(
                                 os.path.join(
