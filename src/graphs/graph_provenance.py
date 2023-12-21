@@ -34,10 +34,8 @@ def prov_scan(
         for commit in dl_run_commits:
             task = {}
             dict_o = utilities.commit_message_node_extract(commit)
-            print("dict extracted", dict_o)
             task["dataset"] = superdataset.path
             task["command"] = dict_o["cmd"]
-            print("task-command", task["command"])
             task["commit"] = commit.hexsha
             task["author"] = commit.author.name
             task["date"] = datetime.utcfromtimestamp(commit.authored_date).strftime(
@@ -137,10 +135,8 @@ def prov_scan_task(
         for commit in dl_run_commits:
             task = {}
             dict_o = utilities.commit_message_node_extract(commit)
-            print("dict extracted", dict_o)
             task["dataset"] = superdataset.path
             task["command"] = dict_o["cmd"]
-            print("task-command", task["command"])
             task["commit"] = commit.hexsha
             task["author"] = commit.author.name
             task["date"] = datetime.utcfromtimestamp(commit.authored_date).strftime(
@@ -208,7 +204,8 @@ def ensure_iter(s: Any, cls: ListOrSet,
     else:
         return cls((s,))
 
-def ensure_list(s: Any, copy: bool=False, iterate: bool=True) -> list:
+
+def ensure_list(s: Any, copy: bool = False, iterate: bool = True) -> list:
     """Given not a list, would place it into a list. If None - empty list is returned
 
     Parameters

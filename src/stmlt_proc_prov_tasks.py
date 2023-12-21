@@ -20,11 +20,7 @@ from globus_compute_sdk.serialize import CombinedCode
 import graphs, match, utilities
 
 
-
-
 profiler = cProfile.Profile()
-
-
 
 
 def scheduler_configuration() -> int:
@@ -51,7 +47,7 @@ def scheduler_configuration() -> int:
     print(f"The scheduler is initialized with state: {scheduler_state}")
     ```
     """
-     # We now start the background scheduler
+    # We now start the background scheduler
     # scheduler = BackgroundScheduler()
     # This will get you a BackgroundScheduler with a MemoryJobStore named
     # “default” and a ThreadPoolExecutor named “default” with a default
@@ -181,24 +177,20 @@ def graph_diff_calc(gdb_abs, super_ds, run):  # pylint: disable=too-many-locals
             translation_file_data = blob.data_stream.read().decode("utf-8").split("\n")
             for row in translation_file_data[:-1]:
                 row_splitted = row.split(",")
-                attribute_mapping[row_splitted[0]] = f"{super_ds}/{row_splitted[1]}"
+                # attribute_mapping[row_splitted[0]] = f"{super_ds}/{row_splitted[1]}"
+                attribute_mapping[row_splitted[0]] = f"{row_splitted[1]}"
 
-            gdb_abs_proc = match.graph_id_relabel(gdb_abs, attribute_mapping)
+            gdb_abs_proc = match.graph_remap_command_task(gdb_abs, attribute_mapping)
+            gdb_abs_proc = match.graph_id_relabel(gdb_abs_proc, attribute_mapping)
             nodes_provenance, edges_provenance = graphs.prov_scan_task(super_ds, run)
-            for node in nodes_provenance:
-                print("node",node)
             gdb_provenance = nx.DiGraph()
             gdb_provenance.add_nodes_from(nodes_provenance)
             gdb_provenance.add_edges_from(edges_provenance)
 
-            gdb_abstract, gdb_difference = match.graph_diff_tasks(
+            gdb_difference = match.graph_diff_tasks(
                 gdb_abs_proc, gdb_provenance
             )
-
-            print("abstract", gdb_abstract.nodes(data=True))
-            print("abstract_proc", gdb_abs_proc.nodes(data=True))
-            print("provenance", gdb_provenance.nodes(data=True))
-            print("difference", gdb_difference.nodes(data=True))
+            print("exit")
             exit(0)
 
             # We now need to get the input file/files for this job so it can be passed
@@ -222,7 +214,7 @@ def graph_diff_calc(gdb_abs, super_ds, run):  # pylint: disable=too-many-locals
                 output_datasets.extend(
                     [
                         os.path.dirname(os.path.relpath(s, super_ds))
-                        for s in gdb_abstract.successors(item)
+                        for s in gdb_abs.successors(item)
                         if os.path.exists(
                             os.path.dirname(
                                 os.path.join(
@@ -237,7 +229,7 @@ def graph_diff_calc(gdb_abs, super_ds, run):  # pylint: disable=too-many-locals
                 utilities.job_checkout(clone_dataset, item, run)
 
             status = utilities.run_pending_nodes(
-                super_ds, clone_dataset, gdb_abstract, gdb_difference, run
+                super_ds, clone_dataset, gdb_abs, gdb_difference, run
             )
             # print('status->', run, status)
 
@@ -314,7 +306,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()  # pylint: disable = invalid-name
 
-    #we initialize the scheduler
+    # we initialize the scheduler
     scheduler = scheduler_configuration()
     scheduler.start()
 

@@ -66,8 +66,6 @@ def graph_diff_calc(gdb_abs, super_ds, run):  # pylint: disable=too-many-locals
                 node_mapping[row_splitted[0]] = f"{super_ds}/{row_splitted[1]}"
 
             gdb_abs_proc = match.graph_id_relabel(gdb_abs, node_mapping)
-            print("node_mapping", node_mapping, run)
-            print(gdb_abs_proc.nodes())
 
             nodes_provenance, edges_provenance = graphs.prov_scan(super_ds, run)
             gdb_provenance = nx.DiGraph()

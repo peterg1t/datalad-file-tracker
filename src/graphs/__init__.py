@@ -19,6 +19,8 @@ from .graph_provenance import prov_scan, prov_scan_task, abs2prov
 
 from .graphs_text import generate_network_text, write_network_text
 
+from .graph_utils import start_nodes, end_nodes
+
 __all__ = [
     "graph_object_plot_abstract",
     "graph_object_plot_provenance",
@@ -34,5 +36,7 @@ __all__ = [
     "eigen_centrl",
     "close_centrl",
     "generate_network_text",
-    "write_network_text"
+    "write_network_text",
+    "start_nodes",
+    "end_nodes"
 ]

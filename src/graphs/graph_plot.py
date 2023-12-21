@@ -26,7 +26,6 @@ def graph_object_plot_task(graph_input, fcolour="node_color"):
     relabeled_graph = nx.relabel_nodes(graph_input, mapping=mapping)
 
     for _, attrs in relabeled_graph.nodes(data=True):
-        print(attrs)
         attrs["name"] = attrs["description"]
 
     # adding grey color at initialization

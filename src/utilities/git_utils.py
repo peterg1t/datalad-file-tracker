@@ -116,8 +116,6 @@ def sub_clone_flock(source_dataset, path_dataset, branch):
     errlog.pop()  # drop the empty last element
     outlogs.append(outlog)
     errlogs.append(errlog)
-    # print('outlogs=',outlogs)
-    # print('errlogs=',errlogs)
 
 
 def sub_get(source_dataset, recursive=False):  # pylint: disable=unused-argument
@@ -149,8 +147,6 @@ def sub_get(source_dataset, recursive=False):  # pylint: disable=unused-argument
     errlog.pop()  # drop the empty last element
     outlogs.append(outlog)
     errlogs.append(errlog)
-    # print('outlogs=',outlogs)
-    # print('errlogs=',errlogs)
 
 
 def sub_dead_here(source_dataset):
@@ -171,8 +167,6 @@ def sub_dead_here(source_dataset):
     errlog.pop()  # drop the empty last element
     outlogs.append(outlog)
     errlogs.append(errlog)
-    # print('outlogs=',outlogs)
-    # print('errlogs=',errlogs)
 
 
 def sub_push_flock(
@@ -197,8 +191,6 @@ def sub_push_flock(
     errlog.pop()  # drop the empty last element
     outlogs.append(outlog)
     errlogs.append(errlog)
-    # print('outlogs_push=',outlogs)
-    # print('errlogs_push=',errlogs)
 
 
 def job_checkout(clone_dataset, ds_output, branch):
@@ -235,7 +227,6 @@ def git_merge(superdataset, ds_output):
     errlogs = []
     dataset = f"{superdataset}/{ds_output}"
     merge_command = f"cd {dataset} && git merge -m  'Octopus merge' $(git branch -l | grep 'job-' | tr -d ' ')"  # noqa: E501
-    print("merge->", merge_command)
     merge_command_output = subprocess.run(
         merge_command, shell=True, capture_output=True, text=True, check=False
     )
@@ -245,8 +236,6 @@ def git_merge(superdataset, ds_output):
     errlog.pop()  # drop the empty last element
     outlogs.append(outlog)
     errlogs.append(errlog)
-    print("outlogs_merge=", outlogs)
-    print("errlogs_merge=", errlogs)
 
 
 def branch_save(dataset, run):

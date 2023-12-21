@@ -66,7 +66,7 @@ def scheduler_configuration() -> int:
     print(f"The scheduler is initialized with state: {scheduler_state}")
     ```
     """
-     # We now start the background scheduler
+    # We now start the background scheduler
     # scheduler = BackgroundScheduler()
     # This will get you a BackgroundScheduler with a MemoryJobStore named
     # “default” and a ThreadPoolExecutor named “default” with a default
@@ -401,7 +401,7 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
 
         gdb_abstract = match.graph_remap_command_task(gdb_abstract, node_mapping)
         gdb_abstract = match.graph_id_relabel(gdb_abstract, node_mapping)
-        gdb_abstract, gdb_difference = match.graph_diff_tasks(
+        gdb_difference = match.graph_diff_tasks(
             gdb_abstract, gdb_provenance
         )
 
@@ -622,8 +622,6 @@ if __name__ == "__main__":
 
     # here we add a button to record the abstract graph as provenance
     if st.sidebar.button("Record as provenance"):
-        print("nodes", gdb.nodes(data=True))
-        print("edges", gdb.edges(data=True))
         graphs.write_network_text(gdb,
                                   with_labels=True,
                                   vertical_chains=True,
