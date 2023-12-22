@@ -104,6 +104,8 @@ def sub_clone_flock(source_dataset, path_dataset, branch):
      @param source_dataset (str): A path to the original dataset
      @param path_dataset (str): A path to the target dataset location
     """
+    import os
+    import subprocess
     outlogs = []
     errlogs = []
     clone_command = f"cd {os.path.dirname(path_dataset)} && flock --verbose {source_dataset}/.git/datalad_lock datalad clone {source_dataset} {os.path.basename(path_dataset)} --branch {branch}"  # noqa: E501
@@ -116,6 +118,8 @@ def sub_clone_flock(source_dataset, path_dataset, branch):
     errlog.pop()  # drop the empty last element
     outlogs.append(outlog)
     errlogs.append(errlog)
+    
+    return (outlogs, errlogs)
 
 
 def sub_get(source_dataset, recursive=False):  # pylint: disable=unused-argument

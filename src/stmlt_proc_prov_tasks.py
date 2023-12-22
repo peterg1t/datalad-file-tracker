@@ -190,24 +190,19 @@ def graph_diff_calc(gdb_abs, super_ds, run):  # pylint: disable=too-many-locals
             gdb_difference = match.graph_diff_tasks(
                 gdb_abs_proc, gdb_provenance
             )
-            print("exit")
-            exit(0)
 
             # We now need to get the input file/files for this job so it can be passed
             # to the pending nodes job
             clone_dataset = f"/tmp/test_{run}"
-            print("clone_dataset", clone_dataset)
 
             # clone the repo
             utilities.sub_clone_flock(super_ds, clone_dataset, run)
-            print("after cloning")
 
             # get all submodules with no data
             utilities.sub_get(clone_dataset, True)
 
             # mark dead here (ephemeral dataset)
             utilities.sub_dead_here(clone_dataset)
-            print("after dead here")
 
             next_nodes = match.next_nodes_run(gdb_difference)
             for item in next_nodes:
@@ -231,7 +226,6 @@ def graph_diff_calc(gdb_abs, super_ds, run):  # pylint: disable=too-many-locals
             status = utilities.run_pending_nodes(
                 super_ds, clone_dataset, gdb_abs, gdb_difference, run
             )
-            # print('status->', run, status)
 
             if status is not None:
                 for item in output_datasets:
@@ -265,9 +259,7 @@ def match_run(abstract, provenance_path, branch):
 
     # Now we perform a git merge and branch delete
     outputs = list(set(outputs))
-    print("b4 merging", provenance_path, outputs)
     for output in outputs:
-        print("to_merge", provenance_path, output)
         utilities.git_merge(provenance_path, output)
 
     # Saving the current branch

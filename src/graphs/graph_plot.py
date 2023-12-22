@@ -167,9 +167,7 @@ def graph_object_plot_provenance(graph_input, fcolour="node_color"):
     relabeled_graph = nx.relabel_nodes(graph_input, mapping=mapping)
     for _, attrs in relabeled_graph.nodes(data=True):
         attrs["ID"] = attrs["ID"].split(",")[-1]
-        print(attrs["ID"].split(",")[-1])
 
-    print(relabeled_graph.nodes(data=True))
 
     # nx.set_node_attributes(
     #     relabeled_graph, "grey", name=fcolour

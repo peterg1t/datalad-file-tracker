@@ -233,18 +233,15 @@ def abs2prov(abstract_graph: nx.DiGraph,
     # First we create the branch in the existing dataset if it doesn't exists.
     # If the branch does exists then
     # we will check it out and commit to it.
-    print("get_git_root", dataset, utilities.get_git_root(dataset))
     repo = git.Repo(utilities.get_git_root(dataset))
     branches_project = utilities.get_branches(utilities.get_git_root(dataset))
 
     ds = utilities.get_superdataset(dataset=dataset)
     
     if abstract_branch in branches_project:
-        print("branch already exist in project")
         branch = repo.heads[abstract_branch]
         branch.checkout()
     else:
-        print("branch does not exist in project")
         branch = repo.git.checkout("--orphan", abstract_branch)
 
     index = repo.index
