@@ -3,9 +3,8 @@ import os
 
 import streamlit as st
 
-from ..utilities import (
-    encode,
-    file_name_expansion,
+from . import (encode,
+               file_name_expansion,
     line_process_file,
     line_process_task,
     line_process_task_v2,

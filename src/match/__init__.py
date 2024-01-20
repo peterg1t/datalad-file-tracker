@@ -1,4 +1,6 @@
 """Init module for match."""
+from utilities import encode
+
 from .difference import (
     graph_diff,
     graph_diff_tasks,

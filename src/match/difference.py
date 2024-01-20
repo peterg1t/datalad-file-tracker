@@ -4,7 +4,7 @@ from pathlib import Path
 
 import networkx as nx
 
-from ..utilities import encode
+from . import encode
 
 
 class FileHandleNotFound(Exception):

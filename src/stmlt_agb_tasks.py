@@ -27,11 +27,12 @@ from bokeh.models import (  # type: ignore
 from bokeh.plotting import figure, from_networkx
 from networkx.drawing.nx_agraph import graphviz_layout
 
-from . import (
-    graphs,
-    match,
-    utilities,
-)
+
+import graphs
+import match
+import utilities
+import import_export
+
 
 profiler = cProfile.Profile()
 
@@ -529,7 +530,8 @@ if __name__ == "__main__":
     # MemoryJobStore but define a ProcessPoolExecutor
     jobstores = {
         "default": SQLAlchemyJobStore(
-            url="sqlite:////Users/pemartin/Projects/datalad-file-tracker/src/jobstore.sqlite"  # noqa: E501
+            # url="sqlite:////Users/pemartin/Projects/datalad-file-tracker/src/jobstore.sqlite"  # noqa: E501
+            url="sqlite:////home/peter/MEGA/Devel/Python/datalad-file-tracker/jobstore.sqlite"  # noqa: E501
         )
     }
     executors = {

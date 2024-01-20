@@ -4,7 +4,7 @@ from datetime import datetime
 import datalad.api as dl
 import git
 
-from ..utilities import (
+from . import (
     commit_message_node_extract,
     full_path_from_partial,
     get_commit_list,
