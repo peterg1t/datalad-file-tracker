@@ -3,22 +3,21 @@ Docstring
 """
 import argparse
 import cProfile
-import os
 import csv
+import os
 from concurrent import futures
 
 import git
 import networkx as nx
-
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
-
 from globus_compute_sdk import Client, Executor
 from globus_compute_sdk.serialize import CombinedCode
 
-import graphs, match, utilities
-
+import graphs
+import match
+import utilities
 
 profiler = cProfile.Profile()
 
@@ -187,9 +186,7 @@ def graph_diff_calc(gdb_abs, super_ds, run):  # pylint: disable=too-many-locals
             gdb_provenance.add_nodes_from(nodes_provenance)
             gdb_provenance.add_edges_from(edges_provenance)
 
-            gdb_difference = match.graph_diff_tasks(
-                gdb_abs_proc, gdb_provenance
-            )
+            gdb_difference = match.graph_diff_tasks(gdb_abs_proc, gdb_provenance)
 
             # We now need to get the input file/files for this job so it can be passed
             # to the pending nodes job

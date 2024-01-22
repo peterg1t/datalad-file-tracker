@@ -55,7 +55,7 @@ def graph_diff_tasks(abstract, provenance):
 
     difference = copy.deepcopy(abstract)
 
-########################## Color abstract function##########################
+    ########################## Color abstract function##########################
     # duplicated_nodes = [n for n, v in abstract.nodes(data=True) if v["ID"] in prov_graph_id]
 
     # nx.set_node_attributes(abstract, "pending", "status")
@@ -68,7 +68,7 @@ def graph_diff_tasks(abstract, provenance):
     # difference.remove_nodes_from(
     #     n for n, v in abstract.nodes(data=True) if v["status"] == "complete"
     # )
-########################## End color abstract function##########################
+    ########################## End color abstract function##########################
 
     difference.remove_nodes_from(
         n for n, v in abstract.nodes(data=True) if v["ID"] in prov_graph_id
@@ -132,7 +132,7 @@ def graph_id_relabel(graph, nmap):
                 full_task_description.append(attrs["cmd"])
                 # attrs["ID"] = encode(",".join(sorted(full_task_description)))
                 attrs["ID"] = ",".join(sorted(full_task_description))
-                
+
         else:
             full_task_description = attrs["inputs"] + attrs["outputs"]
             full_task_description.append(attrs["command"])

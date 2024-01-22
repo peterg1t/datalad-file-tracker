@@ -4,8 +4,9 @@ import subprocess
 
 import datalad.api as dl
 
-from . import get_superdataset
 from match import next_nodes_run
+
+from . import get_superdataset
 
 
 def command_submit(command):

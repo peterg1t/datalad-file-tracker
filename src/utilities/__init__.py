@@ -1,4 +1,6 @@
 """Init module for utilities."""
+import match
+
 from .base_conversions import decode, encode  # pylint: disable=import-error
 from .git_utils import (  # pylint: disable=import-error
     branch_save,
@@ -33,8 +35,6 @@ from .string_manip import (  # pylint: disable=import-error
     line_process_task_v2,
     remove_space,
 )
-
-import match
 
 __all__ = [
     "is_tool",

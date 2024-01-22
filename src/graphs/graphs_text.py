@@ -763,7 +763,11 @@ def _parse_network_text(lines):
         The graph corresponding to the lines in network text format.
     """
     from itertools import chain
-    from typing import Any, NamedTuple, Union
+    from typing import (
+        Any,
+        NamedTuple,
+        Union,
+    )
 
     class ParseStackFrame(NamedTuple):
         node: Any

@@ -8,7 +8,8 @@ import networkx as nx
 import streamlit as st
 from bokeh.transform import linear_cmap
 
-import graphs, utilities
+import graphs
+import utilities
 
 profiler = cProfile.Profile()
 

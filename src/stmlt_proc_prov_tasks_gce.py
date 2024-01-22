@@ -3,22 +3,21 @@ Docstring
 """
 import argparse
 import cProfile
-import os
 import csv
+import os
 from concurrent import futures
 
 import git
 import networkx as nx
-
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
-
 from globus_compute_sdk import Client, Executor
 from globus_compute_sdk.serialize import CombinedCode
 
-import graphs, match, utilities
-
+import graphs
+import match
+import utilities
 
 profiler = cProfile.Profile()
 
@@ -26,6 +25,7 @@ profiler = cProfile.Profile()
 def add_func(a, b):
     """Function to execute."""
     import time
+
     time.sleep(20)
     return a + b
 
@@ -33,7 +33,7 @@ def add_func(a, b):
 def submit_globus_job(src_dataset, dest_dataset, branch):
     """Globus submit endpoint."""
     # tutorial endpoint (Raspberry Pi)
-    tutorial_endpoint_id = '3677a8af-0b38-4941-b9e7-1edda0af44d8' 
+    tutorial_endpoint_id = "3677a8af-0b38-4941-b9e7-1edda0af44d8"
     # ... then create the executor, ...
     gcc = Client(code_serialization_strategy=CombinedCode())
     with Executor(endpoint_id=tutorial_endpoint_id, client=gcc) as gce:
@@ -212,9 +212,7 @@ def graph_diff_calc(gdb_abs, super_ds, run):  # pylint: disable=too-many-locals
             gdb_provenance.add_nodes_from(nodes_provenance)
             gdb_provenance.add_edges_from(edges_provenance)
 
-            gdb_difference = match.graph_diff_tasks(
-                gdb_abs_proc, gdb_provenance
-            )
+            gdb_difference = match.graph_diff_tasks(gdb_abs_proc, gdb_provenance)
 
             list_nodes_run = graphs.start_nodes(gdb_difference)
             print("list_nodes_run", list_nodes_run)
@@ -226,8 +224,6 @@ def graph_diff_calc(gdb_abs, super_ds, run):  # pylint: disable=too-many-locals
             super_ds = "/home/peter/Devel/datalad-distribits-v2"
             submit_globus_job(super_ds, clone_dataset, run)
             exit(0)
-
-
 
             # clone the repo
             utilities.sub_clone_flock(super_ds, clone_dataset, run)
@@ -332,7 +328,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()  # pylint: disable = invalid-name
 
-    #we initialize the scheduler
+    # we initialize the scheduler
     scheduler = scheduler_configuration()
     scheduler.start()
 

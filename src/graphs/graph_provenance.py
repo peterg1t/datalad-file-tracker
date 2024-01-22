@@ -1,15 +1,15 @@
 """Utilities for graph provenance"""
+import datetime as dt
+import json
 import os
+from copy import copy as shallow_copy
 from datetime import datetime
 from pathlib import Path
+from typing import Any, TypeVar
+
 import datalad.api as dl
 import git
 import networkx as nx
-import datetime as dt
-import json
-from copy import copy as shallow_copy
-from typing import (Any,
-                    TypeVar)
 
 import utilities  # pylint: disable=import-error
 
@@ -111,7 +111,7 @@ def prov_scan(
                     node_list.append((file["path"], file))
                     edge_list.append((task["commit"], file["path"]))
             node_list.append((task["commit"], task))
-    
+
     return node_list, edge_list
 
 
@@ -159,9 +159,9 @@ def prov_scan_task(
             full_task_description = inputs + outputs
             full_task_description.append(dict_o["cmd"])
             task["ID"] = ",".join(sorted(full_task_description))
-            
+
             node_list.append((task["commit"], task))
-        
+
     for node1 in node_list:
         for node2 in node_list:
             diff_set = set(node1[1]["outputs"]).intersection(
@@ -169,16 +169,16 @@ def prov_scan_task(
             )  # noqa: E501
             if diff_set:
                 edge_list.append((node1[0], node2[0]))
-    
+
     return node_list, edge_list
 
 
 ListOrSet = TypeVar("ListOrSet", list, set)
 
 
-def ensure_iter(s: Any, cls: ListOrSet,
-                copy: bool = False,
-                iterate: bool = True) -> ListOrSet:
+def ensure_iter(
+    s: Any, cls: ListOrSet, copy: bool = False, iterate: bool = True
+) -> ListOrSet:
     """Given not a list, would place it into a list. If None - empty list is returned
 
     Parameters
@@ -197,7 +197,7 @@ def ensure_iter(s: Any, cls: ListOrSet,
         return s if not copy else shallow_copy(s)
     elif isinstance(s, str):
         return cls((s,))
-    elif iterate and hasattr(s, '__iter__'):
+    elif iterate and hasattr(s, "__iter__"):
         return cls(s)
     elif s is None:
         return cls()
@@ -220,9 +220,9 @@ def ensure_list(s: Any, copy: bool = False, iterate: bool = True) -> list:
     return ensure_iter(s, list, copy=copy, iterate=iterate)
 
 
-def abs2prov(abstract_graph: nx.DiGraph,
-             dataset: Path,
-             abstract_branch: str = "abstract"):
+def abs2prov(
+    abstract_graph: nx.DiGraph, dataset: Path, abstract_branch: str = "abstract"
+):
     """This function will take an abstract graph and write a provenance entry
     for every node in the dataset, this function will also take a branch name
     to store the provenance. If the input branch does not exists it will create it.
@@ -237,7 +237,7 @@ def abs2prov(abstract_graph: nx.DiGraph,
     branches_project = utilities.get_branches(utilities.get_git_root(dataset))
 
     ds = utilities.get_superdataset(dataset=dataset)
-    
+
     if abstract_branch in branches_project:
         branch = repo.heads[abstract_branch]
         branch.checkout()
@@ -274,20 +274,23 @@ def abs2prov(abstract_graph: nx.DiGraph,
         # file to be added to the dataset
 
         run_info = {
-            'cmd': node[1]['command'],
+            "cmd": node[1]["command"],
             # rerun does not handle any prop being None, hence all
             # the `or/else []`
-            'chain': [],
+            "chain": [],
         }
-    # for all following we need to make sure that the raw
-    # specifications, incl. any placeholders make it into
-    # the run-record to enable "parametric" re-runs
-    # ...except when expansion was requested
+        # for all following we need to make sure that the raw
+        # specifications, incl. any placeholders make it into
+        # the run-record to enable "parametric" re-runs
+        # ...except when expansion was requested
         extra_inputs = []
         specs = {
-            k: ensure_list(v) for k, v in (('inputs', node[1]['inputs']),
-                                           ('extra_inputs', extra_inputs),
-                                           ('outputs', node[1]['outputs']))
+            k: ensure_list(v)
+            for k, v in (
+                ("inputs", node[1]["inputs"]),
+                ("extra_inputs", extra_inputs),
+                ("outputs", node[1]["outputs"]),
+            )
         }
         # run_info['inputs'] = specs['inputs']
         # run_info['outputs'] = specs['outputs']
@@ -295,15 +298,14 @@ def abs2prov(abstract_graph: nx.DiGraph,
             # we don't need to expand globs here as this graph is abstract
             run_info[k] = v
 
-        run_info['pwd'] = os.path.abspath(os.path.dirname(__file__))
+        run_info["pwd"] = os.path.abspath(os.path.dirname(__file__))
         if ds.id:
             run_info["dsid"] = ds.id
         # no extra info is added at this time
         # if extra_info:
         #     run_info.update(extra_info)
-    
-        record = json.dumps(run_info, indent=1, sort_keys=True, ensure_ascii=False)
 
+        record = json.dumps(run_info, indent=1, sort_keys=True, ensure_ascii=False)
 
         # compose commit message
         msg = f"""\
@@ -316,6 +318,4 @@ def abs2prov(abstract_graph: nx.DiGraph,
 
         commit_date = dt.datetime.now(tzinfo)
         index.write()
-        index.commit(message=msg,
-                     author=author,
-                     commit_date=commit_date)
+        index.commit(message=msg, author=author, commit_date=commit_date)

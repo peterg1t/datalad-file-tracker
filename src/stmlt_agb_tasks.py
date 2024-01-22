@@ -30,7 +30,7 @@ from networkx.drawing.nx_agraph import graphviz_layout
 import graphs  # pylint: disable=import-error
 import match  # pylint: disable=import-error
 import utilities  # pylint: disable=import-error
-  
+
 profiler = cProfile.Profile()
 
 st.set_page_config(layout="wide")
@@ -39,7 +39,6 @@ st.write(
 Welcome to the abstract graph builder!
 """
 )
-
 
 
 def scheduler_configuration() -> int:
@@ -401,9 +400,7 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
 
         gdb_abstract = match.graph_remap_command_task(gdb_abstract, node_mapping)
         gdb_abstract = match.graph_id_relabel(gdb_abstract, node_mapping)
-        gdb_difference = match.graph_diff_tasks(
-            gdb_abstract, gdb_provenance
-        )
+        gdb_difference = match.graph_diff_tasks(gdb_abstract, gdb_provenance)
 
         if gdb_difference:
             graph_plot_diff = graphs.graph_object_plot_task(gdb_abstract)
@@ -564,7 +561,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()  # pylint: disable = invalid-name
 
-    #we initialize the scheduler
+    # we initialize the scheduler
     scheduler = scheduler_configuration()
     scheduler.start()
 
@@ -622,11 +619,9 @@ if __name__ == "__main__":
 
     # here we add a button to record the abstract graph as provenance
     if st.sidebar.button("Record as provenance"):
-        graphs.write_network_text(gdb,
-                                  with_labels=True,
-                                  vertical_chains=True,
-                                  ascii_only=True
-                                  )
+        graphs.write_network_text(
+            gdb, with_labels=True, vertical_chains=True, ascii_only=True
+        )
         graphs.abs2prov(gdb, provenance_graph_path, "abstract")
 
     if utilities.exists_case_sensitive(provenance_graph_path):
@@ -638,7 +633,6 @@ if __name__ == "__main__":
             match_graphs(provenance_graph_path, gdb, branch_select)
         run_next_button = st.sidebar.button("Run pending nodes")
         if run_next_button:
-            run_pending_nodes_scheduler(scheduler,
-                                        provenance_graph_path,
-                                        gdb,
-                                        branch_select)
+            run_pending_nodes_scheduler(
+                scheduler, provenance_graph_path, gdb, branch_select
+            )
