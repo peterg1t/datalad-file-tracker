@@ -38,8 +38,8 @@ def submit_globus_job(src_dataset, dest_dataset, branch):
     gcc = Client(code_serialization_strategy=CombinedCode())
     with Executor(endpoint_id=tutorial_endpoint_id, client=gcc) as gce:
         # ... then submit for execution, ...
-        # future = gce.submit(add_func, 5, 10)
-        future = gce.submit(utilities.sub_clone_flock, src_dataset, dest_dataset, branch)
+        future = gce.submit(add_func, 5, 10)
+        # future = gce.submit(utilities.sub_clone_flock, src_dataset, dest_dataset, branch)
 
     # ... and finally, wait for the result
     try:
