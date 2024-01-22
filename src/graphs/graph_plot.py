@@ -26,7 +26,6 @@ def graph_object_plot_task(graph_input, fcolour="node_color"):
     relabeled_graph = nx.relabel_nodes(graph_input, mapping=mapping)
 
     for _, attrs in relabeled_graph.nodes(data=True):
-        print(attrs)
         attrs["name"] = attrs["description"]
 
     # adding grey color at initialization
@@ -119,11 +118,13 @@ def graph_object_plot_abstract(graph_input, fcolour="node_color"):
     node_hover_tool = HoverTool(
         tooltips=[
             ("index", "@index"),
-            ("name", "@name"),
-            ("label", "@label"),
-            ("status", "@status"),
-            ("node_color", "@node_color"),
-            ("ID", "@ID"),
+            ("description", "@description"),
+            ("command", "@command"),
+            ("inputs", "@inputs"),
+            ("outputs", "@outputs"),
+            ("message", "@message"),
+            ("PCE", "@PCE"),
+            ("subworkflow", "@subworkflow"),
         ]
     )
     plot.add_tools(node_hover_tool, BoxZoomTool(), ResetTool())
@@ -133,15 +134,15 @@ def graph_object_plot_abstract(graph_input, fcolour="node_color"):
     x_coord, y_coord = zip(
         *graph.layout_provider.graph_layout.values()  # pylint: disable=no-member
     )
-    node_labels = nx.get_node_attributes(relabeled_graph, "name")
+    node_labels = nx.get_node_attributes(relabeled_graph, "description")
     node_names = list(node_labels.values())
 
-    source = ColumnDataSource({"x": x_coord, "y": y_coord, "name": node_names})
+    source = ColumnDataSource({"x": x_coord, "y": y_coord, "description": node_names})
 
     labels = LabelSet(
         x="x",
         y="y",
-        text="name",
+        text="description",
         source=source,
         background_fill_color="white",
         text_align="center",
@@ -166,9 +167,6 @@ def graph_object_plot_provenance(graph_input, fcolour="node_color"):
     relabeled_graph = nx.relabel_nodes(graph_input, mapping=mapping)
     for _, attrs in relabeled_graph.nodes(data=True):
         attrs["ID"] = attrs["ID"].split(",")[-1]
-        print(attrs["ID"].split(",")[-1])
-
-    print(relabeled_graph.nodes(data=True))
 
     # nx.set_node_attributes(
     #     relabeled_graph, "grey", name=fcolour

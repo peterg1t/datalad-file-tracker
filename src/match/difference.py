@@ -4,7 +4,7 @@ from pathlib import Path
 
 import networkx as nx
 
-from ..utilities import encode
+import utilities  # pylint: disable=import-error
 
 
 class FileHandleNotFound(Exception):
@@ -55,22 +55,28 @@ def graph_diff_tasks(abstract, provenance):
 
     difference = copy.deepcopy(abstract)
 
-    nodes_update = [n for n, v in abstract.nodes(data=True) if v["ID"] in prov_graph_id]
+    ########################## Color abstract function##########################
+    # duplicated_nodes = [n for n, v in abstract.nodes(data=True) if v["ID"] in prov_graph_id]
 
-    nx.set_node_attributes(abstract, "pending", "status")
-    nx.set_node_attributes(abstract, "grey", "node_color")
+    # nx.set_node_attributes(abstract, "pending", "status")
+    # nx.set_node_attributes(abstract, "grey", "node_color")
 
-    for node in nodes_update:
-        nx.set_node_attributes(abstract, {node: "complete"}, "status")
-        nx.set_node_attributes(abstract, {node: "green"}, "node_color")
+    # for node in duplicated_nodes:
+    #     nx.set_node_attributes(abstract, {node: "complete"}, "status")
+    #     nx.set_node_attributes(abstract, {node: "green"}, "node_color")
+
+    # difference.remove_nodes_from(
+    #     n for n, v in abstract.nodes(data=True) if v["status"] == "complete"
+    # )
+    ########################## End color abstract function##########################
 
     difference.remove_nodes_from(
-        n for n, v in abstract.nodes(data=True) if v["status"] == "complete"
+        n for n, v in abstract.nodes(data=True) if v["ID"] in prov_graph_id
     )
 
     # In the difference graph the start_nodes is the list of nodes that can be
     # started (these should usually be a task)
-    return abstract, difference
+    return difference
 
 
 def _neighbour_handles_for_node(
@@ -126,6 +132,7 @@ def graph_id_relabel(graph, nmap):
                 full_task_description.append(attrs["cmd"])
                 # attrs["ID"] = encode(",".join(sorted(full_task_description)))
                 attrs["ID"] = ",".join(sorted(full_task_description))
+
         else:
             full_task_description = attrs["inputs"] + attrs["outputs"]
             full_task_description.append(attrs["command"])
@@ -157,7 +164,9 @@ def graph_remap_command_task(graph, nmap):
 
         full_task_description = inputs_paths + output_paths
         full_task_description.append(attrs["command"])
-        graph2remap.nodes[node]["ID"] = encode(",".join(sorted(full_task_description)))
+        graph2remap.nodes[node]["ID"] = utilities.encode(
+            ",".join(sorted(full_task_description))
+        )
         inputs_mapped.update(outputs_mapped)
         new_command = _materialize_files_in_command(
             attrs["command"], node_handles_paths
@@ -204,21 +213,7 @@ def graph_remap_command(graph, nmap):
     return graph2remap
 
 
-def end_nodes(self):
-    """This function return the last node(s) in a tree
-
-    Returns:
-        list: A list of ending nodes
-    """
-    nodes = [
-        x
-        for x in self.graph.nodes()
-        if self.graph.out_degree(x) == 0 and self.graph.in_degree(x) == 1
-    ]
-    return nodes
-
-
-def next_nodes_run(graph):
+def next_nodes_run(graph: nx.DiGraph) -> list:
     """This function return the first node(s) in a tree or in the
     case of a diff graph the next node scheduled to run
     Returns:

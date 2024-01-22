@@ -1,4 +1,6 @@
 """Init module for utilities."""
+import match
+
 from .base_conversions import decode, encode  # pylint: disable=import-error
 from .git_utils import (  # pylint: disable=import-error
     branch_save,
