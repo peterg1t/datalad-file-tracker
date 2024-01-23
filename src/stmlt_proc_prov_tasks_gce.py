@@ -22,6 +22,32 @@ import utilities
 profiler = cProfile.Profile()
 
 
+def add_func(a, b):
+    """Function to execute."""
+    import time
+
+    time.sleep(20)
+    return a + b
+
+
+def submit_globus_job(src_dataset, dest_dataset, branch):
+    """Globus submit endpoint."""
+    # tutorial endpoint (Raspberry Pi)
+    tutorial_endpoint_id = "3677a8af-0b38-4941-b9e7-1edda0af44d8"
+    # ... then create the executor, ...
+    gcc = Client(code_serialization_strategy=CombinedCode())
+    with Executor(endpoint_id=tutorial_endpoint_id, client=gcc) as gce:
+        # ... then submit for execution, ...
+        future = gce.submit(add_func, 5, 10)
+        # future = gce.submit(utilities.sub_clone_flock, src_dataset, dest_dataset, branch)
+
+    # ... and finally, wait for the result
+    try:
+        print("Future result", future.result())
+    except Exception as exc:
+        print("Globus Compute returned an exception: ", exc)
+
+
 def scheduler_configuration() -> int:
     """
     Initializes and customizes a background scheduler for task management.
@@ -188,9 +214,16 @@ def graph_diff_calc(gdb_abs, super_ds, run):  # pylint: disable=too-many-locals
 
             gdb_difference = match.graph_diff_tasks(gdb_abs_proc, gdb_provenance)
 
+            list_nodes_run = graphs.start_nodes(gdb_difference)
+            print("list_nodes_run", list_nodes_run)
+
             # We now need to get the input file/files for this job so it can be passed
             # to the pending nodes job
             clone_dataset = f"/tmp/test_{run}"
+
+            super_ds = "/home/peter/Devel/datalad-distribits-v2"
+            submit_globus_job(super_ds, clone_dataset, run)
+            exit(0)
 
             # clone the repo
             utilities.sub_clone_flock(super_ds, clone_dataset, run)

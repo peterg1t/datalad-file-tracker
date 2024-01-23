@@ -1,4 +1,6 @@
+.DS_Store
 .trunk/
 env/
 *.pyc
 __pycache__/
+*sqlite

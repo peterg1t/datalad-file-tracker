@@ -54,7 +54,6 @@ def graph_diff_calc(gdb_abs, super_ds, run):  # pylint: disable=too-many-locals
     output_datasets = []
 
     for blob in tree.blobs:
-        print("blob name", blob.name)
         if blob.name == "tf.csv":
             translation_file_data = (
                 blob.data_stream.read().decode("utf-8").split("\n")
@@ -62,12 +61,9 @@ def graph_diff_calc(gdb_abs, super_ds, run):  # pylint: disable=too-many-locals
 
             for row in translation_file_data[:-1]:
                 row_splitted = row.split(",")
-                print("row", row, row_splitted, len(row_splitted))
                 node_mapping[row_splitted[0]] = f"{super_ds}/{row_splitted[1]}"
 
             gdb_abs_proc = match.graph_id_relabel(gdb_abs, node_mapping)
-            print("node_mapping", node_mapping, run)
-            print(gdb_abs_proc.nodes())
 
             nodes_provenance, edges_provenance = graphs.prov_scan(super_ds, run)
             gdb_provenance = nx.DiGraph()
@@ -113,7 +109,6 @@ def graph_diff_calc(gdb_abs, super_ds, run):  # pylint: disable=too-many-locals
             status = utilities.run_pending_nodes(
                 super_ds, clone_dataset, gdb_abstract, gdb_difference, run
             )
-            # print('status->', run, status)
 
             if status is not None:
                 for item in output_datasets:
@@ -147,9 +142,7 @@ def match_run(abstract, provenance_path, all_runs):
 
     # now we perform a git merge and branch delete on origin
     outputs = list(set(outputs))
-    print("b4 merging", provenance_path, outputs)
     for output in outputs:
-        print("to_merge", provenance_path, output)
         utilities.git_merge(provenance_path, output)
 
     # Saving the current branch

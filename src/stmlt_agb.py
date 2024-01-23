@@ -65,9 +65,6 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
         gdb_abstract = match.graph_remap_command(gdb_abstract, node_mapping)
         gdb_abstract = match.graph_id_relabel(gdb_abstract, node_mapping)
         gdb_abstract, gdb_difference = match.graph_diff(gdb_abstract, gdb_provenance)
-        # print("abstract", gdb_abstract.nodes(data=True), "\n")
-        # print("provenance", gdb_provenance.nodes(data=True), "\n")
-        # print("difference", gdb_difference.nodes(data=True), "\n")
         graph_plot_diff = graphs.graph_object_plot_abstract(gdb_abstract)
         plot_graph(graph_plot_diff)
 
@@ -100,18 +97,9 @@ def run_pending_nodes(scheduler_instance, provenance_ds_path, gdb_difference, br
     )
 
     gdb_difference = match.graph_id_relabel(gdb_difference, node_mapping)
-    print("graph_diff", gdb_difference.nodes(data=True), "\n")
 
     try:
         next_nodes_run = st.session_state["next_nodes_req"]
-        print(
-            "next_nodes_run",
-            next_nodes_run,
-            st.session_state,
-            "\n",
-            gdb_difference.nodes(data=True),
-        )
-
         for item in next_nodes_run:
             inputs = gdb_difference.nodes[item]["inputs"]
             outputs = gdb_difference.nodes[item]["outputs"]
@@ -119,15 +107,6 @@ def run_pending_nodes(scheduler_instance, provenance_ds_path, gdb_difference, br
             command = gdb_difference.nodes[item]["cmd"]
             message = "test"
 
-            print(
-                "submit_job",
-                provenance_ds_path,
-                inputs,
-                outputs,
-                message,
-                "command=",
-                command,
-            )
             scheduler_instance.add_job(
                 utilities.job_submit,
                 args=[provenance_ds_path, branch, inputs, outputs, message, command],
@@ -208,8 +187,6 @@ if __name__ == "__main__":
         gdb = nx.DiGraph()
         gdb.add_nodes_from(node_list)
         gdb.add_edges_from(edge_list)
-        # pprint.pp(gdb.nodes(data=True))
-        print(json.dumps(list(gdb.nodes(data=True)), indent=4))
         st.success("Graph created")
 
     except ValueError as error:
@@ -256,7 +233,6 @@ if __name__ == "__main__":
 
         run_next_button = st.sidebar.button("Run pending nodes")
         if run_next_button:
-            print("session state", st.session_state)
             run_pending_nodes(
                 scheduler,
                 provenance_graph_path,
