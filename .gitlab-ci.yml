@@ -1,72 +1,16 @@
-before_script:
-  # For debugging
-  - python3.11 --version
-  - python3.11 -m pip --version
-  # Setup environment
-  - python3.11 -m venv venv
-  - source venv/bin/activate
-
 stages:
   - build
   - test
+  - checks
 
-# build-docs:
-#   stage: build
-#   script:
-#     - echo "Building docs"
-#   artifacts:
-#     paths:
-#       - public
+workflow:
+  name: '$PIPELINE_NAME'
 
-lint:
-  stage: test
-  script:
-    # - pip install --editable ".[dev]"
-    - pip install -r requirements-dev.txt
-    - pre-commit install
-    - SKIP=mypy,pytest pre-commit run --all-files
-
-dependency-checking:
-  stage: test
-  script:
-    - pip install pip-audit
-    - pip-audit -r requirements.txt
-
-# type-check:
-#   stage: test
-#   script:
-#     # - pip install --editable ".[dev]"
-#     - pip install -r requirements-dev.txt
-#     - mypy src/
-
-# unit-tests:
-#   stage: test
-#   script:
-#     # - pip install --editable ".[dev]"
-#     - pip install -r requirements-dev.txt
-#     - pytest
-
-# integration-tests:
-#   stage: test
-#   script:
-#     - echo "Running integration tests"
-
-# coverage:
-#   stage: test
-#   script:
-#     - pip install coverage
-#     # - pip install --editable ".[dev]"
-#     - pip install -r requirements-dev.txt
-#     - coverage run -m pytest
-#     - coverage report --fail-under=90
-#     - coverage report > coverage.txt
-#     - coverage xml
-#   coverage: "/TOTAL.*\\s+(\\d+%)$/"
-#   artifacts:
-#     paths:
-#       - coverage.txt
-#     expire_in: 30 days
-#     reports:
-#       coverage_report:
-#         coverage_format: cobertura
-#         path: coverage.xml
+include:
+  - local: .gitlab/push.gitlab-ci.yml
+    rules:
+      - if: $CI_PIPELINE_SOURCE == "push"
+      - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+  - local: .gitlab/checks.gitlab-ci.yml
+    rules:
+      - if: $CI_PIPELINE_SOURCE == "schedule"

@@ -1,0 +1,59 @@
+variables:
+  PIPELINE_NAME: 'Push: $CI_COMMIT_TITLE'
+
+include:
+  - local: .gitlab/env_setup.yml
+
+before_script:
+  - !reference [".python_setup", "before_script"]
+
+# build-docs:
+#   stage: build
+#   script:
+#     - echo "Building docs"
+#   artifacts:
+#     paths:
+#       - public
+
+lint:
+  stage: test
+  script:
+    - pip install --editable ".[dev]"
+    - pre-commit install
+    - SKIP=mypy,pytest pre-commit run --all-files
+
+type-check:
+  stage: test
+  script:
+    - pip install --editable ".[dev]"
+    - mypy src/wtu
+
+unit-tests:
+  stage: test
+  script:
+    - pip install --editable ".[dev]"
+    - pytest
+
+# integration-tests:
+#   stage: test
+#   script:
+#     - echo "Running integration tests"
+
+coverage:
+  stage: test
+  script:
+    - pip install coverage
+    - pip install --editable ".[dev]"
+    - coverage run -m pytest
+    - coverage report --no-skip-covered
+    - coverage report --no-skip-covered > coverage.txt
+    - coverage xml
+  coverage: "/TOTAL.*\\s+(\\d+%)$/"
+  artifacts:
+    paths:
+      - coverage.txt
+    expire_in: 30 days
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml

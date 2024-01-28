@@ -1,0 +1,17 @@
+variables:
+  PIPELINE_NAME: 'Checks'
+
+include:
+  - local: .gitlab/env_setup.yml
+
+before_script:
+  - !reference [".python_setup", "before_script"]
+
+CVE:
+  stage: checks
+  script:
+    - echo "Checking for vulnerabilities in dependencies"
+    - pip install --editable ".[dev]"
+    - pip freeze > requirements.txt --exclude wtu
+    - pip install pip-audit
+    - pip-audit -r requirements.txt

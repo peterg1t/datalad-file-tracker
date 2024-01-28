@@ -1,0 +1,8 @@
+.python_setup:
+  before_script:
+    # For debugging
+    - python3.11 --version
+    - python3.11 -m pip --version
+    # Setup environment
+    - python3.11 -m venv venv
+    - source venv/bin/activate
