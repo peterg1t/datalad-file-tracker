@@ -178,13 +178,10 @@ def graph_components_generator(number_of_tasks):  # pylint: disable=too-many-loc
                 f"Message for task {i}", key=f"msg_{i}", placeholder="Message"
             )
 
-            pce = col8.number_input(
+            pce = col8.text_input(
                 f"PCE for task {i}",
                 key=f"pce_{i}",
-                value=0,
-                min_value=0,
-                step=1,
-                placeholder="Enter a number",
+                placeholder="Enter a PCE, it can be any series string without dashes",
             )
 
             subworkflow = col9.text_input(
