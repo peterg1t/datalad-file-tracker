@@ -6,6 +6,8 @@ import cProfile
 import csv
 import os
 from concurrent import futures
+import logging
+from pathlib import Path
 
 import git
 import networkx as nx
@@ -23,8 +25,18 @@ profiler = cProfile.Profile()
 
 
 def add_func(a, b):
-    """Function to execute."""
+    """Function to execute in the remote system.
+    It needs three things:
+    - Execute a function with datalad run in the remote system and record it in the dataset.
+    - Prepare a bundle file for transmission with Globus Transfer
+    
+    """
     import time
+    import git
+    import datalad.api as dl
+
+    
+
 
     time.sleep(20)
     return a + b
@@ -95,7 +107,7 @@ def scheduler_configuration() -> int:
 
 
 def run_pending_nodes_scheduler(
-    scheduler_instance, provenance_ds_path, gdb_difference, branch
+    scheduler_instance: BackgroundScheduler, provenance_ds_path, gdb_difference, branch
 ):  # pylint: disable=too-many-locals
     """! Given a graph and the list of nodes (and requirements i.e. inputs)
     compute the task with APScheduler
@@ -332,9 +344,37 @@ if __name__ == "__main__":
     scheduler = scheduler_configuration()
     scheduler.start()
 
-    abspath = args.agraph
-    provpath = args.pgraph
+    abspath = Path(args.agraph)
+    provpath = Path(args.pgraph)
     runs = args.runs
 
-    # Match run
-    match_run(abspath, provpath, runs)
+    # Create abstract graph
+    node_list, edge_list = graphs.gcg_processing_tasks(abspath)
+
+    try:
+        gdb = nx.DiGraph()
+        gdb.add_nodes_from(node_list)
+        gdb.add_edges_from(edge_list)
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+
+    print(gdb.nodes(data=True))
+
+    # Create provenance graph
+    for run in runs:
+        if utilities.exists_case_sensitive(provpath):
+            nodes_provenance, edges_provenance = graphs.prov_scan(
+                provpath, run
+            )
+            gdb_provenance = nx.DiGraph()
+            gdb_provenance.add_nodes_from(nodes_provenance)
+            gdb_provenance.add_edges_from(edges_provenance)
+
+    print("Provenance",gdb_provenance.nodes(data=True))
+    exit(0)
+
+    # Match calcualte difference and determine next nodes to run
+    # graph_difference = match.graph_diff_tasks(abstract_graph, provenance_graph)
+    
+    # Match and run
+    # match_run(abspath, provpath, runs)

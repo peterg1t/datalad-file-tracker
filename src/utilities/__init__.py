@@ -1,6 +1,4 @@
 """Init module for utilities."""
-import match
-
 from .base_conversions import decode, encode  # pylint: disable=import-error
 from .git_utils import (  # pylint: disable=import-error
     branch_save,
@@ -10,6 +8,7 @@ from .git_utils import (  # pylint: disable=import-error
     get_dataset,
     get_git_root,
     get_superdataset,
+    get_subdatasets,
     git_merge,
     job_checkout,
     sub_clone_flock,
@@ -44,6 +43,7 @@ __all__ = [
     "commit_message_node_extract",
     "get_dataset",
     "get_superdataset",
+    "get_subdatasets",
     "get_git_root",
     "get_branches",
     "sub_clone_flock",

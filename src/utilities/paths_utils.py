@@ -37,7 +37,7 @@ def exists_case_sensitive(path) -> bool:
     return designated_path in designated_path.parent.iterdir()
 
 
-def full_path_from_partial(top_level_path: str, relative_path: str) -> str:
+def full_path_from_partial(top_level_path: Path, relative_path: Path) -> Path:
     """This function will return an absolute path from a partial path an a
     top level path
 
@@ -48,7 +48,8 @@ def full_path_from_partial(top_level_path: str, relative_path: str) -> str:
     Returns:
         str: An absolute path
     """
-    return glob.glob(
-        top_level_path + f"/**/*{os.path.basename(relative_path)}",
-        recursive=True,
-    )[0]
+    absolute_path_from_partial_path = glob.glob(top_level_path + f"/**/*{os.path.basename(relative_path)}", recursive=True)
+    if absolute_path_from_partial_path:
+        return absolute_path_from_partial_path[0]
+
+    raise FileNotFoundError("File does not exists in the project")

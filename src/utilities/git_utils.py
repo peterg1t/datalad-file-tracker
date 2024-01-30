@@ -2,6 +2,7 @@
 import ast
 import os
 import re
+from pathlib import Path
 import subprocess
 
 import datalad.api as dl
@@ -38,7 +39,7 @@ def commit_message_node_extract(commit):
     )
 
 
-def get_dataset(dataset):
+def get_dataset(dataset: Path) -> dl.Dataset:
     """! This function will return a Datalad dataset for the given path
     Args:
         dataset (str): _description_
@@ -51,13 +52,30 @@ def get_dataset(dataset):
     raise Exception("""Dataset not valid.""")
 
 
-def get_superdataset(dataset: str) -> dl.Dataset:
+def get_superdataset(dataset: Path) -> dl.Dataset:
     """! This function will return the superdataset
     Returns:
         sds/dset (Dataset): A datalad superdataset
     """
     dset = dl.Dataset(dataset)
     sds = dset.get_superdataset()
+
+    if sds is not None:  # pylint: disable = no-else-return
+        return sds
+    else:
+        return dset
+
+
+def get_subdatasets(dataset: Path) -> dl.Dataset:
+    """! This function will return a list of all subdatasets
+    Returns:
+        sds/dset (Dataset): A list of subdatasets
+    """
+    dset = dl.Dataset(dataset)
+    sds = dset.subdatasets(recursive=True,
+                           on_failure='ignore',
+                           result_xfm='paths',
+                           result_renderer='disabled')
 
     if sds is not None:  # pylint: disable = no-else-return
         return sds
@@ -267,3 +285,12 @@ def branch_save(dataset, run):
 
 #     print('outlogs_merge=',outlogs)
 #     print('errlogs_merge=',errlogs)
+def git_bundle_import(path_dataset: Path, path_bundle: Path) -> None:
+    """This function will import a file bundle from a file into a specified dataset.
+
+    Args:
+        path_dataset (Path): The path to the dataset
+        path_bundle (Path): The path to the bundle
+    """
+    repo = git.Repo(path_dataset)
+    # Now we need to perform a pull from a specified bundle dataset

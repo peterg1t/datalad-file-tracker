@@ -4,11 +4,7 @@ from pathlib import Path
 
 import networkx as nx
 
-<<<<<<< HEAD
-from . import encode
-=======
 import utilities  # pylint: disable=import-error
->>>>>>> e135d909ccdac54dabe0319fbb2a49507c2d4dc4
 
 
 class FileHandleNotFound(Exception):

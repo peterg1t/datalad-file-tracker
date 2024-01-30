@@ -1,19 +1,10 @@
 """Utilities for graph generation"""
 import os
 
+from pathlib import Path
 import streamlit as st
 
-<<<<<<< HEAD
-from . import (encode,
-               file_name_expansion,
-    line_process_file,
-    line_process_task,
-    line_process_task_v2,
-    remove_space,
-)
-=======
 import utilities  # pylint: disable=import-error
->>>>>>> e135d909ccdac54dabe0319fbb2a49507c2d4dc4
 
 
 def process_task_node(
@@ -210,7 +201,7 @@ def graph_components_generator(number_of_tasks):  # pylint: disable=too-many-loc
     return nodes, edges
 
 
-def gcg_processing_tasks(filename):  # pylint: disable=too-many-locals
+def gcg_processing_tasks(filename: Path):  # pylint: disable=too-many-locals
     """! This function generate a networkx graph from a file containing an
     abstract graph
 

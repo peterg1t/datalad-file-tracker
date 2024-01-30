@@ -87,52 +87,6 @@ def scheduler_configuration() -> int:
     )
 
 
-def scheduler_configuration() -> int:
-    """
-    Initializes and customizes a background scheduler for task management.
-
-    This function creates a BackgroundScheduler instance with a customized configuration,
-    including a SQLAlchemyJobStore as the jobstore, a ThreadPoolExecutor with 8 threads
-    as the executor, and specific job defaults.
-
-    Returns:
-    str: The current state of the scheduler.
-
-    Notes:
-    - The default jobstore is a MemoryJobStore, but in this customization, it is replaced
-      with an SQLAlchemyJobStore using an SQLite database at the specified URL.
-    - The default executor is a ThreadPoolExecutor, and its thread count is set to 8.
-    - Job defaults include "coalesce" set to False and "max_instances" set to 3.
-    - The scheduler is started after customization.
-
-    Example:
-    ```python
-    scheduler_state = initialize_custom_scheduler()
-    print(f"The scheduler is initialized with state: {scheduler_state}")
-    ```
-    """
-    # We now start the background scheduler
-    # scheduler = BackgroundScheduler()
-    # This will get you a BackgroundScheduler with a MemoryJobStore named
-    # “default” and a ThreadPoolExecutor named “default” with a default
-    # maximum thread count of 10.
-
-    # Lets customize the scheduler a little bit lets keep the default
-    # MemoryJobStore but define a ProcessPoolExecutor
-    jobstores = {
-        "default": SQLAlchemyJobStore(
-            url="sqlite:////Users/pemartin/Projects/file-provenance-tracker/src/jobstore.sqlite"  # noqa: E501
-        )
-    }
-    executors = {
-        "default": ThreadPoolExecutor(8),
-    }
-    job_defaults = {"coalesce": False, "max_instances": 3}
-    return BackgroundScheduler(
-        jobstores=jobstores, executors=executors, job_defaults=job_defaults
-    )
-
-
 def graph_components_generator(number_of_tasks):  # pylint: disable=too-many-locals
     """! This function will generate the graph of the entire project
 
@@ -415,7 +369,9 @@ def export_graph_tasks(**kwargs):
         st.sidebar.text(f"{exception_graph}")
 
 
-def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
+def match_graphs(provenance_ds_path,
+                 gdb_abstract: nx.DiGraph,
+                 ds_branch: str) -> nx.DiGraph:
     """! Function to match the graphs loaded with Streamlit interface
 
     Args:
@@ -462,7 +418,10 @@ def match_graphs(provenance_ds_path, gdb_abstract, ds_branch):
 
 
 def run_pending_nodes_scheduler(
-    scheduler_instance, provenance_ds_path, gdb_difference, branch
+    scheduler_instance: BackgroundScheduler,
+    provenance_ds_path: str,
+    gdb_difference: nx.DiGraph,
+    branch: str
 ):  # pylint: disable=too-many-locals
     """! Given a graph and the list of nodes (and requirements i.e. inputs)
     compute the task with APScheduler
