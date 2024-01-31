@@ -20,7 +20,7 @@ from .graph_analysis import (
     eigen_centrl,
 )
 from .graph_gen import (
-    gcg_processing_tasks,
+    create_absract_graph_tasks,
     graph_components_generator,
     graph_components_generator_from_file,
 )
@@ -43,7 +43,7 @@ __all__ = [
     "graph_object_plot_task",
     "graph_components_generator",
     "graph_components_generator_from_file",
-    "gcg_processing_tasks",
+    "create_absract_graph_tasks",
     "prov_scan",
     "prov_scan_task",
     "abs2prov",

@@ -176,7 +176,14 @@ def prov_scan_task(
             if diff_set:
                 edge_list.append((node1[0], node2[0]))
 
-    return node_list, edge_list
+    try:
+        gdb = nx.DiGraph()
+        gdb.add_nodes_from(node_list)
+        gdb.add_edges_from(edge_list)
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+
+    return gdb
 
 
 ListOrSet = TypeVar("ListOrSet", list, set)

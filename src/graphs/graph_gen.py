@@ -1,6 +1,6 @@
 """Utilities for graph generation"""
 import os
-
+import networkx as nx
 from pathlib import Path
 import streamlit as st
 
@@ -201,7 +201,7 @@ def graph_components_generator(number_of_tasks):  # pylint: disable=too-many-loc
     return nodes, edges
 
 
-def gcg_processing_tasks(filename: Path):  # pylint: disable=too-many-locals
+def create_absract_graph_tasks(filename: Path):  # pylint: disable=too-many-locals
     """! This function generate a networkx graph from a file containing an
     abstract graph
 
@@ -249,4 +249,11 @@ def gcg_processing_tasks(filename: Path):  # pylint: disable=too-many-locals
                 if diff_set:
                     edges.append((node1[0], node2[0]))
 
-    return nodes, edges
+    try:
+        gdb = nx.DiGraph()
+        gdb.add_nodes_from(nodes)
+        gdb.add_edges_from(edges)
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+
+    return gdb

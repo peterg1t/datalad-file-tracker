@@ -334,19 +334,15 @@ if __name__ == "__main__":
     runs = args.runs
 
     # Create abstract graph
-    node_list, edge_list = graphs.gcg_processing_tasks(abspath)
+    gdb = graphs.create_absract_graph_tasks(abspath)
 
-    try:
-        gdb = nx.DiGraph()
-        gdb.add_nodes_from(node_list)
-        gdb.add_edges_from(edge_list)
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+    
 
-    # Create provenance graph for every run
+    # Create provenance graph for every run (orhpan branch)
     for run in runs:
 
-        # For every branch we need to use a translation file in the root folder of the dataset
+        # For every branch we need to use a translation file
+        # in the root folder of the dataset
         node_mapping = {}
         repo = git.Repo(provpath)
         branch = repo.heads[run]
@@ -359,12 +355,9 @@ if __name__ == "__main__":
                 node_mapping[row[0]] = f"{provpath}/{row[1]}"
 
         if utilities.exists_case_sensitive(provpath):
-            nodes_provenance, edges_provenance = graphs.prov_scan_task(
+            gdb_provenance = graphs.prov_scan_task(
                 provpath, run
             )
-            gdb_provenance = nx.DiGraph()
-            gdb_provenance.add_nodes_from(nodes_provenance)
-            gdb_provenance.add_edges_from(edges_provenance)
 
         gdb_abstract = match.graph_remap_command_task(gdb, node_mapping)
         gdb_abstract = match.graph_id_relabel(gdb_abstract, node_mapping)
@@ -377,7 +370,7 @@ if __name__ == "__main__":
             graph_plot_diff = graphs.graph_object_plot_task(gdb_abstract)
 
         run_pending_nodes_scheduler(scheduler_instance_jobs, gdb_difference, run)
-     
+
     print("Pending jobs", scheduler_instance_jobs.get_jobs())
     scheduler_instance_jobs.start()
 
