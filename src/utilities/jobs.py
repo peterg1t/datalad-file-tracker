@@ -6,7 +6,7 @@ import datalad.api as dl
 
 from match import next_nodes_run
 
-from . import get_superdataset, get_dataset
+from . import get_superdataset, get_dataset, get_git_root
 
 
 def command_submit(command):
@@ -115,30 +115,23 @@ def run_pending_nodes(original_ds, dataset, gdb_abstract, gdb_difference, branch
     outputs = []
     # try:
     next_nodes_req = next_nodes_run(gdb_difference)
-    print("next_nodes_req", next_nodes_req, "branch->", branch)
 
     for item in next_nodes_req:
-        inputs.extend(
-            [
-                os.path.join(dataset, os.path.relpath(p, original_ds))
-                for p in gdb_abstract.predecessors(item)
-            ]
-        )
-        outputs.extend(
-            [
-                os.path.join(dataset, os.path.relpath(s, original_ds))
-                for s in gdb_abstract.successors(item)
-            ]
-        )
+        inputs = [os.path.join(dataset, os.path.relpath(path, original_ds)) for path in gdb_difference.nodes(data=True)[item]["inputs"]]
+        outputs = [os.path.join(dataset, os.path.relpath(path, original_ds)) for path in gdb_difference.nodes(data=True)[item]["outputs"]]
+        # dataset = get_git_root(os.path.dirname(inputs[0]))
+        gdb_difference.nodes(data=True)[item]["command"] = gdb_difference.nodes(data=True)[item]["command"].replace(",".join(gdb_difference.nodes(data=True)[item]["inputs"]), ",".join(sorted(inputs)))
+        gdb_difference.nodes(data=True)[item]["command"] = gdb_difference.nodes(data=True)[item]["command"].replace(",".join(gdb_difference.nodes(data=True)[item]["outputs"]), ",".join(sorted(outputs)))
 
         if inputs:
             if all(os.path.exists(os.path.dirname(f)) for f in outputs) and all(
                 os.path.exists(os.path.dirname(f)) for f in inputs
             ):
-                command = gdb_difference.nodes[item]["cmd"]
+                command = gdb_difference.nodes[item]["command"]
                 message = "test"
-
-                return job_submit(dataset, branch, inputs, outputs, message, command)
+                print("HERE")
+                job_submit(dataset, branch, inputs, outputs, message, command)
+                return 0
 
     return None
 
@@ -160,7 +153,6 @@ def job_submit(
     """
     outlogs = []
     errlogs = []
-    print("submitting job", inputs, outputs, branch, message, command)
 
     # making the output stage folder
     if os.path.exists(os.path.dirname(outputs[0])):
@@ -181,7 +173,6 @@ def job_submit(
     )
 
     datalad_run_command = f"cd {dataset.path}; git checkout {branch}; datalad run -m '{message}' -d {dataset.path} -i {inputs_proc} -o {outputs_proc} '{command}'"  # noqa: E501
-    print("command->", datalad_run_command, "branch->", branch)
 
     outlog, errlog = command_submit(datalad_run_command)
     outlogs.append(outlog)

@@ -168,65 +168,51 @@ def graph_diff_calc(gdb_abs, super_ds, run):  # pylint: disable=too-many-locals
     """
     attribute_mapping = {}
     repo = git.Repo(super_ds)
-    tree = repo.heads[run].commit.tree
+    branch = repo.heads[run]
+    branch.checkout()
     output_datasets = []
 
-    for blob in tree.blobs:
-        if blob.name == "tf.csv":
-            translation_file_data = blob.data_stream.read().decode("utf-8").split("\n")
-            for row in translation_file_data[:-1]:
-                row_splitted = row.split(",")
-                # attribute_mapping[row_splitted[0]] = f"{super_ds}/{row_splitted[1]}"
-                attribute_mapping[row_splitted[0]] = f"{row_splitted[1]}"
+    with open(
+        f"{super_ds}/tf.csv", "r", encoding="utf-8"
+    ) as translation_file:
+        reader = csv.reader(translation_file)
+        for row in reader:
+            attribute_mapping[row[0]] = f"{super_ds}/{row[1]}"
 
-            gdb_abs_proc = match.graph_remap_command_task(gdb_abs, attribute_mapping)
-            gdb_abs_proc = match.graph_id_relabel(gdb_abs_proc, attribute_mapping)
-            nodes_provenance, edges_provenance = graphs.prov_scan_task(super_ds, run)
-            gdb_provenance = nx.DiGraph()
-            gdb_provenance.add_nodes_from(nodes_provenance)
-            gdb_provenance.add_edges_from(edges_provenance)
+    print(gdb_abs.nodes(data=True))
+    gdb_abs_proc = match.graph_remap_command_task(gdb_abs, attribute_mapping)
+    print(gdb_abs_proc.nodes(data=True))
+    gdb_abs_proc = match.graph_id_relabel(gdb_abs_proc, attribute_mapping)
+    gdb_provenance = graphs.prov_scan_task(super_ds, run)
+    gdb_difference = match.graph_diff_tasks(gdb_abs_proc, gdb_provenance)
+    # We now need to get the input file/files for this job so it can be passed
+    # to the pending nodes job
+    clone_dataset = f"/tmp/test_{run}"
+    # clone the repo
+    utilities.sub_clone_flock(super_ds, clone_dataset, run)
+    # get all submodules with no data
+    utilities.sub_get(source_dataset=clone_dataset, retrieve_data=True, recursive=False)
+    # mark dead here (ephemeral dataset)
+    utilities.sub_dead_here(clone_dataset)
+    next_nodes = match.next_nodes_run(gdb_difference)
+    for item in next_nodes:
+        output_datasets.extend([os.path.dirname(os.path.join(clone_dataset, os.path.relpath(path, super_ds))) for path in gdb_difference.nodes[item]["outputs"]])
 
-            gdb_difference = match.graph_diff_tasks(gdb_abs_proc, gdb_provenance)
+    for item in output_datasets:
+        if not os.path.exists(item):
+            os.mkdir(item)
+        utilities.job_checkout(clone_dataset, item, f"job-{run}")
 
-            # We now need to get the input file/files for this job so it can be passed
-            # to the pending nodes job
-            clone_dataset = f"/tmp/test_{run}"
-
-            # clone the repo
-            utilities.sub_clone_flock(super_ds, clone_dataset, run)
-
-            # get all submodules with no data
-            utilities.sub_get(clone_dataset, True)
-
-            # mark dead here (ephemeral dataset)
-            utilities.sub_dead_here(clone_dataset)
-
-            next_nodes = match.next_nodes_run(gdb_difference)
-            for item in next_nodes:
-                output_datasets.extend(
-                    [
-                        os.path.dirname(os.path.relpath(s, super_ds))
-                        for s in gdb_abs.successors(item)
-                        if os.path.exists(
-                            os.path.dirname(
-                                os.path.join(
-                                    clone_dataset, os.path.relpath(s, super_ds)
-                                )
-                            )
-                        )
-                    ]
-                )
-
-            for item in output_datasets:
-                utilities.job_checkout(clone_dataset, item, run)
-
-            status = utilities.run_pending_nodes(
-                super_ds, clone_dataset, gdb_abs, gdb_difference, run
-            )
-
-            if status is not None:
-                for item in output_datasets:
-                    utilities.sub_push_flock(clone_dataset, item, "origin")
+    status = utilities.run_pending_nodes(super_ds,
+                                         clone_dataset,
+                                         gdb_abs,
+                                         gdb_difference,
+                                         f"job-{run}"
+                                         )
+    print("STATUS", status)
+    if status is not None:
+        for item in output_datasets:
+            utilities.sub_push_flock(clone_dataset, item, "origin")
 
     return output_datasets
 
@@ -239,10 +225,7 @@ def match_run(abstract, provenance_path, branch):
         provenance_path (graph): Concrete graph
         branch (lst): A list of branches (could also contain just one branch)
     """
-    node_abstract_list, edge_abstract_list = graphs.gcg_processing_tasks(abstract)
-    gdb_abs = nx.DiGraph()
-    gdb_abs.add_nodes_from(node_abstract_list)
-    gdb_abs.add_edges_from(edge_abstract_list)
+    gdb_abs = graphs.create_absract_graph_tasks(abstract)
 
     outputs = []
     with futures.ProcessPoolExecutor(max_workers=4) as executor:
@@ -253,6 +236,9 @@ def match_run(abstract, provenance_path, branch):
 
         for future in futures.as_completed(future_results):
             outputs.extend(future.result())
+
+    print("EXECUTION DONE")
+    exit(0)
 
     # Now we perform a git merge and branch delete
     outputs = list(set(outputs))

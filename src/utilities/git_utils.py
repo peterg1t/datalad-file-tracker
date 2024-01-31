@@ -127,7 +127,7 @@ def sub_clone_flock(source_dataset, path_dataset, branch):
 
     outlogs = []
     errlogs = []
-    clone_command = f"cd {os.path.dirname(path_dataset)} && flock --verbose {source_dataset}/.git/datalad_lock datalad clone {source_dataset} {os.path.basename(path_dataset)} --branch {branch}"  # noqa: E501
+    clone_command = f"cd {source_dataset} && flock --verbose {source_dataset}/.git/datalad_lock datalad clone {source_dataset} {path_dataset} --branch {branch}"  # noqa: E501
     clone_command_output = subprocess.run(
         clone_command, shell=True, capture_output=True, text=True, check=False
     )
@@ -141,7 +141,7 @@ def sub_clone_flock(source_dataset, path_dataset, branch):
     return (outlogs, errlogs)
 
 
-def sub_get(source_dataset, recursive=False):  # pylint: disable=unused-argument
+def sub_get(source_dataset, retrieve_data=False, recursive=False):  # pylint: disable=unused-argument
     """Retrieve the contents of a DataLad dataset.
 
     This function performs a 'datalad get' operation on the specified DataLad
@@ -160,7 +160,12 @@ def sub_get(source_dataset, recursive=False):  # pylint: disable=unused-argument
     """
     outlogs = []
     errlogs = []
-    get_command = f"cd {source_dataset} && datalad get -n -r ."
+    arguments = ""
+    if not retrieve_data:
+        arguments += "-n "
+    if recursive:
+        arguments += "-r "
+    get_command = f"cd {source_dataset} && datalad get {arguments} ."
     get_command_output = subprocess.run(
         get_command, shell=True, capture_output=True, text=True, check=False
     )
@@ -225,7 +230,7 @@ def job_checkout(clone_dataset, ds_output, branch):
     errlogs = []
     dataset = os.path.join(clone_dataset, ds_output)
     print("dataset to checkout", dataset)
-    checkout_command = f"cd {dataset} && git -C {dataset} checkout --recurse-submodules -b 'job-{branch}'"  # noqa: E501
+    checkout_command = f"cd {dataset} && git -C {dataset} checkout --recurse-submodules -b '{branch}'"  # noqa: E501
     # print('checkout_command->', checkout_command)
     checkout_command_output = subprocess.run(
         checkout_command, shell=True, capture_output=True, text=True, check=False
@@ -236,8 +241,8 @@ def job_checkout(clone_dataset, ds_output, branch):
     errlog.pop()  # drop the empty last element
     outlogs.append(outlog)
     errlogs.append(errlog)
-    # print('outlogs_checkout=',outlogs)
-    # print('errlogs_checkout=',errlogs)
+    print('outlogs_checkout=', outlogs)
+    print('errlogs_checkout=', errlogs)
 
 
 def git_merge(superdataset, ds_output):

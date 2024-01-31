@@ -26,42 +26,6 @@ import utilities
 profiler = cProfile.Profile()
 
 
-def add_func(a, b):
-    """Function to execute in the remote system.
-    It needs three things:
-    - Execute a function with datalad run in the remote system and record it in the dataset.
-    - Prepare a bundle file for transmission with Globus Transfer
-    
-    """
-    import time
-    import git
-    import datalad.api as dl
-
-    
-
-
-    time.sleep(20)
-    return a + b
-
-
-def submit_globus_job(src_dataset, dest_dataset, branch):
-    """Globus submit endpoint."""
-    # tutorial endpoint (Raspberry Pi)
-    tutorial_endpoint_id = "3677a8af-0b38-4941-b9e7-1edda0af44d8"
-    # ... then create the executor, ...
-    gcc = Client(code_serialization_strategy=CombinedCode())
-    with Executor(endpoint_id=tutorial_endpoint_id, client=gcc) as gce:
-        # ... then submit for execution, ...
-        future = gce.submit(add_func, 5, 10)
-        # future = gce.submit(utilities.sub_clone_flock, src_dataset, dest_dataset, branch)
-
-    # ... and finally, wait for the result
-    try:
-        print("Future result", future.result())
-    except Exception as exc:
-        print("Globus Compute returned an exception: ", exc)
-
-
 def scheduler_configuration():
     """
     Initializes and customizes a background scheduler for task management.
@@ -113,6 +77,108 @@ def scheduler_configuration():
     )
 
 
+
+def remote_job_submit(
+    dataset, branch, inputs, outputs, message, command
+):
+    """! This function will execute the datalad run command
+
+    Args:
+        dataset (str): Path to the dataset
+        input (str): Path to input
+        output (str): Path to output
+        message (str): Commit message
+        command (str): Command
+
+    Raises:
+        Exception: If error is found
+    """
+    import os
+    import subprocess
+    import datalad.api as dl
+    outlogs = []
+    errlogs = []
+
+    # making the output stage folder
+    if os.path.exists(os.path.dirname(outputs[0])):
+        pass
+    else:
+        os.mkdir(os.path.dirname(outputs[0]))
+
+    inputs_proc = " -i ".join(inputs)
+    outputs_proc = " -o ".join(outputs)
+    # saving the dataset prior to processing
+
+    dataset = dl.Dataset(dataset)
+
+    dl.save(  # pylint: disable=no-member
+        path=dataset.path,
+        dataset=dataset.path,
+        recursive=True,
+    )
+
+    datalad_run_command = f"cd {dataset.path}; git checkout {branch}; datalad run -m '{message}' -d {dataset.path} -i {inputs_proc} -o {outputs_proc} '{command}'"  # noqa: E501
+
+    command_run_output = subprocess.run(
+        datalad_run_command, shell=True, capture_output=True, text=True, check=False
+    )
+    outlog = command_run_output.stdout.split("\n")
+    errlog = command_run_output.stderr.split("\n")
+    outlog.pop()  # drop the empty last element
+    errlog.pop()  # drop the empty last element
+    if "error" in errlog:
+        raise Exception(
+            """Error found in the datalad containers run command,
+                check the log for more information on this error."""
+            )
+
+    print("logs", outlog, errlog)
+
+
+def run_pending_nodes_gce_scheduler(
+    remote_endpoint_id,
+    graph_difference: nx.DiGraph,
+    branch_run: str
+):  # pylint: disable=too-many-locals
+    """! Given a graph and the list of nodes (and requirements i.e. inputs)
+    compute the task with APScheduler
+
+    Args:
+        graph_difference (graph): A graph of differences (abs-prov)
+    """
+    inputs = []
+    next_nodes = match.next_nodes_run(graph_difference)
+    print("NEXT NODES TO RUN", next_nodes, branch_run)
+    for item in next_nodes:
+        inputs = graph_difference.nodes(data=True)[item]["inputs"]
+        outputs = graph_difference.nodes(data=True)[item]["outputs"]
+        dataset = utilities.get_git_root(os.path.dirname(inputs[0]))
+        command = graph_difference.nodes(data=True)[item]["command"]
+        message = "test-remote"
+
+        # we need to rename the inputs with the remote dataset
+        remote_dataset = "/home/pemartin/datalad-distribits-remote"
+        inputs_remote = [inp.replace(dataset, remote_dataset) for inp in inputs]
+        outputs_remote = [out.replace(dataset, remote_dataset) for out in inputs]
+
+        gcc = Client(code_serialization_strategy=CombinedCode())
+        with Executor(endpoint_id=remote_endpoint_id, client=gcc) as gce:
+            # ... then submit for execution, ...
+            future = gce.submit(remote_job_submit,
+                                dataset,
+                                branch_run,
+                                inputs,
+                                outputs,
+                                message,
+                                command)
+
+    # ... and finally, wait for the result
+    try:
+        print("Future result", future.result())
+    except Exception as exc:
+        print("Globus Compute returned an exception: ", exc)
+
+
 def run_pending_nodes_scheduler(
     scheduler_instance,
     graph_difference: nx.DiGraph,
@@ -133,16 +199,12 @@ def run_pending_nodes_scheduler(
         dataset = utilities.get_git_root(os.path.dirname(inputs[0]))
         command = graph_difference.nodes(data=True)[item]["command"]
         message = "test"
-        print("J INP", inputs)
-        print("J OUT", outputs)
-        print("ABOUT TO SUBMIT JOB",
-              scheduler_instance.get_jobs,
-              scheduler_instance.running)
 
         scheduler_instance.add_job(
             utilities.job_submit,
             args=[dataset, branch_run, inputs, outputs, message, command],
         )
+
 
 
 # def run_preparation_worktree(super_ds, run):
@@ -328,15 +390,18 @@ if __name__ == "__main__":
 
     # we initialize the scheduler
     scheduler_instance_jobs = scheduler_configuration()
-    
+
+    # we set the gce id
+    gce_remote_endpoint_id = "edcbe7e1-e271-4790-ba81-885f1c038779"
+
     abspath = Path(args.agraph)
     provpath = Path(args.pgraph)
     runs = args.runs
 
+
+
     # Create abstract graph
     gdb = graphs.create_absract_graph_tasks(abspath)
-
-    
 
     # Create provenance graph for every run (orhpan branch)
     for run in runs:
@@ -369,14 +434,15 @@ if __name__ == "__main__":
             # print("DIFF", gdb_difference.nodes(data=True))
             graph_plot_diff = graphs.graph_object_plot_task(gdb_abstract)
 
-        run_pending_nodes_scheduler(scheduler_instance_jobs, gdb_difference, run)
+        # run_pending_nodes_scheduler(scheduler_instance_jobs, gdb_difference, run)
+        run_pending_nodes_gce_scheduler(gce_remote_endpoint_id, gdb_difference, run)
 
-    print("Pending jobs", scheduler_instance_jobs.get_jobs())
-    scheduler_instance_jobs.start()
 
-    
-    
-    print("BG scheduler status", scheduler_instance_jobs.running)
-    scheduler_instance_jobs.remove_all_jobs()
-    scheduler_instance_jobs.shutdown()
+
+    # print("Pending jobs", scheduler_instance_jobs.get_jobs())
+    # scheduler_instance_jobs.start()
+ 
+    # print("BG scheduler status", scheduler_instance_jobs.running)
+    # scheduler_instance_jobs.remove_all_jobs()
+    # scheduler_instance_jobs.shutdown()
 
