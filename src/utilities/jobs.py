@@ -6,7 +6,7 @@ import datalad.api as dl
 
 from match import next_nodes_run
 
-from . import get_superdataset
+from . import get_superdataset, get_dataset
 
 
 def command_submit(command):
@@ -172,15 +172,15 @@ def job_submit(
     outputs_proc = " -o ".join(outputs)
     # saving the dataset prior to processing
 
-    superdataset = get_superdataset(dataset=dataset)
+    dataset = get_dataset(dataset=dataset)
 
     dl.save(  # pylint: disable=no-member
-        path=superdataset.path,
-        dataset=superdataset.path,
+        path=dataset.path,
+        dataset=dataset.path,
         recursive=True,
     )
 
-    datalad_run_command = f"cd {superdataset.path}; datalad run -m '{message}' -d^ -i {inputs_proc} -o {outputs_proc} '{command}'"  # noqa: E501
+    datalad_run_command = f"cd {dataset.path}; git checkout {branch}; datalad run -m '{message}' -d {dataset.path} -i {inputs_proc} -o {outputs_proc} '{command}'"  # noqa: E501
     print("command->", datalad_run_command, "branch->", branch)
 
     outlog, errlog = command_submit(datalad_run_command)
@@ -194,4 +194,3 @@ def job_submit(
             )
 
     print("logs", outlogs, errlogs)
-    return outlogs

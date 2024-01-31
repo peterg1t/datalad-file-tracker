@@ -25,100 +25,93 @@ def prov_scan(
     """
     node_list = []
     edge_list = []
+
     superdataset = utilities.get_superdataset(dataset_path)
-    subdatasets = utilities.get_subdatasets(dataset_path)
-    datasets = subdatasets
-    datasets.append(superdataset.path)
+    dataset = utilities.get_dataset(dataset_path)
 
-    for dataset in datasets:
-        repo = git.Repo(dataset)
-        branches = [b.name for b in repo.branches]
-        if dataset_branch in branches:
-            commits = list(repo.iter_commits(repo.heads[dataset_branch]))
-            dl_run_commits = utilities.get_commit_list(commits)
+    repo = git.Repo(dataset.path)
+    branches = [b.name for b in repo.branches]
+    if dataset_branch in branches:
+        commits = list(repo.iter_commits(repo.heads[dataset_branch]))
+        dl_run_commits = utilities.get_commit_list(commits)
+        for commit in dl_run_commits:
+            task = {}
+            dict_o = utilities.commit_message_node_extract(commit)
+            task["dataset"] = dataset.path
+            task["command"] = dict_o["cmd"]
+            task["commit"] = commit.hexsha
+            task["author"] = commit.author.name
+            task["date"] = datetime.utcfromtimestamp(commit.authored_date).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )  # noqa: E501
+            task["inputs"] = ",".join(sorted(dict_o["inputs"]))
+            task["outputs"] = ",".join(sorted(dict_o["outputs"]))
+            # inputs_full_path = [
+            #     full_path_from_partial(dataset.path, inp)
+            #     for inp in dict_o["inputs"]
+            # ]
+            # outputs_full_path = [
+            #     full_path_from_partial(dataset.path, out)
+            #     for out in dict_o["outputs"]
+            # ]
+            inputs = dict_o["inputs"]
+            outputs = dict_o["outputs"]
+            full_task_description = inputs + outputs
+            full_task_description.append(dict_o["cmd"])
+            task["ID"] = ",".join(sorted(full_task_description))
 
-            for commit in dl_run_commits:
-                task = {}
-                dict_o = utilities.commit_message_node_extract(commit)
-                task["dataset"] = superdataset.path
-                task["command"] = dict_o["cmd"]
-                task["commit"] = commit.hexsha
-                task["author"] = commit.author.name
-                task["date"] = datetime.utcfromtimestamp(commit.authored_date). strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                )  # noqa: E501
-                task["inputs"] = ",".join(sorted(dict_o["inputs"]))
-                task["outputs"] = ",".join(sorted(dict_o["outputs"]))
+            if task["inputs"]:
+                for input_file in inputs:
+                    input_file_full_path = utilities.full_path_from_partial(
+                        superdataset.path, input_file
+                    )
+                    file = {}
+                    ds_file = git.Repo(
+                        utilities.get_git_root(input_file_full_path)
+                    )  # noqa: E501
+                    file_status = dl.status(  # pylint: disable=no-member
+                        path=input_file_full_path, dataset=ds_file.working_tree_dir
+                    )[
+                        0
+                    ]  # noqa: E501
+                    file["dataset"] = dataset
+                    file["path"] = input_file
+                    file["commit"] = commit.hexsha
+                    file["author"] = commit.author.name
+                    file["date"] = datetime.utcfromtimestamp(
+                        commit.authored_date
+                    ).strftime("%Y-%m-%d %H:%M:%S")
+                    file["status"] = file_status["gitshasum"]
+                    # file["ID"] = encode(input_file_full_path)
+                    file["ID"] = input_file
+                    node_list.append((file["path"], file))
+                    edge_list.append((file["path"], task["commit"]))
 
-                # inputs_full_path = [
-                #     full_path_from_partial(superdataset.path, inp)
-                #     for inp in dict_o["inputs"]
-                # ]
-                # outputs_full_path = [
-                #     full_path_from_partial(superdataset.path, out)
-                #     for out in dict_o["outputs"]
-                # ]
-                inputs = dict_o["inputs"]
-                outputs = dict_o["outputs"]
-
-                full_task_description = inputs + outputs
-                full_task_description.append(dict_o["cmd"])
-                task["ID"] = ",".join(sorted(full_task_description))
-                if task["inputs"]:
-                    for input_file in inputs:
-                        input_file_full_path = utilities.full_path_from_partial(
-                            superdataset.path, input_file
-                        )
-                        file = {}
-                        ds_file = git.Repo(
-                            utilities.get_git_root(input_file_full_path)
-                        )  # noqa: E501
-                        file_status = dl.status(  # pylint: disable=no-member
-                            path=input_file_full_path, dataset=ds_file. working_tree_dir
-                        )[
-                            0
-                        ]  # noqa: E501
-                        file["dataset"] = dataset
-                        file["path"] = input_file
-                        file["commit"] = commit.hexsha
-                        file["author"] = commit.author.name
-                        file["date"] = datetime.utcfromtimestamp(
-                            commit.authored_date
-                        ).strftime("%Y-%m-%d %H:%M:%S")
-                        file["status"] = file_status["gitshasum"]
-                        # file["ID"] = encode(input_file_full_path)
-                        file["ID"] = input_file
-
-                        node_list.append((file["path"], file))
-                        edge_list.append((file["path"], task["commit"]))
-                if task["outputs"]:
-                    for output_file in outputs:
-                        output_file_full_path = utilities.full_path_from_partial(
-                            superdataset.path, output_file
-                        )
-                        file = {}
-                        ds_file = git.Repo(
-                            utilities.get_git_root(output_file_full_path)
-                        )  # noqa: E501
-
-                        file_status = dl.status(  # pylint: disable=no-member
-                            path=output_file_full_path, dataset=ds_file.    working_tree_dir
-                        )[0]
-
-                        file["dataset"] = dataset
-                        file["path"] = output_file
-                        file["commit"] = commit.hexsha
-                        file["author"] = commit.author.name
-                        file["date"] = datetime.utcfromtimestamp(
-                            commit.authored_date
-                        ).strftime("%Y-%m-%d %H:%M:%S")
-                        file["status"] = file_status["gitshasum"]
-                        # file["ID"] = encode(output_file_full_path)
-                        file["ID"] = output_file
-
-                        node_list.append((file["path"], file))
-                        edge_list.append((task["commit"], file["path"]))
-                node_list.append((task["commit"], task))
+            if task["outputs"]:
+                for output_file in outputs:
+                    output_file_full_path = utilities.full_path_from_partial(
+                        superdataset.path, output_file
+                    )
+                    file = {}
+                    ds_file = git.Repo(
+                        utilities.get_git_root(output_file_full_path)
+                    )  # noqa: E501
+                    file_status = dl.status(  # pylint: disable=no-member
+                        path=output_file_full_path, dataset=ds_file.   working_tree_dir
+                    )[0]
+                    file["dataset"] = dataset
+                    file["path"] = output_file
+                    file["commit"] = commit.hexsha
+                    file["author"] = commit.author.name
+                    file["date"] = datetime.utcfromtimestamp(
+                        commit.authored_date
+                    ).strftime("%Y-%m-%d %H:%M:%S")
+                    file["status"] = file_status["gitshasum"]
+                    # file["ID"] = encode(output_file_full_path)
+                    file["ID"] = output_file
+                    node_list.append((file["path"], file))
+                    edge_list.append((task["commit"], file["path"]))
+            node_list.append((task["commit"], task))
 
     return node_list, edge_list
 
@@ -134,41 +127,46 @@ def prov_scan_task(
     """
     node_list = []
     edge_list = []
+
     superdataset = utilities.get_superdataset(dataset_path)
-    subdatasets = [dataset_path]
-    for subdataset in subdatasets:
-        repo = git.Repo(subdataset)
-        commits = list(repo.iter_commits(repo.heads[dataset_branch]))
-        dl_run_commits = utilities.get_commit_list(commits)
-        for commit in dl_run_commits:
-            task = {}
-            dict_o = utilities.commit_message_node_extract(commit)
-            task["dataset"] = superdataset.path
-            task["command"] = dict_o["cmd"]
-            task["commit"] = commit.hexsha
-            task["author"] = commit.author.name
-            task["date"] = datetime.utcfromtimestamp(commit.authored_date).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )  # noqa: E501
-            task["inputs"] = ",".join(sorted(dict_o["inputs"]))
-            task["outputs"] = ",".join(sorted(dict_o["outputs"]))
+    dataset = utilities.get_dataset(dataset_path)
 
-            # inputs_full_path = [
-            #     full_path_from_partial(superdataset.path, inp)
-            #     for inp in dict_o["inputs"]
-            # ]
-            # outputs_full_path = [
-            #     full_path_from_partial(superdataset.path, out)
-            #     for out in dict_o["outputs"]
-            # ]
-            inputs = dict_o["inputs"]
-            outputs = dict_o["outputs"]
+    repo = git.Repo(dataset.path)
+    commits = list(repo.iter_commits(repo.heads[dataset_branch]))
+    dl_run_commits = utilities.get_commit_list(commits)
+    for commit in dl_run_commits:
+        task = {}
+        dict_o = utilities.commit_message_node_extract(commit)
 
-            full_task_description = inputs + outputs
-            full_task_description.append(dict_o["cmd"])
-            task["ID"] = ",".join(sorted(full_task_description))
+        task["dataset"] = superdataset.path
+        task["command"] = dict_o["cmd"]
+        task["commit"] = commit.hexsha
+        task["author"] = commit.author.name
+        task["date"] = datetime.utcfromtimestamp(commit.authored_date).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )  # noqa: E501
+        task["inputs"] = ",".join(sorted(dict_o["inputs"]))
+        task["outputs"] = ",".join(sorted(dict_o["outputs"]))
+       
+        inputs_full_path = [
+            utilities.full_path_from_partial(superdataset.path, inp)
+            for inp in dict_o["inputs"]
+        ]
+        outputs_full_path = [
+            utilities.full_path_from_partial(superdataset.path, out)
+            for out in dict_o["outputs"]
+        ]
 
-            node_list.append((task["commit"], task))
+        # inputs = dict_o["inputs"]
+        # outputs = dict_o["outputs"]
+
+        dict_o["cmd"] = dict_o["cmd"].replace("\u007binputs\u007d", ",".join(sorted(inputs_full_path)))
+        dict_o["cmd"] = dict_o["cmd"].replace("\u007boutputs\u007d", ",".join(sorted(outputs_full_path)))
+
+        full_task_description = inputs_full_path + outputs_full_path
+        full_task_description.append(dict_o["cmd"])
+        task["ID"] = ",".join(sorted(full_task_description))
+        node_list.append((task["commit"], task))
 
     for node1 in node_list:
         for node2 in node_list:

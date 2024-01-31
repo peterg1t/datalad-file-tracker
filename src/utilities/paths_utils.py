@@ -48,7 +48,9 @@ def full_path_from_partial(top_level_path: Path, relative_path: Path) -> Path:
     Returns:
         str: An absolute path
     """
+    
     absolute_path_from_partial_path = glob.glob(top_level_path + f"/**/*{os.path.basename(relative_path)}", recursive=True)
+
     if absolute_path_from_partial_path:
         return absolute_path_from_partial_path[0]
 

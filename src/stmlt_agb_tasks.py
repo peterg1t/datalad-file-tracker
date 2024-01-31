@@ -387,7 +387,7 @@ def match_graphs(provenance_ds_path,
     ) as translation_file:
         reader = csv.reader(translation_file)
         for row in reader:
-            node_mapping[row[0]] = f"{provenance_ds_path}{row[1]}"
+            node_mapping[row[0]] = f"{provenance_ds_path}/{row[1]}"
 
     if utilities.exists_case_sensitive(provenance_ds_path):
         nodes_provenance, edges_provenance = graphs.prov_scan(
