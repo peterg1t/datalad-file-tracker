@@ -96,6 +96,9 @@ def remote_job_submit(
     import os
     import subprocess
     import datalad.api as dl
+    import cowsay
+
+
     outlogs = []
     errlogs = []
 
@@ -132,7 +135,7 @@ def remote_job_submit(
                 check the log for more information on this error."""
             )
 
-    print("logs", outlog, errlog)
+    return ("logs", outlog, errlog)
 
 
 def run_pending_nodes_gce_scheduler(
@@ -159,18 +162,21 @@ def run_pending_nodes_gce_scheduler(
         # we need to rename the inputs with the remote dataset
         remote_dataset = "/home/pemartin/datalad-distribits-remote"
         inputs_remote = [inp.replace(dataset, remote_dataset) for inp in inputs]
-        outputs_remote = [out.replace(dataset, remote_dataset) for out in inputs]
+        outputs_remote = [out.replace(dataset, remote_dataset) for out in outputs]
+        command_remote = command.replace(dataset, remote_dataset)
 
         gcc = Client(code_serialization_strategy=CombinedCode())
-        with Executor(endpoint_id=remote_endpoint_id, client=gcc) as gce:
+        with Executor(endpoint_id=remote_endpoint_id, client=gcc, user_endpoint_config={} ) as gce:
+            print("ID",gce.endpoint_id)
+            
             # ... then submit for execution, ...
             future = gce.submit(remote_job_submit,
-                                dataset,
+                                remote_dataset,
                                 branch_run,
-                                inputs,
-                                outputs,
+                                inputs_remote,
+                                outputs_remote,
                                 message,
-                                command)
+                                command_remote)
 
     # ... and finally, wait for the result
     try:
@@ -392,7 +398,7 @@ if __name__ == "__main__":
     scheduler_instance_jobs = scheduler_configuration()
 
     # we set the gce id
-    gce_remote_endpoint_id = "edcbe7e1-e271-4790-ba81-885f1c038779"
+    GCE_REMOTE_ENPOINT_ID = "ba2ebd33-a9e6-4bac-a472-ce239421f414"
 
     abspath = Path(args.agraph)
     provpath = Path(args.pgraph)
@@ -435,7 +441,7 @@ if __name__ == "__main__":
             graph_plot_diff = graphs.graph_object_plot_task(gdb_abstract)
 
         # run_pending_nodes_scheduler(scheduler_instance_jobs, gdb_difference, run)
-        run_pending_nodes_gce_scheduler(gce_remote_endpoint_id, gdb_difference, run)
+        run_pending_nodes_gce_scheduler(GCE_REMOTE_ENPOINT_ID, gdb_difference, run)
 
 
 
