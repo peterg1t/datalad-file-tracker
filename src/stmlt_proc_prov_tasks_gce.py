@@ -5,10 +5,12 @@ import argparse
 import cProfile
 import csv
 import os
+import time
 from concurrent import futures
 import logging
 from pathlib import Path
 from datetime import datetime
+from retrying import retry
 
 import git
 import networkx as nx
@@ -138,6 +140,9 @@ def remote_job_submit(
     return ("logs", outlog, errlog)
 
 
+
+
+
 def run_pending_nodes_gce_scheduler(
     remote_endpoint_id,
     graph_difference: nx.DiGraph,
@@ -160,212 +165,71 @@ def run_pending_nodes_gce_scheduler(
         message = "test-remote"
 
         # we need to rename the inputs with the remote dataset
-        remote_dataset = "/home/pemartin/datalad-distribits-remote"
+        REMOTE_DIR = "/home/pemartin"
+        remote_dataset = f"{REMOTE_DIR}/datalad-distribits-remote"
+        SRC_COLLECTION_ID = "05d01160-cb63-11ee-86f4-a14c48059678"
+        DST_COLLECTION_ID = "c6ac8e0e-b18f-11ee-b088-4bb870e392e2"
+        DST_DIR = "/Users/pemartin/Scripts"
+        local_dataset = f"{DST_DIR}/datalad-distribits"
+
         inputs_remote = [inp.replace(dataset, remote_dataset) for inp in inputs]
         outputs_remote = [out.replace(dataset, remote_dataset) for out in outputs]
         command_remote = command.replace(dataset, remote_dataset)
 
         gcc = Client(code_serialization_strategy=CombinedCode())
-        with Executor(endpoint_id=remote_endpoint_id, client=gcc, user_endpoint_config={} ) as gce:
-            print("ID",gce.endpoint_id)
-            
+        with Executor(endpoint_id=remote_endpoint_id,
+                      client=gcc,
+                      user_endpoint_config={}) as gce:
+            print("ID", gce.endpoint_id)
+
             # ... then submit for execution, ...
-            future = gce.submit(remote_job_submit,
-                                remote_dataset,
-                                branch_run,
-                                inputs_remote,
-                                outputs_remote,
-                                message,
-                                command_remote)
+            future_task_compute = gce.submit(remote_job_submit,
+                                             remote_dataset,
+                                             branch_run,
+                                             inputs_remote,
+                                             outputs_remote,
+                                             message,
+                                             command_remote)
+            try:
+                print("Future result", future_task_compute.result())
+            except Exception as exc:
+                print("Globus Compute returned an exception: ", exc)
 
-    # ... and finally, wait for the result
-    try:
-        print("Future result", future.result())
-    except Exception as exc:
-        print("Globus Compute returned an exception: ", exc)
+            future_task_bundle_create = gce.submit(utilities.git_bundle_create,
+                                                   remote_dataset,
+                                                   branch_run,
+                                                   REMOTE_DIR)
+            try:
+                print("Bundle created", future_task_bundle_create.result())
+            except Exception as exc:
+                print("Globus Compute returned an exception: ", exc)
 
+            future_task_bundle_transfer = gce.submit(utilities.globus_transfer,
+                                                     SRC_COLLECTION_ID,
+                                                     DST_COLLECTION_ID,
+                                                     future_task_bundle_create.result()[-1],
+                                                     DST_DIR, "One file transfer")
 
-def run_pending_nodes_scheduler(
-    scheduler_instance,
-    graph_difference: nx.DiGraph,
-    branch_run: str
-):  # pylint: disable=too-many-locals
-    """! Given a graph and the list of nodes (and requirements i.e. inputs)
-    compute the task with APScheduler
+            try:
+                print("Bundle scheduled for transfer", future_task_bundle_transfer.result())
+            except Exception as exc:
+                print("Globus Compute returned an exception: ", exc)
 
-    Args:
-        graph_difference (graph): A graph of differences (abs-prov)
-    """
-    inputs = []
-    next_nodes = match.next_nodes_run(graph_difference)
-    print("NEXT NODES TO RUN", next_nodes, branch_run)
-    for item in next_nodes:
-        inputs = graph_difference.nodes(data=True)[item]["inputs"]
-        outputs = graph_difference.nodes(data=True)[item]["outputs"]
-        dataset = utilities.get_git_root(os.path.dirname(inputs[0]))
-        command = graph_difference.nodes(data=True)[item]["command"]
-        message = "test"
-
-        scheduler_instance.add_job(
-            utilities.job_submit,
-            args=[dataset, branch_run, inputs, outputs, message, command],
-        )
+        local_path_bundle = Path(DST_DIR, os.path.basename(future_task_bundle_create.result()[-1]))
+        file_sense(Path(local_dataset), local_path_bundle, branch_run)
 
 
-
-# def run_preparation_worktree(super_ds, run):
-#     """
-#     Run preparation tasks for a worktree associated with a superdataset.
-
-#     This function initiates preparation tasks for a worktree associated with the
-#     specified superdataset. It delegates the preparation to the `utilities.job_prepare`
-#     function, which handles the actual preparation work.
-
-#     Args:
-#         super_ds (str): The path to the superdataset for which the worktree
-#         is being prepared.
-#         run (Any): The run-specific information or configuration required
-#           for the preparation.
-
-#     Returns:
-#         None
-
-#     Notes:
-#         - The `utilities` module must contain a function named `job_prepare` that
-#           performs the actual preparation work.
-#     """
-#     utilities.job_prepare(super_ds, run)
+@retry
+def file_sense(dataset: Path, file: Path, branch_run):
+    if not file.exists():
+        raise IOError("File not present")
+    else:
+        # Execute git import
+        print(f"File {file} now exists")
+        print(utilities.git_bundle_import(dataset, file, branch_run))
 
 
-# def run_cleaning_worktree(super_ds):
-#     """_summary_
 
-#     Args:
-#         super_ds (_type_): _description_
-#     """
-#     utilities.job_clean(super_ds)
-
-
-# def graph_diff_calc(gdb_abs, super_ds, run):  # pylint: disable=too-many-locals
-#     """Calculate the graph differences and perform necessary actions based
-#       on the provided parameters.
-
-#     Args:
-#         gdb_abs (DiGraph): The abstract graph database.
-#         super_ds (str): The path to the super dataset.
-#         run (str): The specific run to analyze.
-
-#     Returns:
-#         List[str]: A list of output datasets resulting from the graph differences.
-#     """
-#     attribute_mapping = {}
-#     repo = git.Repo(super_ds)
-#     tree = repo.heads[run].commit.tree
-#     output_datasets = []
-
-#     for blob in tree.blobs:
-#         if blob.name == "tf.csv":
-#             translation_file_data = blob.data_stream.read().decode("utf-8").split("\n")
-#             for row in translation_file_data[:-1]:
-#                 row_splitted = row.split(",")
-#                 # attribute_mapping[row_splitted[0]] = f"{super_ds}/{row_splitted[1]}"
-#                 attribute_mapping[row_splitted[0]] = f"{row_splitted[1]}"
-
-#             gdb_abs_proc = match.graph_remap_command_task(gdb_abs, attribute_mapping)
-#             gdb_abs_proc = match.graph_id_relabel(gdb_abs_proc, attribute_mapping)
-#             nodes_provenance, edges_provenance = graphs.prov_scan_task(super_ds, run)
-#             gdb_provenance = nx.DiGraph()
-#             gdb_provenance.add_nodes_from(nodes_provenance)
-#             gdb_provenance.add_edges_from(edges_provenance)
-
-#             gdb_difference = match.graph_diff_tasks(gdb_abs_proc, gdb_provenance)
-
-#             list_nodes_run = graphs.start_nodes(gdb_difference)
-#             print("list_nodes_run", list_nodes_run)
-
-#             # We now need to get the input file/files for this job so it can be passed
-#             # to the pending nodes job
-#             clone_dataset = f"/tmp/test_{run}"
-
-#             super_ds = "/home/peter/Devel/datalad-distribits-v2"
-#             submit_globus_job(super_ds, clone_dataset, run)
-#             exit(0)
-
-#             # clone the repo
-#             utilities.sub_clone_flock(super_ds, clone_dataset, run)
-
-#             # get all submodules with no data
-#             utilities.sub_get(clone_dataset, True)
-
-#             # mark dead here (ephemeral dataset)
-#             utilities.sub_dead_here(clone_dataset)
-
-#             next_nodes = match.next_nodes_run(gdb_difference)
-#             for item in next_nodes:
-#                 output_datasets.extend(
-#                     [
-#                         os.path.dirname(os.path.relpath(s, super_ds))
-#                         for s in gdb_abs.successors(item)
-#                         if os.path.exists(
-#                             os.path.dirname(
-#                                 os.path.join(
-#                                     clone_dataset, os.path.relpath(s, super_ds)
-#                                 )
-#                             )
-#                         )
-#                     ]
-#                 )
-
-#             for item in output_datasets:
-#                 utilities.job_checkout(clone_dataset, item, run)
-
-#             status = utilities.run_pending_nodes(
-#                 super_ds, clone_dataset, gdb_abs, gdb_difference, run
-#             )
-
-#             if status is not None:
-#                 for item in output_datasets:
-#                     utilities.sub_push_flock(clone_dataset, item, "origin")
-
-#     return output_datasets
-
-
-# def match_run(abstract, provenance_path, branch):
-#     """This function will match and run pending nodes
-
-#     Args:
-#         abstract (graph): Abstract graph
-#         provenance_path (graph): Concrete graph
-#         branch (lst): A list of branches (could also contain just one branch)
-#     """
-#     node_abstract_list, edge_abstract_list = graphs.gcg_processing_tasks(abstract)
-#     gdb_abs = nx.DiGraph()
-#     gdb_abs.add_nodes_from(node_abstract_list)
-#     gdb_abs.add_edges_from(edge_abstract_list)
-
-#     outputs = []
-#     with futures.ProcessPoolExecutor(max_workers=4) as executor:
-#         future_results = {
-#             executor.submit(graph_diff_calc, gdb_abs, provenance_path, run)
-#             for run in branch
-#         }
-
-#         for future in futures.as_completed(future_results):
-#             outputs.extend(future.result())
-
-#     # Now we perform a git merge and branch delete
-#     outputs = list(set(outputs))
-#     for output in outputs:
-#         utilities.git_merge(provenance_path, output)
-
-#     # Saving the current branch
-#     repo = git.Repo(provenance_path)
-#     current_branch = repo.active_branch
-#     utilities.branch_save(provenance_path, current_branch)
-
-#     # Now for every other branch we save the datasets to acknowledge the changes
-#     for run in branch:
-#         utilities.branch_save(provenance_path, run)
 
 
 if __name__ == "__main__":
@@ -440,15 +304,7 @@ if __name__ == "__main__":
             # print("DIFF", gdb_difference.nodes(data=True))
             graph_plot_diff = graphs.graph_object_plot_task(gdb_abstract)
 
-        # run_pending_nodes_scheduler(scheduler_instance_jobs, gdb_difference, run)
         run_pending_nodes_gce_scheduler(GCE_REMOTE_ENPOINT_ID, gdb_difference, run)
 
 
-
-    # print("Pending jobs", scheduler_instance_jobs.get_jobs())
-    # scheduler_instance_jobs.start()
- 
-    # print("BG scheduler status", scheduler_instance_jobs.running)
-    # scheduler_instance_jobs.remove_all_jobs()
-    # scheduler_instance_jobs.shutdown()
 

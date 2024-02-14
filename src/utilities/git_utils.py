@@ -286,16 +286,56 @@ def branch_save(dataset, run):
     errlog.pop()  # drop the empty last element
     outlogs.append(outlog)
     errlogs.append(errlog)
-
-
 #     print('outlogs_merge=',outlogs)
 #     print('errlogs_merge=',errlogs)
-def git_bundle_import(path_dataset: Path, path_bundle: Path) -> None:
+
+
+def git_bundle_create(path_dataset: Path, branch: str, bundle_path: Path):
+    """This function create a git bundle in a destination file
+
+    Args:
+        path_dataset (Path): The dataset path
+        path_bundle (Path): The file path
+    """
+    import os
+    import time
+    import subprocess
+    outlogs = []
+    errlogs = []
+    bundle_name = f'file-{time.time()}.bundle'
+    git_command = f"cd {path_dataset}; git bundle create {bundle_path}/{bundle_name} -1 {branch}"  # noqa: E501
+    git_command_output = subprocess.run(
+        git_command, shell=True, capture_output=True, text=True, check=False
+    )
+    outlog = git_command_output.stdout.split("\n")
+    errlog = git_command_output.stderr.split("\n")
+    outlog.pop()  # drop the empty last element
+    errlog.pop()  # drop the empty last element
+    outlogs.append(outlog)
+    errlogs.append(errlog)
+
+    return ("logs", outlog, errlog, os.path.join(bundle_path, bundle_name))
+
+
+def git_bundle_import(path_dataset: Path, path_bundle: Path, branch: str) -> None:
     """This function will import a file bundle from a file into a specified dataset.
 
     Args:
         path_dataset (Path): The path to the dataset
         path_bundle (Path): The path to the bundle
     """
-    repo = git.Repo(path_dataset)
-    # Now we need to perform a pull from a specified bundle dataset
+    outlogs = []
+    errlogs = []
+    print(f"Pulling branch {branch} from {path_bundle} in dataset {path_dataset}")
+    git_command = f"sleep 1; cd {path_dataset}; git remote add remote-endpoint {path_bundle} && git fetch remote-endpoint && git pull remote-endpoint {branch} && git remote rm remote-endpoint"  # noqa: E501
+    git_command_output = subprocess.run(
+        git_command, shell=True, capture_output=True, text=True, check=False
+    )
+    outlog = git_command_output.stdout.split("\n")
+    errlog = git_command_output.stderr.split("\n")
+    outlog.pop()  # drop the empty last element
+    errlog.pop()  # drop the empty last element
+    outlogs.append(outlog)
+    errlogs.append(errlog)
+
+    return ("logs", outlog, errlog)

@@ -1,5 +1,10 @@
 """Init module for utilities."""
 from .base_conversions import decode, encode  # pylint: disable=import-error
+
+from .globus import (
+    globus_transfer,
+)
+
 from .git_utils import (  # pylint: disable=import-error
     branch_save,
     commit_message_node_extract,
@@ -15,6 +20,8 @@ from .git_utils import (  # pylint: disable=import-error
     sub_dead_here,
     sub_get,
     sub_push_flock,
+    git_bundle_create,
+    git_bundle_import,
 )
 from .jobs import (  # pylint: disable=import-error
     job_clean,
@@ -64,4 +71,7 @@ __all__ = [
     "remove_space",
     "encode",
     "decode",
+    "git_bundle_create",
+    "git_bundle_import",
+    "globus_transfer",
 ]
