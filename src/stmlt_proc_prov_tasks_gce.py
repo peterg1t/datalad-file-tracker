@@ -135,7 +135,7 @@ def remote_job_submit(dataset, brnch, inputs, outputs, message, command):
     return ("logs", outlog, errlog)
 
 
-@retry
+@retry(wait_fixed=2000, stop_max_attempt_number=7)
 def file_sense(dataset: Path, file: Path, branch_run):
     file_size1 = os.path.getsize(file)
     time.sleep(0.5)
@@ -147,7 +147,7 @@ def file_sense(dataset: Path, file: Path, branch_run):
         print("File still downloading")
         raise IOError("File still downloading")
     # Execute git import
-    print(f"File {file} now exists")
+    print(f"File {file} now exists and it is ready to be consumed")
     print(utilities.git_bundle_import(dataset, file, branch_run))
 
 
