@@ -1,6 +1,7 @@
 """
 Docstring
 """
+
 import argparse
 import cProfile
 import csv
@@ -68,21 +69,17 @@ def scheduler_configuration():
     executors = {
         "default": ThreadPoolExecutor(8),
     }
-    job_defaults = {"coalesce": False,
-                    "max_instances": 3}
+    job_defaults = {"coalesce": False, "max_instances": 3}
     return BackgroundScheduler(
         jobstores=jobstores,
         executors=executors,
         job_defaults=job_defaults,
-        timezone='UTC',
-        first_run_time=datetime.now()
+        timezone="UTC",
+        first_run_time=datetime.now(),
     )
 
 
-
-def remote_job_submit(
-    dataset, branch, inputs, outputs, message, command
-):
+def remote_job_submit(dataset, brnch, inputs, outputs, message, command):
     """! This function will execute the datalad run command
 
     Args:
@@ -98,17 +95,15 @@ def remote_job_submit(
     import os
     import subprocess
     import datalad.api as dl
-    import cowsay
-
 
     outlogs = []
     errlogs = []
 
     # making the output stage folder
-    if os.path.exists(os.path.dirname(outputs[0])):
+    if os.path.exists(os.path.join(dataset, os.path.dirname(outputs[0]))):
         pass
     else:
-        os.mkdir(os.path.dirname(outputs[0]))
+        os.mkdir(os.path.join(dataset, os.path.dirname(outputs[0])))
 
     inputs_proc = " -i ".join(inputs)
     outputs_proc = " -o ".join(outputs)
@@ -122,7 +117,7 @@ def remote_job_submit(
         recursive=True,
     )
 
-    datalad_run_command = f"cd {dataset.path}; git checkout {branch}; datalad run -m '{message}' -d {dataset.path} -i {inputs_proc} -o {outputs_proc} '{command}'"  # noqa: E501
+    datalad_run_command = f"cd {dataset.path}; git checkout {brnch}; datalad run -m '{message}' -d {dataset.path} -i {inputs_proc} -o {outputs_proc} '{command}'"  # noqa: E501
 
     command_run_output = subprocess.run(
         datalad_run_command, shell=True, capture_output=True, text=True, check=False
@@ -135,18 +130,29 @@ def remote_job_submit(
         raise Exception(
             """Error found in the datalad containers run command,
                 check the log for more information on this error."""
-            )
+        )
 
     return ("logs", outlog, errlog)
 
 
-
+@retry
+def file_sense(dataset: Path, file: Path, branch_run):
+    file_size1 = os.path.getsize(file)
+    time.sleep(0.5)
+    file_size2 = os.path.getsize(file)
+    if not file.exists():
+        print("File does not exists yet")
+        raise IOError("File not present")
+    if file_size1 != file_size2:
+        print("File still downloading")
+        raise IOError("File still downloading")
+    # Execute git import
+    print(f"File {file} now exists")
+    print(utilities.git_bundle_import(dataset, file, branch_run))
 
 
 def run_pending_nodes_gce_scheduler(
-    remote_endpoint_id,
-    graph_difference: nx.DiGraph,
-    branch_run: str
+    remote_endpoint_id, graph_difference: nx.DiGraph, branch_run: str
 ):  # pylint: disable=too-many-locals
     """! Given a graph and the list of nodes (and requirements i.e. inputs)
     compute the task with APScheduler
@@ -172,64 +178,61 @@ def run_pending_nodes_gce_scheduler(
         DST_DIR = "/Users/pemartin/Scripts"
         local_dataset = f"{DST_DIR}/datalad-distribits"
 
-        inputs_remote = [inp.replace(dataset, remote_dataset) for inp in inputs]
-        outputs_remote = [out.replace(dataset, remote_dataset) for out in outputs]
-        command_remote = command.replace(dataset, remote_dataset)
+        # We are going to use only relative paths
+        inputs_remote = [os.path.relpath(inp, dataset) for inp in inputs]
+        outputs_remote = [os.path.relpath(out, dataset) for out in outputs]
+        command_remote = command.replace(f"{dataset}/", "")
 
         gcc = Client(code_serialization_strategy=CombinedCode())
-        with Executor(endpoint_id=remote_endpoint_id,
-                      client=gcc,
-                      user_endpoint_config={}) as gce:
+        with Executor(
+            endpoint_id=remote_endpoint_id, client=gcc, user_endpoint_config={}
+        ) as gce:
             print("ID", gce.endpoint_id)
 
             # ... then submit for execution, ...
-            future_task_compute = gce.submit(remote_job_submit,
-                                             remote_dataset,
-                                             branch_run,
-                                             inputs_remote,
-                                             outputs_remote,
-                                             message,
-                                             command_remote)
+            future_task_compute = gce.submit(
+                remote_job_submit,
+                remote_dataset,
+                branch_run,
+                inputs_remote,
+                outputs_remote,
+                message,
+                command_remote,
+            )
             try:
                 print("Future result", future_task_compute.result())
             except Exception as exc:
                 print("Globus Compute returned an exception: ", exc)
 
-            future_task_bundle_create = gce.submit(utilities.git_bundle_create,
-                                                   remote_dataset,
-                                                   branch_run,
-                                                   REMOTE_DIR)
-            try:
-                print("Bundle created", future_task_bundle_create.result())
-            except Exception as exc:
-                print("Globus Compute returned an exception: ", exc)
+    with Executor(
+        endpoint_id=remote_endpoint_id, client=gcc, user_endpoint_config={}
+    ) as gce:
+        future_task_bundle_create = gce.submit(
+            utilities.git_bundle_create,
+            remote_dataset,
+            branch_run,
+            REMOTE_DIR,
+            len(next_nodes),
+        )
+        try:
+            print("Bundle created", future_task_bundle_create.result())
+        except Exception as exc:
+            print("Globus Compute returned an exception: ", exc)
 
-            future_task_bundle_transfer = gce.submit(utilities.globus_transfer,
-                                                     SRC_COLLECTION_ID,
-                                                     DST_COLLECTION_ID,
-                                                     future_task_bundle_create.result()[-1],
-                                                     DST_DIR, "One file transfer")
+        print(
+            utilities.globus_transfer(
+                SRC_COLLECTION_ID,
+                DST_COLLECTION_ID,
+                future_task_bundle_create.result()[-1],
+                DST_DIR,
+                "One file transfer",
+            )
+        )
 
-            try:
-                print("Bundle scheduled for transfer", future_task_bundle_transfer.result())
-            except Exception as exc:
-                print("Globus Compute returned an exception: ", exc)
-
-        local_path_bundle = Path(DST_DIR, os.path.basename(future_task_bundle_create.result()[-1]))
+        local_path_bundle = Path(
+            DST_DIR, os.path.basename(future_task_bundle_create.result()[-1])
+        )
         file_sense(Path(local_dataset), local_path_bundle, branch_run)
-
-
-@retry
-def file_sense(dataset: Path, file: Path, branch_run):
-    if not file.exists():
-        raise IOError("File not present")
-    else:
-        # Execute git import
-        print(f"File {file} now exists")
-        print(utilities.git_bundle_import(dataset, file, branch_run))
-
-
-
 
 
 if __name__ == "__main__":
@@ -268,8 +271,6 @@ if __name__ == "__main__":
     provpath = Path(args.pgraph)
     runs = args.runs
 
-
-
     # Create abstract graph
     gdb = graphs.create_absract_graph_tasks(abspath)
 
@@ -282,17 +283,13 @@ if __name__ == "__main__":
         repo = git.Repo(provpath)
         branch = repo.heads[run]
         branch.checkout()
-        with open(
-            f"{provpath}/tf.csv", "r", encoding="utf-8"
-        ) as translation_file:
+        with open(f"{provpath}/tf.csv", "r", encoding="utf-8") as translation_file:
             reader = csv.reader(translation_file)
             for row in reader:
                 node_mapping[row[0]] = f"{provpath}/{row[1]}"
 
         if utilities.exists_case_sensitive(provpath):
-            gdb_provenance = graphs.prov_scan_task(
-                provpath, run
-            )
+            gdb_provenance = graphs.prov_scan_task(provpath, run)
 
         gdb_abstract = match.graph_remap_command_task(gdb, node_mapping)
         gdb_abstract = match.graph_id_relabel(gdb_abstract, node_mapping)
@@ -305,6 +302,3 @@ if __name__ == "__main__":
             graph_plot_diff = graphs.graph_object_plot_task(gdb_abstract)
 
         run_pending_nodes_gce_scheduler(GCE_REMOTE_ENPOINT_ID, gdb_difference, run)
-
-
-

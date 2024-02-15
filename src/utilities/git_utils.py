@@ -1,4 +1,5 @@
 """This module will contain functions for git operations"""
+
 import ast
 import os
 import re
@@ -72,10 +73,12 @@ def get_subdatasets(dataset: Path) -> dl.Dataset:
         sds/dset (Dataset): A list of subdatasets
     """
     dset = dl.Dataset(dataset)
-    sds = dset.subdatasets(recursive=True,
-                           on_failure='ignore',
-                           result_xfm='paths',
-                           result_renderer='disabled')
+    sds = dset.subdatasets(
+        recursive=True,
+        on_failure="ignore",
+        result_xfm="paths",
+        result_renderer="disabled",
+    )
 
     if sds is not None:  # pylint: disable = no-else-return
         return sds
@@ -141,7 +144,9 @@ def sub_clone_flock(source_dataset, path_dataset, branch):
     return (outlogs, errlogs)
 
 
-def sub_get(source_dataset, retrieve_data=False, recursive=False):  # pylint: disable=unused-argument
+def sub_get(
+    source_dataset, retrieve_data=False, recursive=False
+):  # pylint: disable=unused-argument
     """Retrieve the contents of a DataLad dataset.
 
     This function performs a 'datalad get' operation on the specified DataLad
@@ -241,8 +246,8 @@ def job_checkout(clone_dataset, ds_output, branch):
     errlog.pop()  # drop the empty last element
     outlogs.append(outlog)
     errlogs.append(errlog)
-    print('outlogs_checkout=', outlogs)
-    print('errlogs_checkout=', errlogs)
+    print("outlogs_checkout=", outlogs)
+    print("errlogs_checkout=", errlogs)
 
 
 def git_merge(superdataset, ds_output):
@@ -286,11 +291,18 @@ def branch_save(dataset, run):
     errlog.pop()  # drop the empty last element
     outlogs.append(outlog)
     errlogs.append(errlog)
+
+
 #     print('outlogs_merge=',outlogs)
 #     print('errlogs_merge=',errlogs)
 
 
-def git_bundle_create(path_dataset: Path, branch: str, bundle_path: Path):
+def git_bundle_create(
+    path_dataset: Path,
+    branch: str,
+    bundle_path: Path,
+    number_commits: int
+):
     """This function create a git bundle in a destination file
 
     Args:
@@ -300,10 +312,11 @@ def git_bundle_create(path_dataset: Path, branch: str, bundle_path: Path):
     import os
     import time
     import subprocess
+
     outlogs = []
     errlogs = []
-    bundle_name = f'file-{time.time()}.bundle'
-    git_command = f"cd {path_dataset}; git bundle create {bundle_path}/{bundle_name} -1 {branch}"  # noqa: E501
+    bundle_name = f"file-{time.time()}.bundle"
+    git_command = f"cd {path_dataset}; git bundle create {bundle_path}/{bundle_name} -{number_commits} {branch}"  # noqa: E501
     git_command_output = subprocess.run(
         git_command, shell=True, capture_output=True, text=True, check=False
     )
@@ -327,7 +340,7 @@ def git_bundle_import(path_dataset: Path, path_bundle: Path, branch: str) -> Non
     outlogs = []
     errlogs = []
     print(f"Pulling branch {branch} from {path_bundle} in dataset {path_dataset}")
-    git_command = f"sleep 1; cd {path_dataset}; git remote add remote-endpoint {path_bundle} && git fetch remote-endpoint && git pull remote-endpoint {branch} && git remote rm remote-endpoint"  # noqa: E501
+    git_command = f"cd {path_dataset}; git remote add remote-endpoint {path_bundle} && git fetch remote-endpoint && git pull remote-endpoint {branch} && git remote rm remote-endpoint"  # noqa: E501
     git_command_output = subprocess.run(
         git_command, shell=True, capture_output=True, text=True, check=False
     )
