@@ -13,12 +13,11 @@ from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
 from bokeh.io import export_png
 
-from . import (
-    graphs,
-    import_export,
-    match,
-    utilities,
-)
+import graphs
+import import_export
+import match
+import utilities
+
 
 profiler = cProfile.Profile()
 
@@ -159,7 +158,7 @@ if __name__ == "__main__":
     # MemoryJobStore but define a ProcessPoolExecutor
     jobstores = {
         "default": SQLAlchemyJobStore(
-            url="sqlite:////Users/pemartin/Projects/datalad-file-tracker/src/jobstore.sqlite"  # noqa: E501
+            url="sqlite:////Users/pemartin/Projects/file-provenance-tracker/src/jobstore.sqlite"  # noqa: E501
         )
     }
     executors = {
