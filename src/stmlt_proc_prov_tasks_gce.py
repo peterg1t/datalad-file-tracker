@@ -135,7 +135,7 @@ def remote_job_submit(dataset, brnch, inputs, outputs, message, command):
     return ("logs", outlog, errlog)
 
 
-@retry(wait_fixed=2000, stop_max_attempt_number=7)
+@retry()
 def file_sense(dataset: Path, file: Path, branch_run):
     file_size1 = os.path.getsize(file)
     time.sleep(0.5)
@@ -151,6 +151,32 @@ def file_sense(dataset: Path, file: Path, branch_run):
     print(utilities.git_bundle_import(dataset, file, branch_run))
 
 
+def datalad_wtf():
+    import os
+    import subprocess
+    import datalad.api as dl
+
+    outlogs = []
+    errlogs = []
+
+    datalad_run_command = "datalad wtf"  # noqa: E501
+
+    command_run_output = subprocess.run(
+        datalad_run_command, shell=True, capture_output=True, text=True, check=False
+    )
+    outlog = command_run_output.stdout.split("\n")
+    errlog = command_run_output.stderr.split("\n")
+    outlog.pop()  # drop the empty last element
+    errlog.pop()  # drop the empty last element
+    if "error" in errlog:
+        raise Exception(
+            """Error found in the datalad containers run command,
+                check the log for more information on this error."""
+        )
+
+    return ("logs", outlog, errlog)
+
+
 def run_pending_nodes_gce_scheduler(
     remote_endpoint_id, graph_difference: nx.DiGraph, branch_run: str
 ):  # pylint: disable=too-many-locals
@@ -163,76 +189,90 @@ def run_pending_nodes_gce_scheduler(
     inputs = []
     next_nodes = match.next_nodes_run(graph_difference)
     print("NEXT NODES TO RUN", next_nodes, branch_run)
-    for item in next_nodes:
-        inputs = graph_difference.nodes(data=True)[item]["inputs"]
-        outputs = graph_difference.nodes(data=True)[item]["outputs"]
-        dataset = utilities.get_git_root(os.path.dirname(inputs[0]))
-        command = graph_difference.nodes(data=True)[item]["command"]
-        message = "test-remote"
 
-        # we need to rename the inputs with the remote dataset
-        REMOTE_DIR = "/home/pemartin"
-        remote_dataset = f"{REMOTE_DIR}/datalad-distribits-remote"
-        SRC_COLLECTION_ID = "05d01160-cb63-11ee-86f4-a14c48059678"
-        DST_COLLECTION_ID = "c6ac8e0e-b18f-11ee-b088-4bb870e392e2"
-        DST_DIR = "/Users/pemartin/Scripts"
-        local_dataset = f"{DST_DIR}/datalad-distribits"
-
-        # We are going to use only relative paths
-        inputs_remote = [os.path.relpath(inp, dataset) for inp in inputs]
-        outputs_remote = [os.path.relpath(out, dataset) for out in outputs]
-        command_remote = command.replace(f"{dataset}/", "")
-
-        gcc = Client(code_serialization_strategy=CombinedCode())
-        with Executor(
-            endpoint_id=remote_endpoint_id, client=gcc, user_endpoint_config={}
-        ) as gce:
-            print("ID", gce.endpoint_id)
-
-            # ... then submit for execution, ...
-            future_task_compute = gce.submit(
-                remote_job_submit,
-                remote_dataset,
-                branch_run,
-                inputs_remote,
-                outputs_remote,
-                message,
-                command_remote,
-            )
-            try:
-                print("Future result", future_task_compute.result())
-            except Exception as exc:
-                print("Globus Compute returned an exception: ", exc)
+    gcc = Client(code_serialization_strategy=CombinedCode())
 
     with Executor(
         endpoint_id=remote_endpoint_id, client=gcc, user_endpoint_config={}
     ) as gce:
         future_task_bundle_create = gce.submit(
-            utilities.git_bundle_create,
-            remote_dataset,
-            branch_run,
-            REMOTE_DIR,
-            len(next_nodes),
+            datalad_wtf
         )
         try:
             print("Bundle created", future_task_bundle_create.result())
         except Exception as exc:
             print("Globus Compute returned an exception: ", exc)
 
-        print(
-            utilities.globus_transfer(
-                SRC_COLLECTION_ID,
-                DST_COLLECTION_ID,
-                future_task_bundle_create.result()[-1],
-                DST_DIR,
-                "One file transfer",
-            )
-        )
 
-        local_path_bundle = Path(
-            DST_DIR, os.path.basename(future_task_bundle_create.result()[-1])
-        )
-        file_sense(Path(local_dataset), local_path_bundle, branch_run)
+    # for item in next_nodes:
+    #     inputs = graph_difference.nodes(data=True)[item]["inputs"]
+    #     outputs = graph_difference.nodes(data=True)[item]["outputs"]
+    #     dataset = utilities.get_git_root(os.path.dirname(inputs[0]))
+    #     command = graph_difference.nodes(data=True)[item]["command"]
+    #     message = "test-remote"
+
+    #     # we need to rename the inputs with the remote dataset
+    #     REMOTE_DIR = "/home/pemartin"
+    #     remote_dataset = f"{REMOTE_DIR}/datalad-distribits-remote"
+    #     SRC_COLLECTION_ID = "05d01160-cb63-11ee-86f4-a14c48059678"
+    #     DST_COLLECTION_ID = "c6ac8e0e-b18f-11ee-b088-4bb870e392e2"
+    #     DST_DIR = "/Users/pemartin/Scripts"
+    #     local_dataset = f"{DST_DIR}/datalad-distribits"
+
+    #     # We are going to use only relative paths
+    #     inputs_remote = [os.path.relpath(inp, dataset) for inp in inputs]
+    #     outputs_remote = [os.path.relpath(out, dataset) for out in outputs]
+    #     command_remote = command.replace(f"{dataset}/", "")
+
+    #     with Executor(
+    #         endpoint_id=remote_endpoint_id, client=gcc, user_endpoint_config={}
+    #     ) as gce:
+    #         print("ID", gce.endpoint_id)
+
+    #         # ... then submit for execution, ...
+    #         future_task_compute = gce.submit(
+    #             remote_job_submit,
+    #             remote_dataset,
+    #             branch_run,
+    #             inputs_remote,
+    #             outputs_remote,
+    #             message,
+    #             command_remote,
+    #         )
+    #         try:
+    #             print("Future result", future_task_compute.result())
+    #         except Exception as exc:
+    #             print("Globus Compute returned an exception: ", exc)
+
+    # with Executor(
+    #     endpoint_id=remote_endpoint_id, client=gcc, user_endpoint_config={}
+    # ) as gce:
+    #     future_task_bundle_create = gce.submit(
+    #         utilities.git_bundle_create,
+    #         remote_dataset,
+    #         branch_run,
+    #         REMOTE_DIR,
+    #         len(next_nodes),
+    #     )
+    #     try:
+    #         print("Bundle created", future_task_bundle_create.result())
+    #     except Exception as exc:
+    #         print("Globus Compute returned an exception: ", exc)
+
+    #     print(
+    #         utilities.globus_transfer(
+    #             SRC_COLLECTION_ID,
+    #             DST_COLLECTION_ID,
+    #             future_task_bundle_create.result()[-1],
+    #             DST_DIR,
+    #             "One file transfer",
+    #         )
+    #     )
+
+    #     local_path_bundle = Path(
+    #         DST_DIR, os.path.basename(future_task_bundle_create.result()[-1])
+    #     )
+    #     file_sense(Path(local_dataset), local_path_bundle, branch_run)
 
 
 if __name__ == "__main__":
